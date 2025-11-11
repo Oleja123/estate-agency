@@ -2,8 +2,8 @@ COVERAGE_FILE ?= coverage.out
 
 TARGET ?= run # CHANGE THIS TO YOUR BINARY NAME
 MIGRATIONS_DIR := "db/migrations"
-PG_DSN := "postgres://root:root@properties_db:5432/agency?sslmode=disable"
-PG_DSN_TEST := "postgres://root:root@properties_db:5432/test?sslmode=disable"
+PG_DSN := "postgres://root:root@localhost:5432/db?sslmode=disable"
+PG_DSN_TEST := "postgres://root:root@localhost:5432/test?sslmode=disable"
 
 .PHONY: build
 build:
