@@ -54,7 +54,7 @@ func (r *Repository) Create(ctx context.Context, propertyType propertytype.Prope
 
 	r.Logger.InfoContext(ctx, "тип недвижимости успешно создан",
 		"операция", op,
-		"id_типа", Id,
+		"id типа", Id,
 		"название", propertyType.Name,
 	)
 
@@ -76,7 +76,7 @@ func (r *Repository) GetByID(ctx context.Context, Id int) (propertytype.Property
 
 	r.Logger.DebugContext(ctx, "получение типа недвижимости по Id",
 		"операция", op,
-		"id_типа", Id,
+		"id типа", Id,
 	)
 
 	var propertyType propertytype.PropertyType
@@ -90,7 +90,7 @@ func (r *Repository) GetByID(ctx context.Context, Id int) (propertytype.Property
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.Logger.DebugContext(ctx, "тип недвижимости не найден по Id",
 				"операция", op,
-				"id_типа", Id,
+				"id типа", Id,
 			)
 			return propertytype.PropertyType{}, basedberrors.NewErrNotFound("тип недвижимости", Id)
 		}
@@ -160,8 +160,8 @@ func (r *Repository) Update(ctx context.Context, propertyType propertytype.Prope
 
 	r.Logger.DebugContext(ctx, "обновление типа недвижимости",
 		"операция", op,
-		"id_типа", propertyType.Id,
-		"новое_название", propertyType.Name,
+		"id типа", propertyType.Id,
+		"новое название", propertyType.Name,
 	)
 
 	result, err := r.Client.Exec(ctx, sql, args...)
@@ -172,14 +172,14 @@ func (r *Repository) Update(ctx context.Context, propertyType propertytype.Prope
 	if result.RowsAffected() == 0 {
 		r.Logger.DebugContext(ctx, "тип недвижимости не найден для обновления",
 			"операция", op,
-			"id_типа", propertyType.Id,
+			"id типа", propertyType.Id,
 		)
 		return basedberrors.NewErrNotFound("тип недвижимости", propertyType.Id)
 	}
 
 	r.Logger.InfoContext(ctx, "тип недвижимости успешно обновлен",
 		"операция", op,
-		"id_типа", propertyType.Id,
+		"id типа", propertyType.Id,
 	)
 
 	return nil
@@ -199,7 +199,7 @@ func (r *Repository) Delete(ctx context.Context, Id int) error {
 
 	r.Logger.DebugContext(ctx, "удаление типа недвижимости",
 		"операция", op,
-		"id_типа", Id,
+		"id типа", Id,
 	)
 
 	result, err := r.Client.Exec(ctx, sql, args...)
@@ -210,14 +210,15 @@ func (r *Repository) Delete(ctx context.Context, Id int) error {
 	if result.RowsAffected() == 0 {
 		r.Logger.DebugContext(ctx, "тип недвижимости не найден для удаления",
 			"операция", op,
-			"id_типа", Id,
+			"id типа", Id,
 		)
 		return basedberrors.NewErrNotFound("тип недвижимости", Id)
 	}
 
 	r.Logger.InfoContext(ctx, "тип недвижимости успешно удален",
 		"операция", op,
-		"id_типа", Id,
+		"id типа", Id,
+		"строк удалено", result.RowsAffected(),
 	)
 
 	return nil
@@ -244,8 +245,8 @@ func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]
 
 	r.Logger.DebugContext(ctx, "получение списка типов недвижимости",
 		"операция", op,
-		"лимит", req.Limit,
-		"смещение", req.Offset,
+		"limit", req.Limit,
+		"offset", req.Offset,
 		"фильтры", fmt.Sprintf("%+v", req.Filter),
 	)
 
