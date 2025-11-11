@@ -40,12 +40,13 @@ func TestMain(m *testing.M) {
 			MaxAttempts:      5,
 			SecondsToConnect: 5,
 		},
+		GoosePath: "/home/oleg/go/bin/goose",
 	}
 
 	testClient, _ = postgresqlclient.NewClient(context.Background(), *testLogger, testConfig)
 	testRepo = New(testClient, testLogger)
 
-	if err := utils.RunGooseMigrations(testLogger); err != nil {
+	if err := utils.RunGooseMigrations(testLogger, testConfig.GoosePath); err != nil {
 		testLogger.Error("Не удалось запустить миграции goose", "ошибка", err)
 		os.Exit(1)
 	}

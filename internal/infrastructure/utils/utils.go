@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-func RunGooseMigrations(logger *slog.Logger) error {
+func RunGooseMigrations(logger *slog.Logger, goosePath string) error {
 	migrationsPath, err := getMigrationsPath(logger)
 	if err != nil {
 		return fmt.Errorf("ошибка получения путей для миграций: %w", err)
@@ -16,7 +16,7 @@ func RunGooseMigrations(logger *slog.Logger) error {
 
 	logger.Info("запуск миграций", "путь", migrationsPath)
 
-	cmd := exec.Command("goose",
+	cmd := exec.Command(goosePath,
 		"-dir", migrationsPath,
 		"postgres", "postgres://root:root@localhost:5432/test?sslmode=disable",
 		"up",
