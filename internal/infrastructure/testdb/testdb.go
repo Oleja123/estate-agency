@@ -69,6 +69,22 @@ func StartContainer(ctx context.Context, logger *slog.Logger) (*TestDB, error) {
 		}
 	}
 	if err != nil {
+		// As a last resort, try to use a local Postgres instance at 127.0.0.1:5432
+		logger.Info("docker unavailable, trying local postgres at 127.0.0.1:5432")
+		localDSN := "postgres://root:root@127.0.0.1:5432/test?sslmode=disable"
+		// quick check if local postgres is reachable
+		ctx2, cancel2 := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel2()
+		conn, cerr := pgx.Connect(ctx2, localDSN)
+		if cerr == nil {
+			_ = conn.Close(ctx2)
+			// run migrations against local DSN
+			if err := runGooseMigrations(logger, localDSN); err != nil {
+				return nil, fmt.Errorf("could not run migrations on local postgres: %w", err)
+			}
+			return &TestDB{DSN: localDSN, Host: "127.0.0.1", Port: "5432", terminate: func() {}}, nil
+		}
+
 		return nil, fmt.Errorf("could not connect to docker: %w", err)
 	}
 
