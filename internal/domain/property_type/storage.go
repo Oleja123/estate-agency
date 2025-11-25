@@ -1,4 +1,4 @@
-package propertytype
+package propertytypeservice
 
 import "context"
 
@@ -20,5 +20,5 @@ type Repository interface {
 	GetByName(ctx context.Context, name string) (PropertyType, error)
 	Update(ctx context.Context, propertyType PropertyType) error
 	Delete(ctx context.Context, id int) error
-	List(ctx context.Context, req ListRequest) ([]ListRequest, error)
+	List(ctx context.Context, req ListRequest) ([]PropertyType, error)
 }

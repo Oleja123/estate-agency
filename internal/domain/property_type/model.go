@@ -1,4 +1,4 @@
-package propertytype
+package propertytypeservice
 
 import (
 	"time"
