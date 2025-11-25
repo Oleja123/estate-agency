@@ -58,6 +58,17 @@ func StartContainer(ctx context.Context, logger *slog.Logger) (*TestDB, error) {
 
 	pool, err := dockertest.NewPool("")
 	if err != nil {
+		// Try Docker Desktop socket in user's home (common on Linux Docker Desktop)
+		if home, herr := os.UserHomeDir(); herr == nil {
+			desktopSock := filepath.Join(home, ".docker", "desktop", "docker-cli.sock")
+			if _, serr := os.Stat(desktopSock); serr == nil {
+				// set DOCKER_HOST and retry
+				_ = os.Setenv("DOCKER_HOST", "unix://"+desktopSock)
+				pool, err = dockertest.NewPool("")
+			}
+		}
+	}
+	if err != nil {
 		return nil, fmt.Errorf("could not connect to docker: %w", err)
 	}
 
@@ -181,18 +192,37 @@ func runGooseMigrations(logger *slog.Logger, dsn string) error {
 }
 
 func getMigrationsPath(logger *slog.Logger) (string, error) {
-	possiblePaths := []string{
-		"./db/migrations",
-		"db/migrations",
+	// Search for db/migrations in current directory and parent directories up to repository root.
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
-	for _, path := range possiblePaths {
-		absPath, _ := filepath.Abs(path)
-		if _, err := os.Stat(absPath); err == nil {
+	maxDepth := 8
+	dir := cwd
+	for i := 0; i < maxDepth; i++ {
+		candidate := filepath.Join(dir, "db", "migrations")
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			absPath, _ := filepath.Abs(candidate)
 			logger.Info("migrations folder found", "path", absPath)
+			return absPath, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+
+	// Fallback to legacy relative paths (for compatibility)
+	possiblePaths := []string{"./db/migrations", "db/migrations"}
+	for _, p := range possiblePaths {
+		absPath, _ := filepath.Abs(p)
+		if info, err := os.Stat(absPath); err == nil && info.IsDir() {
+			logger.Info("migrations folder found (fallback)", "path", absPath)
 			return absPath, nil
 		}
 	}
 
-	return "", fmt.Errorf("migrations folder not found: %v", possiblePaths)
+	return "", fmt.Errorf("migrations folder not found: searched from %s and tried %v", cwd, possiblePaths)
 }

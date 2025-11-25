@@ -16,7 +16,6 @@ import (
 	postgresqlclient "github.com/Oleja123/estate-agency/internal/infrastructure/client/postgresql"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/config"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/testdb"
-	"github.com/Oleja123/estate-agency/internal/infrastructure/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -71,20 +70,16 @@ func TestMain(m *testing.M) {
 			testConfig.DbConfig.Database = strings.TrimPrefix(u.Path, "/")
 		}
 	} else {
-		// try to start container and run migrations from code; if docker unavailable, fallback to local migrations
+		// try to start container and run migrations from code; if docker unavailable, fail fast
 		tdb, err := testdb.StartContainer(testCtx, testLogger)
 		if err != nil {
-			testLogger.Error("Failed to start test DB container, falling back to local migrations", "error", err)
-			if err := utils.RunGooseMigrations(testLogger); err != nil {
-				testLogger.Error("Failed to run goose migrations", "error", err)
-				os.Exit(1)
-			}
-		} else {
-			defer tdb.Terminate()
-			// update config to point to the container
-			testConfig.DbConfig.Host = tdb.Host
-			testConfig.DbConfig.Port = tdb.Port
+			testLogger.Error("Failed to start test DB container", "error", err)
+			os.Exit(1)
 		}
+		defer tdb.Terminate()
+		// update config to point to the container
+		testConfig.DbConfig.Host = tdb.Host
+		testConfig.DbConfig.Port = tdb.Port
 	}
 
 	testClient, _ = postgresqlclient.NewClient(context.Background(), *testLogger, testConfig)
