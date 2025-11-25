@@ -115,7 +115,7 @@ func (s *service) Login(ctx context.Context, req dto.LoginRequest) (dto.LoginRes
 
 	accessTTL := 15 * time.Minute
 	refreshTTL := 24 * time.Hour
-	access, exp, err := s.tokenService.GenerateAccessToken(u.Id, accessTTL)
+	access, exp, err := s.tokenService.GenerateAccessToken(u.Id, string(u.UserRole), accessTTL)
 	if err != nil {
 		s.logger.Error("login: failed to generate access token", "user_id", u.Id, "err", err)
 		return dto.LoginResponse{}, apperrors.NewErrInternal("failed to generate access token")
@@ -154,7 +154,7 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken string) (dto.Lo
 	// rotate tokens
 	accessTTL := 15 * time.Minute
 	refreshTTL := 24 * time.Hour
-	access, exp, err := s.tokenService.GenerateAccessToken(u.Id, accessTTL)
+	access, exp, err := s.tokenService.GenerateAccessToken(u.Id, string(u.UserRole), accessTTL)
 	if err != nil {
 		s.logger.Error("refresh: failed to generate access token", "user_id", u.Id, "err", err)
 		return dto.LoginResponse{}, apperrors.NewErrInternal("failed to generate access token")

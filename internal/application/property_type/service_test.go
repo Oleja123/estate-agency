@@ -1,206 +1,140 @@
-package propertytypesvc
+package propertytypeservice
 
 import (
 	"context"
-	"log/slog"
-	"os"
+	"errors"
 	"testing"
-
-	dto "github.com/Oleja123/estate-agency/internal/application/property_type/dto"
-	apperrors "github.com/Oleja123/estate-agency/internal/application/property_type/errors"
-	propertytype "github.com/Oleja123/estate-agency/internal/domain/property_type"
-	basedberrors "github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"log/slog"
+
+	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
+	dto "github.com/Oleja123/estate-agency/internal/application/property_type/dto"
+	domain "github.com/Oleja123/estate-agency/internal/domain/property_type"
+	dberrors "github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
 )
 
-// mockRepo is a lightweight mock implementing propertytype.Repository for tests.
 type mockRepo struct {
-	GetByNameFunc func(ctx context.Context, name string) (propertytype.PropertyType, error)
-	CreateFunc    func(ctx context.Context, pt propertytype.PropertyType) (int, error)
-	UpdateFunc    func(ctx context.Context, pt propertytype.PropertyType) error
+	CreateFn    func(ctx context.Context, pt domain.PropertyType) (int, error)
+	GetByIDFn   func(ctx context.Context, id int) (domain.PropertyType, error)
+	GetByNameFn func(ctx context.Context, name string) (domain.PropertyType, error)
+	UpdateFn    func(ctx context.Context, pt domain.PropertyType) error
+	DeleteFn    func(ctx context.Context, id int) error
+	ListFn      func(ctx context.Context, req domain.ListRequest) ([]domain.PropertyType, error)
 }
 
-func (f *mockRepo) Create(ctx context.Context, propertyType propertytype.PropertyType) (int, error) {
-	if f.CreateFunc != nil {
-		return f.CreateFunc(ctx, propertyType)
-	}
-	return 0, nil
+func (m *mockRepo) Create(ctx context.Context, pt domain.PropertyType) (int, error) {
+	return m.CreateFn(ctx, pt)
+}
+func (m *mockRepo) GetByID(ctx context.Context, id int) (domain.PropertyType, error) {
+	return m.GetByIDFn(ctx, id)
+}
+func (m *mockRepo) GetByName(ctx context.Context, name string) (domain.PropertyType, error) {
+	return m.GetByNameFn(ctx, name)
+}
+func (m *mockRepo) Update(ctx context.Context, pt domain.PropertyType) error {
+	return m.UpdateFn(ctx, pt)
+}
+func (m *mockRepo) Delete(ctx context.Context, id int) error { return m.DeleteFn(ctx, id) }
+func (m *mockRepo) List(ctx context.Context, req domain.ListRequest) ([]domain.PropertyType, error) {
+	return m.ListFn(ctx, req)
 }
 
-func (f *mockRepo) GetByID(ctx context.Context, id int) (propertytype.PropertyType, error) {
-	return propertytype.PropertyType{}, basedberrors.NewErrNotFound("property_type", id)
+func logger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(nil, &slog.HandlerOptions{Level: slog.LevelError}))
 }
 
-func (f *mockRepo) GetByName(ctx context.Context, name string) (propertytype.PropertyType, error) {
-	if f.GetByNameFunc != nil {
-		return f.GetByNameFunc(ctx, name)
-	}
-	return propertytype.PropertyType{}, basedberrors.NewErrNotFound("property_type", name)
-}
-
-func (f *mockRepo) Update(ctx context.Context, propertyType propertytype.PropertyType) error {
-	if f.UpdateFunc != nil {
-		return f.UpdateFunc(ctx, propertyType)
-	}
-	return nil
-}
-
-func (f *mockRepo) Delete(ctx context.Context, id int) error { return nil }
-func (f *mockRepo) List(ctx context.Context, req propertytype.ListRequest) ([]propertytype.PropertyType, error) {
-	return nil, nil
-}
-
-func makeLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-}
-
-func TestService_Create(t *testing.T) {
+func TestCreate_Success(t *testing.T) {
 	ctx := context.Background()
-	logger := makeLogger()
-	tests := []struct {
-		name        string
-		repoFactory func() *mockRepo
-		req         dto.CreateRequest
-		wantID      int
-		wantErr     bool
-		wantErrType string // "invalid" | "already"
-	}{
-		{
-			name: "success",
-			repoFactory: func() *mockRepo {
-				return &mockRepo{
-					GetByNameFunc: func(ctx context.Context, name string) (propertytype.PropertyType, error) {
-						return propertytype.PropertyType{}, basedberrors.NewErrNotFound("property_type", name)
-					},
-					CreateFunc: func(ctx context.Context, pt propertytype.PropertyType) (int, error) {
-						return 42, nil
-					},
-				}
-			},
-			req:     dto.CreateRequest{Name: "apartment"},
-			wantID:  42,
-			wantErr: false,
-		},
-		{
-			name: "empty_name",
-			repoFactory: func() *mockRepo {
-				return &mockRepo{}
-			},
-			req:         dto.CreateRequest{Name: ""},
-			wantErr:     true,
-			wantErrType: "invalid",
-		},
-		{
-			name: "already_exists",
-			repoFactory: func() *mockRepo {
-				return &mockRepo{
-					GetByNameFunc: func(ctx context.Context, name string) (propertytype.PropertyType, error) {
-						return propertytype.PropertyType{Id: 7, Name: name}, nil
-					},
-				}
-			},
-			req:         dto.CreateRequest{Name: "house"},
-			wantErr:     true,
-			wantErrType: "already",
-		},
+	repo := &mockRepo{}
+	repo.CreateFn = func(ctx context.Context, pt domain.PropertyType) (int, error) { return 1, nil }
+	repo.GetByIDFn = func(ctx context.Context, id int) (domain.PropertyType, error) {
+		return domain.PropertyType{Id: id, Name: "apartment"}, nil
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			repo := tc.repoFactory()
-			svc := New(repo, logger)
-
-			id, err := svc.Create(ctx, tc.req)
-			if tc.wantErr {
-				require.Error(t, err)
-				switch tc.wantErrType {
-				case "invalid":
-					_, ok := err.(apperrors.ErrInvalidInput)
-					assert.True(t, ok)
-				case "already":
-					_, ok := err.(apperrors.ErrAlreadyExists)
-					assert.True(t, ok)
-				default:
-					t.Fatalf("unknown wantErrType %s", tc.wantErrType)
-				}
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tc.wantID, id)
-			}
-		})
-	}
+	svc := New(repo, logger())
+	got, err := svc.Create(ctx, dto.CreatePropertyTypeRequest{Name: "apartment"})
+	require.NoError(t, err)
+	assert.Equal(t, "apartment", got.Name)
+	assert.Equal(t, 1, got.Id)
 }
 
-func TestService_Update(t *testing.T) {
+func TestCreate_AlreadyExists(t *testing.T) {
 	ctx := context.Background()
-	logger := makeLogger()
-	tests := []struct {
-		name        string
-		repoFactory func() *mockRepo
-		req         dto.UpdateRequest
-		wantErr     bool
-		wantErrType string // "invalid" | "already"
-	}{
-		{
-			name: "success",
-			repoFactory: func() *mockRepo {
-				return &mockRepo{
-					GetByNameFunc: func(ctx context.Context, name string) (propertytype.PropertyType, error) {
-						return propertytype.PropertyType{}, basedberrors.NewErrNotFound("property_type", name)
-					},
-					UpdateFunc: func(ctx context.Context, pt propertytype.PropertyType) error {
-						return nil
-					},
-				}
-			},
-			req:     dto.UpdateRequest{Id: 5, Name: "updated"},
-			wantErr: false,
-		},
-		{
-			name:        "empty_name",
-			repoFactory: func() *mockRepo { return &mockRepo{} },
-			req:         dto.UpdateRequest{Id: 5, Name: ""},
-			wantErr:     true,
-			wantErrType: "invalid",
-		},
-		{
-			name: "name_conflict",
-			repoFactory: func() *mockRepo {
-				return &mockRepo{
-					GetByNameFunc: func(ctx context.Context, name string) (propertytype.PropertyType, error) {
-						return propertytype.PropertyType{Id: 9, Name: name}, nil
-					},
-				}
-			},
-			req:         dto.UpdateRequest{Id: 5, Name: "duplicate"},
-			wantErr:     true,
-			wantErrType: "already",
-		},
+	repo := &mockRepo{}
+	repo.CreateFn = func(ctx context.Context, pt domain.PropertyType) (int, error) {
+		return 0, dberrors.NewErrAlreadyExists("property_type", "name", pt.Name)
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			repo := tc.repoFactory()
-			svc := New(repo, logger)
+	svc := New(repo, logger())
+	_, err := svc.Create(ctx, dto.CreatePropertyTypeRequest{Name: "apartment"})
+	require.Error(t, err)
+	var ae apperrors.ErrAlreadyExists
+	assert.True(t, errors.As(err, &ae))
+}
 
-			err := svc.Update(ctx, tc.req)
-			if tc.wantErr {
-				require.Error(t, err)
-				switch tc.wantErrType {
-				case "invalid":
-					_, ok := err.(apperrors.ErrInvalidInput)
-					assert.True(t, ok)
-				case "already":
-					_, ok := err.(apperrors.ErrAlreadyExists)
-					assert.True(t, ok)
-				default:
-					t.Fatalf("unknown wantErrType %s", tc.wantErrType)
-				}
-			} else {
-				require.NoError(t, err)
-			}
-		})
+func TestGetByID_NotFound(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockRepo{}
+	repo.GetByIDFn = func(ctx context.Context, id int) (domain.PropertyType, error) {
+		return domain.PropertyType{}, dberrors.NewErrNotFound("property_type", id)
 	}
+	svc := New(repo, logger())
+	_, err := svc.GetByID(ctx, 42)
+	require.Error(t, err)
+	var nf apperrors.ErrNotFound
+	assert.True(t, errors.As(err, &nf))
+}
+
+func TestUpdate_Success(t *testing.T) {
+	ctx := context.Background()
+	existing := domain.PropertyType{Id: 2, Name: "house"}
+	repo := &mockRepo{}
+	repo.GetByIDFn = func(ctx context.Context, id int) (domain.PropertyType, error) { return existing, nil }
+	repo.UpdateFn = func(ctx context.Context, pt domain.PropertyType) error { return nil }
+
+	svc := New(repo, logger())
+	err := svc.Update(ctx, dto.UpdatePropertyTypeRequest{ID: 2, Name: "villa"})
+	require.NoError(t, err)
+}
+
+func TestUpdate_NotFound(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockRepo{}
+	repo.GetByIDFn = func(ctx context.Context, id int) (domain.PropertyType, error) {
+		return domain.PropertyType{}, dberrors.NewErrNotFound("property_type", id)
+	}
+	svc := New(repo, logger())
+	err := svc.Update(ctx, dto.UpdatePropertyTypeRequest{ID: 99, Name: "x"})
+	require.Error(t, err)
+	var nf apperrors.ErrNotFound
+	assert.True(t, errors.As(err, &nf))
+}
+
+func TestList_Success(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockRepo{}
+	repo.ListFn = func(ctx context.Context, req domain.ListRequest) ([]domain.PropertyType, error) {
+		return []domain.PropertyType{{Id: 1, Name: "a"}, {Id: 2, Name: "b"}}, nil
+	}
+	svc := New(repo, logger())
+	res, err := svc.List(ctx, dto.ListPropertyTypesRequest{Limit: 10})
+	require.NoError(t, err)
+	assert.Len(t, res.Types, 2)
+	assert.Equal(t, 2, res.Total)
+}
+
+func TestDelete_NotFound(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockRepo{}
+	repo.DeleteFn = func(ctx context.Context, id int) error {
+		return dberrors.NewErrNotFound("property_type", id)
+	}
+	svc := New(repo, logger())
+	err := svc.Delete(ctx, 5)
+	require.Error(t, err)
+	var nf apperrors.ErrNotFound
+	assert.True(t, errors.As(err, &nf))
 }

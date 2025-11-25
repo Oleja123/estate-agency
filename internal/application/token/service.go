@@ -11,7 +11,8 @@ import (
 // Service provides token generation and validation.
 type Service interface {
 	// GenerateAccessToken creates a signed access token and returns token and expiry.
-	GenerateAccessToken(userID int, ttl time.Duration) (string, time.Time, error)
+	// The access token will contain the user id and role in its claims.
+	GenerateAccessToken(userID int, role string, ttl time.Duration) (string, time.Time, error)
 	// GenerateRefreshToken creates a refresh token (opaque) and stores it.
 	GenerateRefreshToken(userID int, ttl time.Duration) (string, error)
 	// ValidateAccessToken extracts userID from access token.
