@@ -9,24 +9,40 @@ import (
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
 	dto "github.com/Oleja123/estate-agency/internal/application/property/dto"
 	domain "github.com/Oleja123/estate-agency/internal/domain/property"
+	ptypedomain "github.com/Oleja123/estate-agency/internal/domain/property_type"
 	dberrors "github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
 )
 
 var _ Service = (*service)(nil)
 
 type service struct {
-	repo   domain.Repository
-	logger *slog.Logger
+	repo     domain.Repository
+	typeRepo ptypedomain.Repository
+	logger   *slog.Logger
 }
 
-func New(repo domain.Repository, logger *slog.Logger) Service {
-	return &service{repo: repo, logger: logger}
+// New constructs property service with property repository and property-type repository.
+func New(repo domain.Repository, typeRepo ptypedomain.Repository, logger *slog.Logger) Service {
+	return &service{repo: repo, typeRepo: typeRepo, logger: logger}
 }
 
 func (s *service) Create(ctx context.Context, req dto.CreatePropertyRequest) (domain.Property, error) {
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		return domain.Property{}, apperrors.NewErrInvalidInput("title", title, "must not be empty")
+	}
+
+	// validate type existence
+	if req.TypeID == 0 {
+		return domain.Property{}, apperrors.NewErrInvalidInput("type_id", req.TypeID, "must be provided")
+	}
+	if _, err := s.typeRepo.GetByID(ctx, req.TypeID); err != nil {
+		var nf dberrors.ErrNotFound
+		if errors.As(err, &nf) {
+			return domain.Property{}, apperrors.NewErrNotFound("property_type", req.TypeID)
+		}
+		s.logger.Error("create property: type repo error", "err", err)
+		return domain.Property{}, apperrors.NewErrInternal("failed to validate property type")
 	}
 
 	p := domain.Property{
@@ -86,10 +102,22 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 		return apperrors.NewErrInternal("failed to fetch property")
 	}
 
+	// if type changed (non-zero), validate existence
+	if req.TypeID != 0 && req.TypeID != p.TypeID {
+		if _, err := s.typeRepo.GetByID(ctx, req.TypeID); err != nil {
+			var nf dberrors.ErrNotFound
+			if errors.As(err, &nf) {
+				return apperrors.NewErrNotFound("property_type", req.TypeID)
+			}
+			s.logger.Error("update property: type repo error", "err", err)
+			return apperrors.NewErrInternal("failed to validate property type")
+		}
+		p.TypeID = req.TypeID
+	}
+
 	// apply updates
 	p.Title = strings.TrimSpace(req.Title)
 	p.PropertyDescription = strings.TrimSpace(req.PropertyDescription)
-	p.TypeID = req.TypeID
 	p.TransactionType = domain.TransactionType(req.TransactionType)
 	p.Price = req.Price
 	p.Area = req.Area

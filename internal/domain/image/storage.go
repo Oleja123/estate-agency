@@ -7,6 +7,9 @@ type ImageRepository interface {
 	// Create stores a new PropertyImage and returns its ID.
 	Create(ctx context.Context, img PropertyImage) (int, error)
 
+	// CreateMany stores multiple PropertyImage records and returns their IDs in order.
+	CreateMany(ctx context.Context, imgs []PropertyImage) ([]int, error)
+
 	// GetByID returns image by its ID.
 	GetByID(ctx context.Context, id int) (PropertyImage, error)
 

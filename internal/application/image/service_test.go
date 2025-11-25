@@ -1,0 +1,96 @@
+package imageservice
+
+import (
+    "context"
+    "errors"
+    "testing"
+
+    "log/slog"
+
+    apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
+    dto "github.com/Oleja123/estate-agency/internal/application/image/dto"
+    domain "github.com/Oleja123/estate-agency/internal/domain/image"
+    dberrors "github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
+    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/require"
+)
+
+type mockRepo struct {
+    CreateFn     func(ctx context.Context, img domain.PropertyImage) (int, error)
+    CreateManyFn func(ctx context.Context, imgs []domain.PropertyImage) ([]int, error)
+    GetByIDFn    func(ctx context.Context, id int) (domain.PropertyImage, error)
+    ListFn       func(ctx context.Context, propertyID int) ([]domain.PropertyImage, error)
+    DeleteFn     func(ctx context.Context, id int) error
+}
+
+func (m *mockRepo) Create(ctx context.Context, img domain.PropertyImage) (int, error) { return m.CreateFn(ctx, img) }
+func (m *mockRepo) CreateMany(ctx context.Context, imgs []domain.PropertyImage) ([]int, error) { return m.CreateManyFn(ctx, imgs) }
+func (m *mockRepo) GetByID(ctx context.Context, id int) (domain.PropertyImage, error)  { return m.GetByIDFn(ctx, id) }
+func (m *mockRepo) ListByProperty(ctx context.Context, propertyID int) ([]domain.PropertyImage, error) {
+    return m.ListFn(ctx, propertyID)
+}
+func (m *mockRepo) Delete(ctx context.Context, id int) error { return m.DeleteFn(ctx, id) }
+
+func logger() *slog.Logger { return slog.New(slog.NewTextHandler(nil, &slog.HandlerOptions{Level: slog.LevelError})) }
+
+func TestCreate_Success(t *testing.T) {
+    ctx := context.Background()
+    repo := &mockRepo{}
+    repo.CreateFn = func(ctx context.Context, img domain.PropertyImage) (int, error) { return 11, nil }
+    repo.GetByIDFn = func(ctx context.Context, id int) (domain.PropertyImage, error) { return domain.PropertyImage{ID: id, PropertyID: 5, Path: "/tmp/x.jpg"}, nil }
+
+    svc := New(repo, logger(), t.TempDir())
+    got, err := svc.Create(ctx, dto.CreateImageRequest{PropertyID: 5, File: dto.ImageFile{Filename: "x.jpg", Data: []byte("x")}})
+    require.NoError(t, err)
+    assert.Equal(t, 11, got.ID)
+}
+
+func TestCreate_InvalidInput(t *testing.T) {
+    ctx := context.Background()
+    svc := New(&mockRepo{}, logger(), t.TempDir())
+    _, err := svc.Create(ctx, dto.CreateImageRequest{PropertyID: 0, File: dto.ImageFile{Filename: "", Data: nil}})
+    require.Error(t, err)
+}
+
+func TestCreateMany_Success(t *testing.T) {
+    ctx := context.Background()
+    repo := &mockRepo{}
+    repo.CreateManyFn = func(ctx context.Context, imgs []domain.PropertyImage) ([]int, error) { return []int{1, 2, 3}, nil }
+    repo.GetByIDFn = func(ctx context.Context, id int) (domain.PropertyImage, error) { return domain.PropertyImage{ID: id, PropertyID: 7, Path: "/tmp/x.jpg"}, nil }
+
+    svc := New(repo, logger(), t.TempDir())
+    items := []dto.ImageFile{{Filename: "a.jpg", Data: []byte("a")}, {Filename: "b.jpg", Data: []byte("b")}, {Filename: "c.jpg", Data: []byte("c")}}
+    res, err := svc.CreateMany(ctx, dto.CreateImagesRequest{PropertyID: 7, Files: items})
+    require.NoError(t, err)
+    assert.Len(t, res, 3)
+}
+
+func TestCreateMany_Empty(t *testing.T) {
+    ctx := context.Background()
+    svc := New(&mockRepo{}, logger(), t.TempDir())
+    res, err := svc.CreateMany(ctx, dto.CreateImagesRequest{PropertyID: 1, Files: nil})
+    require.NoError(t, err)
+    assert.Nil(t, res)
+}
+
+func TestGetByID_NotFound(t *testing.T) {
+    ctx := context.Background()
+    repo := &mockRepo{}
+    repo.GetByIDFn = func(ctx context.Context, id int) (domain.PropertyImage, error) { return domain.PropertyImage{}, dberrors.NewErrNotFound("property_image", id) }
+    svc := New(repo, logger(), t.TempDir())
+    _, err := svc.GetByID(ctx, 9)
+    require.Error(t, err)
+    var nf apperrors.ErrNotFound
+    assert.True(t, errors.As(err, &nf))
+}
+
+func TestDelete_NotFound(t *testing.T) {
+    ctx := context.Background()
+    repo := &mockRepo{}
+    repo.DeleteFn = func(ctx context.Context, id int) error { return dberrors.NewErrNotFound("property_image", id) }
+    svc := New(repo, logger(), t.TempDir())
+    err := svc.Delete(ctx, 3)
+    require.Error(t, err)
+    var nf apperrors.ErrNotFound
+    assert.True(t, errors.As(err, &nf))
+}

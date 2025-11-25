@@ -64,4 +64,31 @@ func TestImageCRUD(t *testing.T) {
 		assert.Error(t, err)
 		assert.True(t, basedb.IsNotFound(err))
 	})
+
+	t.Run("create_many", func(t *testing.T) {
+		require.NoError(t, truncateImages())
+
+		propID := createTestProperty(t)
+
+		imgs := []image.PropertyImage{
+			{PropertyID: propID, Path: "/tmp/image_a.jpg"},
+			{PropertyID: propID, Path: "/tmp/image_b.jpg"},
+			{PropertyID: propID, Path: "/tmp/image_c.jpg"},
+		}
+
+		imageRepo := NewImageRepository(testClient, testLogger)
+
+		ids, err := imageRepo.CreateMany(testCtx, imgs)
+		require.NoError(t, err)
+		require.Len(t, ids, len(imgs))
+
+		list, err := imageRepo.ListByProperty(testCtx, propID)
+		require.NoError(t, err)
+		require.Len(t, list, len(imgs))
+
+		// cleanup
+		for _, id := range ids {
+			require.NoError(t, imageRepo.Delete(testCtx, id))
+		}
+	})
 }

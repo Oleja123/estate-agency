@@ -52,6 +52,46 @@ func (r *ImageRepository) Create(ctx context.Context, img image.PropertyImage) (
 	return img.ID, nil
 }
 
+// CreateMany inserts multiple images in a single query and returns their generated IDs.
+func (r *ImageRepository) CreateMany(ctx context.Context, imgs []image.PropertyImage) ([]int, error) {
+	const op = "propertydb.ImageRepository.CreateMany"
+
+	if len(imgs) == 0 {
+		return nil, nil
+	}
+
+	now := time.Now()
+	insert := r.sq.Insert("property_images").Columns("property_id", "path", "created_at")
+	for _, img := range imgs {
+		insert = insert.Values(img.PropertyID, img.Path, now)
+	}
+	sql, args, err := insert.Suffix("RETURNING id, created_at").ToSql()
+	if err != nil {
+		return nil, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
+	}
+
+	rows, err := r.Client.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, r.HandleError(op, err)
+	}
+	defer rows.Close()
+
+	ids := make([]int, 0, len(imgs))
+	var createdAt time.Time
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id, &createdAt); err != nil {
+			return nil, fmt.Errorf("scan returned id error: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return ids, nil
+}
+
 func (r *ImageRepository) GetByID(ctx context.Context, id int) (image.PropertyImage, error) {
 	const op = "propertydb.ImageRepository.GetByID"
 
