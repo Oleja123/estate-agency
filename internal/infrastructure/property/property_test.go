@@ -68,8 +68,8 @@ func TestMain(m *testing.M) {
 			testConfig.DbConfig.Database = strings.TrimPrefix(u.Path, "/")
 		}
 	} else {
-		// try to start container and run migrations from code; if docker unavailable, fail fast
-		tdb, err := testdb.StartContainer(testCtx, testLogger)
+		// try to ensure singleton test container and run migrations from code; if docker unavailable, fail fast
+		tdb, err := testdb.EnsureStarted(testCtx, testLogger)
 		if err != nil {
 			testLogger.Error("Failed to start test DB container", "error", err)
 			os.Exit(1)

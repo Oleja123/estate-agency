@@ -1,3 +1,3 @@
 package config
 
-type GeoServiceConfig struct {}
+type GeoServiceConfig struct{}
