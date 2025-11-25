@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +30,31 @@ type TestDB struct {
 // Caller must call the returned TestDB.Terminate() when done.
 func StartContainer(ctx context.Context, logger *slog.Logger) (*TestDB, error) {
 	logger.Info("starting test postgres container (postgis)")
+
+	// If TEST_DSN is provided (CI) prefer using it instead of starting a docker container.
+	if dsn := os.Getenv("TEST_DSN"); dsn != "" {
+		logger.Info("TEST_DSN detected, using provided DSN instead of starting container", "dsn", dsn)
+		// run migrations against provided DSN
+		if err := runGooseMigrations(logger, dsn); err != nil {
+			return nil, fmt.Errorf("failed to run migrations against TEST_DSN: %w", err)
+		}
+
+		// try to extract host and port for compatibility
+		host := ""
+		port := ""
+		if u, err := url.Parse(dsn); err == nil {
+			hostPort := u.Host
+			if strings.Contains(hostPort, ":") {
+				parts := strings.Split(hostPort, ":")
+				host = parts[0]
+				port = parts[1]
+			} else {
+				host = hostPort
+			}
+		}
+
+		return &TestDB{DSN: dsn, Host: host, Port: port, terminate: func() {}}, nil
+	}
 
 	pool, err := dockertest.NewPool("")
 	if err != nil {
