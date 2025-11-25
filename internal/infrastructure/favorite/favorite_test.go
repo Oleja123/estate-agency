@@ -3,7 +3,9 @@ package favoritedb
 import (
 	"context"
 	"log/slog"
+	"net/url"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/Oleja123/estate-agency/internal/domain/favorite"
@@ -48,19 +50,41 @@ func TestMain(m *testing.M) {
 		GoosePath: "/home/oleg/go/bin/goose",
 	}
 
-	// try to start container and run migrations from code; if docker unavailable, fallback to local migrations
-	tdb, err := testdb.StartContainer(testCtx, testLogger)
-	if err != nil {
-		testLogger.Error("Failed to start test DB container, falling back to local migrations", "error", err)
-		if err := utils.RunGooseMigrations(testLogger); err != nil {
-			testLogger.Error("Failed to run goose migrations", "error", err)
-			os.Exit(1)
+	// If TEST_DSN is provided (CI), prefer it and skip starting a docker container.
+	if dsn := os.Getenv("TEST_DSN"); dsn != "" {
+		u, err := url.Parse(dsn)
+		if err == nil {
+			if u.User != nil {
+				testConfig.DbConfig.Username = u.User.Username()
+				if pass, ok := u.User.Password(); ok {
+					testConfig.DbConfig.Password = pass
+				}
+			}
+			hostPort := u.Host
+			if strings.Contains(hostPort, ":") {
+				parts := strings.Split(hostPort, ":")
+				testConfig.DbConfig.Host = parts[0]
+				testConfig.DbConfig.Port = parts[1]
+			} else {
+				testConfig.DbConfig.Host = hostPort
+			}
+			testConfig.DbConfig.Database = strings.TrimPrefix(u.Path, "/")
 		}
 	} else {
-		defer tdb.Terminate()
-		// update config to point to the container
-		testConfig.DbConfig.Host = tdb.Host
-		testConfig.DbConfig.Port = tdb.Port
+		// try to start container and run migrations from code; if docker unavailable, fallback to local migrations
+		tdb, err := testdb.StartContainer(testCtx, testLogger)
+		if err != nil {
+			testLogger.Error("Failed to start test DB container, falling back to local migrations", "error", err)
+			if err := utils.RunGooseMigrations(testLogger); err != nil {
+				testLogger.Error("Failed to run goose migrations", "error", err)
+				os.Exit(1)
+			}
+		} else {
+			defer tdb.Terminate()
+			// update config to point to the container
+			testConfig.DbConfig.Host = tdb.Host
+			testConfig.DbConfig.Port = tdb.Port
+		}
 	}
 
 	testClient, _ = postgresqlclient.NewClient(context.Background(), *testLogger, testConfig)
