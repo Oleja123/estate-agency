@@ -30,7 +30,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          # Use Go version from go.mod (project requires go 1.25.x)
+          go-version: '1.25.1'
 
       - name: Wait for Postgres service
         run: |
