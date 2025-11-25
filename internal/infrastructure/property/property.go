@@ -47,13 +47,13 @@ func (r *Repository) Create(ctx context.Context, prop property.Property) (int, e
 		ToSql()
 
 	if err != nil {
-		return 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("запрос: %s", err))
+		return 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "создание собственности",
-		"операция", op,
-		"название", prop.Title,
-		"вид транзакции", prop.TransactionType,
+	r.Logger.DebugContext(ctx, "creating property",
+		"operation", op,
+		"title", prop.Title,
+		"transaction_type", prop.TransactionType,
 	)
 
 	err = r.Client.QueryRow(ctx, sql, args...).Scan(
@@ -83,12 +83,12 @@ func (r *Repository) GetByID(ctx context.Context, id int) (property.Property, er
 		ToSql()
 
 	if err != nil {
-		return property.Property{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка запроса: %s", err))
+		return property.Property{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "поиск property с id",
-		"операция", op,
-		"id собственности", id,
+	r.Logger.DebugContext(ctx, "searching property by id",
+		"operation", op,
+		"property_id", id,
 	)
 
 	var prop property.Property
@@ -102,19 +102,19 @@ func (r *Repository) GetByID(ctx context.Context, id int) (property.Property, er
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			r.Logger.DebugContext(ctx, "property по Id не найден",
-				"операция", op,
-				"id собственности", id,
+			r.Logger.DebugContext(ctx, "property not found by id",
+				"operation", op,
+				"property_id", id,
 			)
-			return property.Property{}, basedberrors.NewErrNotFound("собственность", id)
+			return property.Property{}, basedberrors.NewErrNotFound("property", id)
 		}
 		return property.Property{}, r.HandleError(op, err)
 	}
 
-	r.Logger.DebugContext(ctx, "сосбвтенность по Id получена",
-		"операция", op,
-		"id собственности", id,
-		"название", prop.Title,
+	r.Logger.DebugContext(ctx, "property retrieved by id",
+		"operation", op,
+		"property_id", id,
+		"title", prop.Title,
 	)
 
 	return prop, nil
@@ -142,12 +142,12 @@ func (r *Repository) Update(ctx context.Context, prop property.Property) error {
 		ToSql()
 
 	if err != nil {
-		return basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка запроса: %s", err))
+		return basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "обновление собственности",
-		"операция", op,
-		"id собственности", prop.ID,
+	r.Logger.DebugContext(ctx, "updating property",
+		"operation", op,
+		"property_id", prop.ID,
 	)
 
 	err = r.Client.QueryRow(ctx, sql, args...).Scan(&prop.UpdatedAt)
@@ -156,9 +156,9 @@ func (r *Repository) Update(ctx context.Context, prop property.Property) error {
 		return r.HandleError(op, err)
 	}
 
-	r.Logger.InfoContext(ctx, "собственность успешно обновлена",
-		"операция", op,
-		"id собственности", prop.ID,
+	r.Logger.InfoContext(ctx, "property updated successfully",
+		"operation", op,
+		"property_id", prop.ID,
 	)
 
 	return nil
@@ -173,12 +173,12 @@ func (r *Repository) Delete(ctx context.Context, id int) error {
 		ToSql()
 
 	if err != nil {
-		return basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка запроса: %s", err))
+		return basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "удаление собственности",
-		"операция", op,
-		"id собственности", id,
+	r.Logger.DebugContext(ctx, "deleting property",
+		"operation", op,
+		"property_id", id,
 	)
 
 	result, err := r.Client.Exec(ctx, sql, args...)
@@ -188,17 +188,17 @@ func (r *Repository) Delete(ctx context.Context, id int) error {
 
 	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
-		r.Logger.DebugContext(ctx, "соьственность не найдена",
-			"операция", op,
-			"id собственности", id,
+		r.Logger.DebugContext(ctx, "property not found",
+			"operation", op,
+			"property_id", id,
 		)
 		return basedberrors.NewErrNotFound("property", id)
 	}
 
-	r.Logger.InfoContext(ctx, "собственность успешно удалена",
-		"операция", op,
-		"id собственности", id,
-		"удалено строк", rowsAffected,
+	r.Logger.InfoContext(ctx, "property deleted successfully",
+		"operation", op,
+		"property_id", id,
+		"rows_deleted", rowsAffected,
 	)
 
 	return nil
@@ -225,11 +225,11 @@ func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]prop
 		return nil, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "получение списка собственности",
-		"операция", op,
+	r.Logger.DebugContext(ctx, "listing properties",
+		"operation", op,
 		"limit", req.Limit,
 		"offset", req.Offset,
-		"фильтры", fmt.Sprintf("%+v", req.Filter),
+		"filters", fmt.Sprintf("%+v", req.Filter),
 	)
 
 	rows, err := r.Client.Query(ctx, sql, args...)
@@ -247,18 +247,18 @@ func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]prop
 			&prop.CreatedBy, &prop.CreatedAt, &prop.UpdatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("ошибка сканирования строки: %w", err)
+			return nil, fmt.Errorf("row scan error: %w", err)
 		}
 		properties = append(properties, prop)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("ошибка сканирования строки: %w", err)
+		return nil, fmt.Errorf("rows iteration error: %w", err)
 	}
 
-	r.Logger.DebugContext(ctx, "список собственности получен",
-		"операция", op,
-		"количество", len(properties),
+	r.Logger.DebugContext(ctx, "properties list retrieved",
+		"operation", op,
+		"count", len(properties),
 	)
 
 	return properties, nil

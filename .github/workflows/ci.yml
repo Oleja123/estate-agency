@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:15-3.3
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: root
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready -U root -d test
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Wait for Postgres service
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+          until pg_isready -h 127.0.0.1 -p 5432 -U root -d test; do
+            echo "waiting for postgres..."
+            sleep 1
+          done
+        env:
+          PGPASSWORD: root
+
+      - name: Install goose
+        run: |
+          export GOPATH=$(go env GOPATH)
+          export PATH=$PATH:$GOPATH/bin
+          go install github.com/pressly/goose/v3/cmd/goose@latest
+          echo "goose installed: $(which goose)"
+
+      - name: Run migrations
+        env:
+          DSN: postgres://root:root@127.0.0.1:5432/test?sslmode=disable
+        run: |
+          export GOPATH=$(go env GOPATH)
+          export PATH=$PATH:$GOPATH/bin
+          goose -dir db/migrations postgres "$DSN" up
+
+      - name: Run tests
+        env:
+          TEST_DSN: postgres://root:root@127.0.0.1:5432/test?sslmode=disable
+        run: |
+          go test ./... -v -count=1

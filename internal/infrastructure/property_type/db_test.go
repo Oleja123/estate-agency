@@ -11,6 +11,7 @@ import (
 	"github.com/Oleja123/estate-agency/internal/infrastructure/client"
 	postgresqlclient "github.com/Oleja123/estate-agency/internal/infrastructure/client/postgresql"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/config"
+	"github.com/Oleja123/estate-agency/internal/infrastructure/testdb"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,13 +44,23 @@ func TestMain(m *testing.M) {
 		GoosePath: "/home/oleg/go/bin/goose",
 	}
 
+	// try to start container and run migrations from code; if docker unavailable, fallback to local migrations
+	tdb, err := testdb.StartContainer(testCtx, testLogger)
+	if err != nil {
+		testLogger.Error("Failed to start test DB container, falling back to local migrations", "error", err)
+		if err := utils.RunGooseMigrations(testLogger); err != nil {
+			testLogger.Error("Failed to run goose migrations", "error", err)
+			os.Exit(1)
+		}
+	} else {
+		defer tdb.Terminate()
+		// update config to point to the container
+		testConfig.DbConfig.Host = tdb.Host
+		testConfig.DbConfig.Port = tdb.Port
+	}
+
 	testClient, _ = postgresqlclient.NewClient(context.Background(), *testLogger, testConfig)
 	testRepo = New(testClient, testLogger)
-
-	if err := utils.RunGooseMigrations(testLogger, testConfig.GoosePath); err != nil {
-		testLogger.Error("Не удалось запустить миграции goose", "ошибка", err)
-		os.Exit(1)
-	}
 
 	code := m.Run()
 	os.Exit(code)
@@ -68,7 +79,7 @@ func TestPropertyTypeCRUD(t *testing.T) {
 		validate func(t *testing.T, pt propertytype.PropertyType, err error)
 	}{
 		{
-			name: "создание и получение типа недвижимости",
+			name: "create_and_get_property_type",
 			setup: func() propertytype.PropertyType {
 				return propertytype.PropertyType{
 					Name: "apartment",
@@ -89,7 +100,7 @@ func TestPropertyTypeCRUD(t *testing.T) {
 			},
 		},
 		{
-			name: "обновление названия типа недвижимости",
+			name: "update_property_type_name",
 			setup: func() propertytype.PropertyType {
 				pt := propertytype.PropertyType{
 					Name: "house",
@@ -115,7 +126,7 @@ func TestPropertyTypeCRUD(t *testing.T) {
 			},
 		},
 		{
-			name: "удаление типа недвижимости",
+			name: "delete_property_type",
 			setup: func() propertytype.PropertyType {
 				pt := propertytype.PropertyType{
 					Name: "to-delete",
@@ -177,14 +188,14 @@ func TestPropertyTypeList(t *testing.T) {
 		validate func(t *testing.T, types []propertytype.PropertyType)
 	}{
 		{
-			name: "получение всех типов",
+			name: "get_all_types",
 			request: propertytype.ListRequest{
 				Limit: 10,
 			},
 			wantLen: 4,
 		},
 		{
-			name: "поиск по названию",
+			name: "search_by_name",
 			request: propertytype.ListRequest{
 				Filter: propertytype.Filter{
 					Search: "apart",
@@ -197,7 +208,7 @@ func TestPropertyTypeList(t *testing.T) {
 			},
 		},
 		{
-			name: "пагинация первая страница",
+			name: "pagination_first_page",
 			request: propertytype.ListRequest{
 				Limit:  2,
 				Offset: 0,
@@ -213,7 +224,7 @@ func TestPropertyTypeList(t *testing.T) {
 
 			result, err := testRepo.List(testCtx, tt.request)
 			require.NoError(t, err)
-			assert.Len(t, result, tt.wantLen)
+			require.Len(t, result, tt.wantLen)
 
 			if tt.validate != nil {
 				tt.validate(t, result)

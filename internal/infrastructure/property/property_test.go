@@ -12,6 +12,7 @@ import (
 	"github.com/Oleja123/estate-agency/internal/infrastructure/client"
 	postgresqlclient "github.com/Oleja123/estate-agency/internal/infrastructure/client/postgresql"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/config"
+	"github.com/Oleja123/estate-agency/internal/infrastructure/testdb"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,32 +46,52 @@ func TestMain(m *testing.M) {
 		GoosePath: "/home/oleg/go/bin/goose",
 	}
 
+	// try to start container and run migrations from code; if docker unavailable, fallback to local migrations
+	tdb, err := testdb.StartContainer(testCtx, testLogger)
+	if err != nil {
+		testLogger.Error("Failed to start test DB container, falling back to local migrations", "error", err)
+		if err := utils.RunGooseMigrations(testLogger); err != nil {
+			testLogger.Error("Failed to run goose migrations", "error", err)
+			os.Exit(1)
+		}
+	} else {
+		defer tdb.Terminate()
+		// update config to point to the container
+		testConfig.DbConfig.Host = tdb.Host
+		testConfig.DbConfig.Port = tdb.Port
+	}
+
 	testClient, _ = postgresqlclient.NewClient(context.Background(), *testLogger, testConfig)
 	testRepo = New(testClient, testLogger)
 
-	if err := utils.RunGooseMigrations(testLogger, testConfig.GoosePath); err != nil {
-		testLogger.Error("Не удалось запустить миграции goose", "ошибка", err)
-		os.Exit(1)
-	}
-
 	testUserID = createTestUser()
+
+	// Ensure there are default property types so properties with type_id = 1..n can be created in tests.
+	createDefaultPropertyTypes()
 
 	code := m.Run()
 	os.Exit(code)
 }
 
 func createTestUser() int {
+	// Try to create user idempotently. TRUNCATE first to get predictable id
 	_, _ = testClient.Exec(context.Background(), "TRUNCATE TABLE users RESTART IDENTITY CASCADE")
 
 	var userID int
 	err := testClient.QueryRow(context.Background(), `
 		INSERT INTO users (email, password_hash, first_name, last_name, phone_number, user_role, is_active)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (email) DO NOTHING
 		RETURNING id
 	`, "test@example.com", "hash", "Test", "User", "+123456789", user.RoleClient, true).Scan(&userID)
 
 	if err != nil {
-		panic("Не удалось создать тестового пользователя: " + err.Error())
+		// if no rows returned due to conflict, select existing id
+		if err.Error() == "sql: no rows in result set" {
+			_ = testClient.QueryRow(context.Background(), "SELECT id FROM users WHERE email=$1", "test@example.com").Scan(&userID)
+			return userID
+		}
+		panic("Failed to create test user: " + err.Error())
 	}
 	return userID
 }
@@ -78,6 +99,22 @@ func createTestUser() int {
 func truncateTables() error {
 	_, err := testClient.Exec(context.Background(), "TRUNCATE TABLE properties RESTART IDENTITY CASCADE")
 	return err
+}
+
+func createDefaultPropertyTypes() {
+	// truncate and add some default types so tests using type_id = 1,2,3 succeed
+	_, _ = testClient.Exec(context.Background(), "TRUNCATE TABLE property_types RESTART IDENTITY CASCADE")
+
+	types := []string{"apartment", "house", "commercial", "land"}
+	for _, name := range types {
+		_, err := testClient.Exec(context.Background(), `
+			INSERT INTO property_types (property_name) VALUES ($1)
+			ON CONFLICT (property_name) DO NOTHING
+		`, name)
+		if err != nil {
+			panic("Failed to create test property_types: " + err.Error())
+		}
+	}
 }
 
 func TestPropertyCRUD(t *testing.T) {
@@ -88,7 +125,7 @@ func TestPropertyCRUD(t *testing.T) {
 		validate func(t *testing.T, prop property.Property, err error)
 	}{
 		{
-			name: "создание и получение property",
+			name: "create_and_get_property",
 			setup: func() property.Property {
 				return property.Property{
 					Title:               "Test Apartment",
@@ -125,7 +162,7 @@ func TestPropertyCRUD(t *testing.T) {
 			},
 		},
 		{
-			name: "обновление property",
+			name: "update_property",
 			setup: func() property.Property {
 				prop := property.Property{
 					Title:               "Old Title",
@@ -166,7 +203,7 @@ func TestPropertyCRUD(t *testing.T) {
 			},
 		},
 		{
-			name: "удаление property",
+			name: "delete_property",
 			setup: func() property.Property {
 				prop := property.Property{
 					Title:               "To Delete",
@@ -275,14 +312,14 @@ func TestPropertyList(t *testing.T) {
 		validate func(t *testing.T, properties []property.Property)
 	}{
 		{
-			name: "получение всех properties",
+			name: "get_all_properties",
 			request: property.ListRequest{
 				Limit: 10,
 			},
 			wantLen: 3,
 		},
 		{
-			name: "фильтр по transaction_type",
+			name: "filter_by_transaction_type",
 			request: property.ListRequest{
 				Filter: property.Filter{
 					TransactionType: property.TransactionSale,
@@ -297,7 +334,7 @@ func TestPropertyList(t *testing.T) {
 			},
 		},
 		{
-			name: "фильтр по городу",
+			name: "filter_by_city",
 			request: property.ListRequest{
 				Filter: property.Filter{
 					City: "Moscow",
@@ -312,7 +349,7 @@ func TestPropertyList(t *testing.T) {
 			},
 		},
 		{
-			name: "фильтр по статусу",
+			name: "filter_by_status",
 			request: property.ListRequest{
 				Filter: property.Filter{
 					PropertyStatus: property.StatusActive,
@@ -327,7 +364,7 @@ func TestPropertyList(t *testing.T) {
 			},
 		},
 		{
-			name: "фильтр по цене",
+			name: "filter_by_price",
 			request: property.ListRequest{
 				Filter: property.Filter{
 					MinPrice: 1000,
@@ -343,7 +380,7 @@ func TestPropertyList(t *testing.T) {
 			},
 		},
 		{
-			name: "поиск по тексту",
+			name: "search_by_text",
 			request: property.ListRequest{
 				Filter: property.Filter{
 					Search: "apartment",
@@ -356,7 +393,7 @@ func TestPropertyList(t *testing.T) {
 			},
 		},
 		{
-			name: "пагинация первая страница",
+			name: "pagination_first_page",
 			request: property.ListRequest{
 				Limit:  2,
 				Offset: 0,
@@ -364,7 +401,7 @@ func TestPropertyList(t *testing.T) {
 			wantLen: 2,
 		},
 		{
-			name: "пагинация вторая страница",
+			name: "pagination_second_page",
 			request: property.ListRequest{
 				Limit:  2,
 				Offset: 2,
@@ -372,7 +409,7 @@ func TestPropertyList(t *testing.T) {
 			wantLen: 1,
 		},
 		{
-			name: "фильтр по создателю",
+			name: "filter_by_creator",
 			request: property.ListRequest{
 				Filter: property.Filter{
 					CreatedBy: testUserID,
@@ -390,7 +427,7 @@ func TestPropertyList(t *testing.T) {
 
 			result, err := testRepo.List(testCtx, tt.request)
 			require.NoError(t, err)
-			assert.Len(t, result, tt.wantLen)
+			require.Len(t, result, tt.wantLen)
 
 			if tt.validate != nil {
 				tt.validate(t, result)
@@ -438,7 +475,7 @@ func TestPropertyListWithDistanceFilter(t *testing.T) {
 		}
 	}
 
-	t.Run("фильтр по расстоянию", func(t *testing.T) {
+	t.Run("filter_by_distance", func(t *testing.T) {
 		require.NoError(t, truncateTables())
 		setupTestData()
 
@@ -454,7 +491,7 @@ func TestPropertyListWithDistanceFilter(t *testing.T) {
 		result, err := testRepo.List(testCtx, request)
 		require.NoError(t, err)
 
-		assert.Len(t, result, 1)
+		require.Len(t, result, 1)
 		assert.Equal(t, "Close property", result[0].Title)
 	})
 }

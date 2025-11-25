@@ -17,14 +17,14 @@ type Config struct {
 func LoadConfig(path string, logger *slog.Logger) (Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		logger.Error("ошибка чтения файла", "error", err)
-		return Config{}, fmt.Errorf("не удалось прочитать файл: %w", err)
+		logger.Error("failed to read file", "error", err)
+		return Config{}, fmt.Errorf("failed to read file: %w", err)
 	}
 
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		logger.Error("ошибка парсинга yaml", "error", err)
-		return Config{}, fmt.Errorf("ошибка парсинга yaml: %w", err)
+		logger.Error("yaml parse error", "error", err)
+		return Config{}, fmt.Errorf("yaml parse error: %w", err)
 	}
 
 	return cfg, nil

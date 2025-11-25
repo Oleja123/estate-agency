@@ -36,11 +36,11 @@ func (r *Repository) Create(ctx context.Context, fav favorite.Favorite) error {
 		ToSql()
 
 	if err != nil {
-		return basedberrors.NewErrDatabase(op, fmt.Sprintf("запрос: %s", err))
+		return basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "добавление в избранное",
-		"операция", op,
+	r.Logger.DebugContext(ctx, "adding to favorites",
+		"operation", op,
 		"user_id", fav.UserID,
 		"property_id", fav.PropertyID,
 	)
@@ -50,8 +50,8 @@ func (r *Repository) Create(ctx context.Context, fav favorite.Favorite) error {
 		return r.HandleError(op, err)
 	}
 
-	r.Logger.InfoContext(ctx, "добавлено в избранное",
-		"операция", op,
+	r.Logger.InfoContext(ctx, "added to favorites",
+		"operation", op,
 		"user_id", fav.UserID,
 		"property_id", fav.PropertyID,
 	)
@@ -69,11 +69,11 @@ func (r *Repository) GetByUserAndProperty(ctx context.Context, userID, propertyI
 		ToSql()
 
 	if err != nil {
-		return favorite.Favorite{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка запроса: %s", err))
+		return favorite.Favorite{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "поиск избранного по пользователю и property",
-		"операция", op,
+	r.Logger.DebugContext(ctx, "searching favorite by user and property",
+		"operation", op,
 		"user_id", userID,
 		"property_id", propertyID,
 	)
@@ -87,8 +87,8 @@ func (r *Repository) GetByUserAndProperty(ctx context.Context, userID, propertyI
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			r.Logger.DebugContext(ctx, "избранное не найдено",
-				"операция", op,
+			r.Logger.DebugContext(ctx, "favorite not found",
+				"operation", op,
 				"user_id", userID,
 				"property_id", propertyID,
 			)
@@ -97,8 +97,8 @@ func (r *Repository) GetByUserAndProperty(ctx context.Context, userID, propertyI
 		return favorite.Favorite{}, r.HandleError(op, err)
 	}
 
-	r.Logger.DebugContext(ctx, "избранное найдено",
-		"операция", op,
+	r.Logger.DebugContext(ctx, "favorite found",
+		"operation", op,
 		"user_id", userID,
 		"property_id", propertyID,
 	)
@@ -115,11 +115,11 @@ func (r *Repository) Delete(ctx context.Context, userID, propertyID int) error {
 		ToSql()
 
 	if err != nil {
-		return basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка запроса: %s", err))
+		return basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "удаление из избранного",
-		"операция", op,
+	r.Logger.DebugContext(ctx, "deleting from favorites",
+		"operation", op,
 		"user_id", userID,
 		"property_id", propertyID,
 	)
@@ -131,16 +131,16 @@ func (r *Repository) Delete(ctx context.Context, userID, propertyID int) error {
 
 	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
-		r.Logger.DebugContext(ctx, "избранное не найдено для удаления",
-			"операция", op,
+		r.Logger.DebugContext(ctx, "favorite not found for deletion",
+			"operation", op,
 			"user_id", userID,
 			"property_id", propertyID,
 		)
 		return basedberrors.NewErrNotFound("favorite", fmt.Sprintf("user:%d,property:%d", userID, propertyID))
 	}
 
-	r.Logger.InfoContext(ctx, "удалено из избранного",
-		"операция", op,
+	r.Logger.InfoContext(ctx, "deleted from favorites",
+		"operation", op,
 		"user_id", userID,
 		"property_id", propertyID,
 		"rows_affected", rowsAffected,
@@ -170,11 +170,11 @@ func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favo
 		return nil, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "получение списка избранного",
-		"операция", op,
+	r.Logger.DebugContext(ctx, "listing favorites",
+		"operation", op,
 		"limit", req.Limit,
 		"offset", req.Offset,
-		"фильтры", fmt.Sprintf("%+v", req.Filter),
+		"filters", fmt.Sprintf("%+v", req.Filter),
 	)
 
 	rows, err := r.Client.Query(ctx, sql, args...)
@@ -191,17 +191,17 @@ func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favo
 			&fav.CreatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("ошибка сканирования строки: %w", err)
+			return nil, fmt.Errorf("row scan error: %w", err)
 		}
 		favorites = append(favorites, fav)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("ошибка сканирования строки: %w", err)
+		return nil, fmt.Errorf("rows iteration error: %w", err)
 	}
 
-	r.Logger.DebugContext(ctx, "список избранного получен",
-		"операция", op,
+	r.Logger.DebugContext(ctx, "favorites list retrieved",
+		"operation", op,
 		"favorites_count", len(favorites),
 	)
 

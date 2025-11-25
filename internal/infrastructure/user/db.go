@@ -39,13 +39,13 @@ func (r *Repository) Create(ctx context.Context, user user.User) (int, error) {
 		ToSql()
 
 	if err != nil {
-		return 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("запрос: %s", err))
+		return 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "создание пользователя",
-		"операция", op,
+	r.Logger.DebugContext(ctx, "creating user",
+		"operation", op,
 		"email", user.Email,
-		"роль", user.UserRole,
+		"role", user.UserRole,
 	)
 
 	err = r.Client.QueryRow(ctx, sql, args...).Scan(
@@ -75,12 +75,12 @@ func (r *Repository) GetByID(ctx context.Context, id int) (user.User, error) {
 		ToSql()
 
 	if err != nil {
-		return user.User{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка запроса: %s", err))
+		return user.User{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "поиск пользователя с id",
-		"операция", op,
-		"id пользоваетеля", id,
+	r.Logger.DebugContext(ctx, "searching user by id",
+		"operation", op,
+		"user_id", id,
 	)
 
 	var u user.User
@@ -93,18 +93,18 @@ func (r *Repository) GetByID(ctx context.Context, id int) (user.User, error) {
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			r.Logger.DebugContext(ctx, "пользователь по Id не найден",
-				"операция", op,
-				"id пользователя", id,
+			r.Logger.DebugContext(ctx, "user not found by id",
+				"operation", op,
+				"user_id", id,
 			)
-			return user.User{}, basedberrors.NewErrNotFound("пользователь", id)
+			return user.User{}, basedberrors.NewErrNotFound("user", id)
 		}
 		return user.User{}, r.HandleError(op, err)
 	}
 
-	r.Logger.DebugContext(ctx, "пользователь по Id получен",
-		"операция", op,
-		"id пользователя", id,
+	r.Logger.DebugContext(ctx, "user retrieved by id",
+		"operation", op,
+		"user_id", id,
 		"email", u.Email,
 	)
 
@@ -121,11 +121,11 @@ func (r Repository) GetByEmail(ctx context.Context, email string) (user.User, er
 		ToSql()
 
 	if err != nil {
-		return user.User{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка запроса: %s", err))
+		return user.User{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "поиск пользователя с email",
-		"операция", op,
+	r.Logger.DebugContext(ctx, "searching user by email",
+		"operation", op,
 		"email", email,
 	)
 
@@ -138,11 +138,11 @@ func (r Repository) GetByEmail(ctx context.Context, email string) (user.User, er
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			r.Logger.DebugContext(ctx, "пользователь с указанным email не найден",
-				"операция", op,
+			r.Logger.DebugContext(ctx, "user not found by email",
+				"operation", op,
 				"email", email,
 			)
-			return user.User{}, basedberrors.NewErrNotFound("пользователь", email)
+			return user.User{}, basedberrors.NewErrNotFound("user", email)
 		}
 		return user.User{}, r.HandleError(op, err)
 	}
@@ -172,11 +172,11 @@ func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.Use
 		return nil, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "получение списка пользователнй",
-		"операция", op,
+	r.Logger.DebugContext(ctx, "listing users",
+		"operation", op,
 		"limit", req.Limit,
 		"offset", req.Offset,
-		"фильтры", fmt.Sprintf("%+v", req.Filter),
+		"filters", fmt.Sprintf("%+v", req.Filter),
 	)
 
 	rows, err := r.Client.Query(ctx, sql, args...)
@@ -193,18 +193,18 @@ func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.Use
 			&user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("ошибка сканирования строки: %w", err)
+			return nil, fmt.Errorf("row scan error: %w", err)
 		}
 		users = append(users, user)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("ошибка сканирования строки: %w", err)
+		return nil, fmt.Errorf("rows iteration error: %w", err)
 	}
 
-	r.Logger.DebugContext(ctx, "список пользователей получен",
-		"операция", op,
-		"количество", len(users),
+	r.Logger.DebugContext(ctx, "users list retrieved",
+		"operation", op,
+		"count", len(users),
 	)
 
 	return users, nil

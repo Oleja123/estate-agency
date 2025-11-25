@@ -11,6 +11,7 @@ import (
 	"github.com/Oleja123/estate-agency/internal/infrastructure/client"
 	postgresqlclient "github.com/Oleja123/estate-agency/internal/infrastructure/client/postgresql"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/config"
+	"github.com/Oleja123/estate-agency/internal/infrastructure/testdb"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,13 +44,23 @@ func TestMain(m *testing.M) {
 		GoosePath: "/home/oleg/go/bin/goose",
 	}
 
+	// try to start container and run migrations from code; if docker unavailable, fallback to local migrations
+	tdb, err := testdb.StartContainer(testCtx, testLogger)
+	if err != nil {
+		testLogger.Error("Failed to start test DB container, falling back to local migrations", "error", err)
+		if err := utils.RunGooseMigrations(testLogger); err != nil {
+			testLogger.Error("Failed to run goose migrations", "error", err)
+			os.Exit(1)
+		}
+	} else {
+		defer tdb.Terminate()
+		// update config to point to the container
+		testConfig.DbConfig.Host = tdb.Host
+		testConfig.DbConfig.Port = tdb.Port
+	}
+
 	testClient, _ = postgresqlclient.NewClient(context.Background(), *testLogger, testConfig)
 	testRepo = New(testClient, testLogger)
-
-	if err := utils.RunGooseMigrations(testLogger, testConfig.GoosePath); err != nil {
-		testLogger.Error("Не удалось запустить миграции goose", "ошибка", err)
-		os.Exit(1)
-	}
 
 	code := m.Run()
 	os.Exit(code)
@@ -70,7 +81,7 @@ func TestCreateUser(t *testing.T) {
 		validate func(t *testing.T, userID int)
 	}{
 		{
-			name: "successful creation",
+			name: "successful_creation",
 			user: user.User{
 				Email:        "success@example.com",
 				PasswordHash: "hashed_password",
@@ -88,7 +99,7 @@ func TestCreateUser(t *testing.T) {
 			},
 		},
 		{
-			name: "duplicate email",
+			name: "duplicate_email",
 			user: user.User{
 				Email:        "duplicate@example.com",
 				PasswordHash: "hash2",
@@ -111,7 +122,7 @@ func TestCreateUser(t *testing.T) {
 			},
 		},
 		{
-			name: "user with all fields",
+			name: "user_with_all_fields",
 			user: user.User{
 				Email:        "full@example.com",
 				PasswordHash: "full_hash",
@@ -132,7 +143,7 @@ func TestCreateUser(t *testing.T) {
 			},
 		},
 		{
-			name: "user without phone",
+			name: "user_without_phone",
 			user: user.User{
 				Email:        "nophone@example.com",
 				PasswordHash: "hash",
@@ -196,7 +207,7 @@ func TestGetById(t *testing.T) {
 		validate func(t *testing.T, foundUser user.User)
 	}{
 		{
-			name:    "successful get by id",
+			name:    "successful_get_by_id",
 			id:      userID,
 			wantErr: false,
 			validate: func(t *testing.T, foundUser user.User) {
@@ -207,19 +218,19 @@ func TestGetById(t *testing.T) {
 			},
 		},
 		{
-			name:    "not found",
+			name:    "not_found",
 			id:      99999,
 			wantErr: true,
 			errType: basedb.IsNotFound,
 		},
 		{
-			name:    "zero id",
+			name:    "zero_id",
 			id:      0,
 			wantErr: true,
 			errType: basedb.IsNotFound,
 		},
 		{
-			name:    "negative id",
+			name:    "negative_id",
 			id:      -1,
 			wantErr: true,
 			errType: basedb.IsNotFound,
@@ -265,7 +276,7 @@ func TestGetByEmail(t *testing.T) {
 		validate func(t *testing.T, foundUser user.User)
 	}{
 		{
-			name:    "successful get by email",
+			name:    "successful_get_by_email",
 			email:   "getbyemail_test@example.com",
 			wantErr: false,
 			validate: func(t *testing.T, foundUser user.User) {
@@ -275,19 +286,19 @@ func TestGetByEmail(t *testing.T) {
 			},
 		},
 		{
-			name:    "email not found",
+			name:    "email_not_found",
 			email:   "nonexistent@example.com",
 			wantErr: true,
 			errType: basedb.IsNotFound,
 		},
 		{
-			name:    "empty email",
+			name:    "empty_email",
 			email:   "",
 			wantErr: true,
 			errType: basedb.IsNotFound,
 		},
 		{
-			name:    "case sensitive email",
+			name:    "case_sensitive_email",
 			email:   "GETBYEMAIL_TEST@EXAMPLE.COM",
 			wantErr: true,
 			errType: basedb.IsNotFound,
@@ -323,7 +334,7 @@ func TestUpdateUser(t *testing.T) {
 		validate   func(t *testing.T, userID int)
 	}{
 		{
-			name: "successful update all fields",
+			name: "successful_update_all_fields",
 			setup: func() int {
 				u := user.User{
 					Email:        "update_all@example.com",
@@ -356,7 +367,7 @@ func TestUpdateUser(t *testing.T) {
 			},
 		},
 		{
-			name: "update only first name",
+			name: "update_only_first_name",
 			setup: func() int {
 				u := user.User{
 					Email:        "update_partial@example.com",
@@ -385,7 +396,7 @@ func TestUpdateUser(t *testing.T) {
 			},
 		},
 		{
-			name: "update non-existent user",
+			name: "update_non_existent_user",
 			setup: func() int {
 				return 99999
 			},
@@ -400,7 +411,7 @@ func TestUpdateUser(t *testing.T) {
 			errType: basedb.IsNotFound,
 		},
 		{
-			name: "activate user",
+			name: "activate_user",
 			setup: func() int {
 				u := user.User{
 					Email:        "activate@example.com",
@@ -453,7 +464,7 @@ func TestUpdateUser(t *testing.T) {
 	}
 }
 
-func TestDeleteUser_TableDriven(t *testing.T) {
+func TestDeleteUserTableDriven(t *testing.T) {
 	tests := []struct {
 		name     string
 		setup    func() int
@@ -463,7 +474,7 @@ func TestDeleteUser_TableDriven(t *testing.T) {
 		validate func(t *testing.T, deletedID int)
 	}{
 		{
-			name: "successful delete",
+			name: "successful_delete",
 			setup: func() int {
 				u := user.User{
 					Email:        "delete_success@example.com",
@@ -485,7 +496,7 @@ func TestDeleteUser_TableDriven(t *testing.T) {
 			},
 		},
 		{
-			name: "delete non-existent user",
+			name: "delete_non_existent_user",
 			setup: func() int {
 				return 99999
 			},
@@ -494,7 +505,7 @@ func TestDeleteUser_TableDriven(t *testing.T) {
 			errType:  basedb.IsNotFound,
 		},
 		{
-			name: "delete already deleted user",
+			name: "delete_already_deleted_user",
 			setup: func() int {
 				u := user.User{
 					Email:        "delete_twice@example.com",
@@ -516,7 +527,7 @@ func TestDeleteUser_TableDriven(t *testing.T) {
 			errType:  basedb.IsNotFound,
 		},
 		{
-			name: "delete with zero id",
+			name: "delete_with_zero_id",
 			setup: func() int {
 				return 0
 			},
@@ -525,7 +536,7 @@ func TestDeleteUser_TableDriven(t *testing.T) {
 			errType:  basedb.IsNotFound,
 		},
 		{
-			name: "delete with negative id",
+			name: "delete_with_negative_id",
 			setup: func() int {
 				return -1
 			},
@@ -563,7 +574,7 @@ func TestDeleteUser_TableDriven(t *testing.T) {
 	}
 }
 
-func TestListUsers_TableDriven(t *testing.T) {
+func TestListUsersTableDriven(t *testing.T) {
 	setupTestUsers := func() {
 		users := []user.User{
 			{
@@ -616,18 +627,18 @@ func TestListUsers_TableDriven(t *testing.T) {
 		validate func(t *testing.T, users []user.User)
 	}{
 		{
-			name: "list all users with pagination",
+			name: "list_all_users_with_pagination",
 			request: user.ListRequest{
 				Limit:  3,
 				Offset: 0,
 			},
 			wantLen: 3,
 			validate: func(t *testing.T, users []user.User) {
-				assert.Len(t, users, 3)
+				require.Len(t, users, 3)
 			},
 		},
 		{
-			name: "second page with pagination",
+			name: "second_page_with_pagination",
 			request: user.ListRequest{
 				Limit:  3,
 				Offset: 3,
@@ -635,7 +646,7 @@ func TestListUsers_TableDriven(t *testing.T) {
 			wantLen: 2,
 		},
 		{
-			name: "filter by client role",
+			name: "filter_by_client_role",
 			request: user.ListRequest{
 				Filter: user.Filter{
 					UserRole: user.RoleClient,
@@ -650,7 +661,7 @@ func TestListUsers_TableDriven(t *testing.T) {
 			},
 		},
 		{
-			name: "filter by admin role",
+			name: "filter_by_admin_role",
 			request: user.ListRequest{
 				Filter: user.Filter{
 					UserRole: user.RoleAdmin,
@@ -665,7 +676,7 @@ func TestListUsers_TableDriven(t *testing.T) {
 			},
 		},
 		{
-			name: "search by first name",
+			name: "search_by_first_name",
 			request: user.ListRequest{
 				Filter: user.Filter{
 					Search: "john",
@@ -678,7 +689,7 @@ func TestListUsers_TableDriven(t *testing.T) {
 			},
 		},
 		{
-			name: "search by last name",
+			name: "search_by_last_name",
 			request: user.ListRequest{
 				Filter: user.Filter{
 					Search: "smith",
@@ -691,7 +702,7 @@ func TestListUsers_TableDriven(t *testing.T) {
 			},
 		},
 		{
-			name: "search by email",
+			name: "search_by_email",
 			request: user.ListRequest{
 				Filter: user.Filter{
 					Search: "admin1",
@@ -704,7 +715,7 @@ func TestListUsers_TableDriven(t *testing.T) {
 			},
 		},
 		{
-			name: "search with multiple results",
+			name: "search_with_multiple_results",
 			request: user.ListRequest{
 				Filter: user.Filter{
 					Search: "admin",
@@ -714,7 +725,7 @@ func TestListUsers_TableDriven(t *testing.T) {
 			wantLen: 2,
 		},
 		{
-			name: "empty result for non-matching search",
+			name: "empty_result_for_non_matching_search",
 			request: user.ListRequest{
 				Filter: user.Filter{
 					Search: "nonexistent",
@@ -724,14 +735,14 @@ func TestListUsers_TableDriven(t *testing.T) {
 			wantLen: 0,
 		},
 		{
-			name: "large limit returns all",
+			name: "large_limit_returns_all",
 			request: user.ListRequest{
 				Limit: 100,
 			},
 			wantLen: 5,
 		},
 		{
-			name: "zero limit returns empty",
+			name: "zero_limit_returns_empty",
 			request: user.ListRequest{
 				Limit: 0,
 			},
@@ -747,7 +758,7 @@ func TestListUsers_TableDriven(t *testing.T) {
 			users, err := testRepo.List(testCtx, tt.request)
 
 			require.NoError(t, err)
-			assert.Len(t, users, tt.wantLen)
+			require.Len(t, users, tt.wantLen)
 
 			if tt.validate != nil {
 				tt.validate(t, users)
@@ -756,14 +767,14 @@ func TestListUsers_TableDriven(t *testing.T) {
 	}
 }
 
-func TestListUsers_EmptyDatabase(t *testing.T) {
+func TestListUsersEmptyDatabase(t *testing.T) {
 	tests := []struct {
 		name    string
 		request user.ListRequest
 		wantLen int
 	}{
 		{
-			name: "empty database with default request",
+			name: "empty_database_with_default_request",
 			request: user.ListRequest{
 				Limit:  10,
 				Offset: 0,
@@ -771,7 +782,7 @@ func TestListUsers_EmptyDatabase(t *testing.T) {
 			wantLen: 0,
 		},
 		{
-			name: "empty database with filter",
+			name: "empty_database_with_filter",
 			request: user.ListRequest{
 				Filter: user.Filter{
 					UserRole: "client",
@@ -781,7 +792,7 @@ func TestListUsers_EmptyDatabase(t *testing.T) {
 			wantLen: 0,
 		},
 		{
-			name: "empty database with search",
+			name: "empty_database_with_search",
 			request: user.ListRequest{
 				Filter: user.Filter{
 					Search: "anything",
@@ -799,8 +810,8 @@ func TestListUsers_EmptyDatabase(t *testing.T) {
 			users, err := testRepo.List(testCtx, tt.request)
 
 			require.NoError(t, err)
-			assert.Empty(t, users)
-			assert.Len(t, users, tt.wantLen)
+			require.Empty(t, users)
+			require.Len(t, users, tt.wantLen)
 		})
 	}
 }
