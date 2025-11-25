@@ -59,8 +59,11 @@ jobs:
           export PATH=$PATH:$GOPATH/bin
           goose -dir db/migrations postgres "$DSN" up
 
-      - name: Run tests
+      - name: Run tests (sequential packages to avoid DB migration races)
         env:
           TEST_DSN: postgres://root:root@127.0.0.1:5432/test?sslmode=disable
         run: |
-          go test ./... -v -count=1
+          # Run package tests sequentially to avoid concurrent migrations/seed operations
+          # which can cause FK violations, duplicate key inserts and deadlocks when multiple
+          # test packages try to run goose or mutate shared DB at the same time.
+          go test -p=1 ./... -v -count=1
