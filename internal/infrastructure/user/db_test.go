@@ -750,7 +750,7 @@ func TestListUsersTableDriven(t *testing.T) {
 			require.NoError(t, truncateTables())
 			setupTestUsers()
 
-			users, err := testRepo.List(testCtx, tt.request)
+			users, _, err := testRepo.List(testCtx, tt.request)
 
 			require.NoError(t, err)
 			require.Len(t, users, tt.wantLen)
@@ -802,7 +802,7 @@ func TestListUsersEmptyDatabase(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			require.NoError(t, truncateTables())
 
-			users, err := testRepo.List(testCtx, tt.request)
+			users, _, err := testRepo.List(testCtx, tt.request)
 
 			require.NoError(t, err)
 			require.Empty(t, users)

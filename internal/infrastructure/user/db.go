@@ -151,10 +151,11 @@ func (r Repository) GetByEmail(ctx context.Context, email string) (user.User, er
 
 }
 
-func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.User, error) {
+func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.User, int, error) {
 	const op = "userdb.Repository.List"
 
 	var users []user.User
+	var total int
 
 	query := r.sq.
 		Select("*").
@@ -169,7 +170,7 @@ func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.Use
 		ToSql()
 
 	if err != nil {
-		return nil, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
+		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
 	}
 
 	r.Logger.DebugContext(ctx, "listing users",
@@ -181,7 +182,7 @@ func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.Use
 
 	rows, err := r.Client.Query(ctx, sql, args...)
 	if err != nil {
-		return nil, r.HandleError(op, err)
+		return nil, 0, r.HandleError(op, err)
 	}
 	defer rows.Close()
 
@@ -193,13 +194,13 @@ func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.Use
 			&user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("row scan error: %w", err)
+			return nil, 0, fmt.Errorf("row scan error: %w", err)
 		}
 		users = append(users, user)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration error: %w", err)
+		return nil, 0, fmt.Errorf("rows iteration error: %w", err)
 	}
 
 	r.Logger.DebugContext(ctx, "users list retrieved",
@@ -207,7 +208,18 @@ func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.Use
 		"count", len(users),
 	)
 
-	return users, nil
+	// compute total matching rows for pagination
+	countQuery := r.sq.Select("COUNT(*)").From("users")
+	countQuery = r.applyFilters(countQuery, req.Filter)
+	countSQL, countArgs, err := countQuery.ToSql()
+	if err != nil {
+		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("build count query: %s", err))
+	}
+	if err := r.Client.QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
+		return nil, 0, r.HandleError(op, err)
+	}
+
+	return users, total, nil
 
 }
 
