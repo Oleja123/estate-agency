@@ -16,9 +16,9 @@ type ImageRepository interface {
 	// ListByProperty returns all images for given property ID.
 	ListByProperty(ctx context.Context, propertyID int) ([]PropertyImage, error)
 
-	// Delete removes image by its ID.
-	Delete(ctx context.Context, id int) error
+	// Delete removes image by its ID and returns deleted id.
+	Delete(ctx context.Context, id int) (int, error)
 
-	// DeleteMany removes all images for a given property ID.
-	DeleteMany(ctx context.Context, propertyID int) error
+	// DeleteMany removes all images for a given property ID and returns their IDs.
+	DeleteMany(ctx context.Context, propertyID int) ([]int, error)
 }

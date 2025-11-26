@@ -19,7 +19,7 @@ import (
 type mockRepo struct {
 	CreateFn               func(ctx context.Context, fav domain.Favorite) error
 	GetByUserAndPropertyFn func(ctx context.Context, userID, propertyID int) (domain.Favorite, error)
-	DeleteFn               func(ctx context.Context, userID, propertyID int) error
+	DeleteFn               func(ctx context.Context, userID, propertyID int) (int, error)
 	ListFn                 func(ctx context.Context, req domain.ListRequest) ([]domain.Favorite, error)
 	ExistsFn               func(ctx context.Context, userID, propertyID int) (bool, error)
 }
@@ -36,9 +36,9 @@ func (m *mockRepo) GetByUserAndProperty(ctx context.Context, userID, propertyID 
 	}
 	return m.GetByUserAndPropertyFn(ctx, userID, propertyID)
 }
-func (m *mockRepo) Delete(ctx context.Context, userID, propertyID int) error {
+func (m *mockRepo) Delete(ctx context.Context, userID, propertyID int) (int, error) {
 	if m.DeleteFn == nil {
-		return nil
+		return 0, nil
 	}
 	return m.DeleteFn(ctx, userID, propertyID)
 }
@@ -98,11 +98,11 @@ func TestGetByUserAndProperty_NotFound(t *testing.T) {
 func TestDelete_NotFound(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
-	repo.DeleteFn = func(ctx context.Context, userID, propertyID int) error {
-		return dberrors.NewErrNotFound("favorite", nil)
+	repo.DeleteFn = func(ctx context.Context, userID, propertyID int) (int, error) {
+		return 0, dberrors.NewErrNotFound("favorite", nil)
 	}
 	svc := New(repo, logger())
-	err := svc.Delete(ctx, dto.CreateFavoriteRequest{UserID: 1, PropertyID: 2})
+	_, err := svc.Delete(ctx, dto.CreateFavoriteRequest{UserID: 1, PropertyID: 2})
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
 	assert.True(t, errors.As(err, &nf))

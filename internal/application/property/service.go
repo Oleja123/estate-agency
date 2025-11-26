@@ -167,15 +167,16 @@ func (s *service) List(ctx context.Context, req dto.ListPropertiesRequest) (dto.
 	return dto.ListPropertiesResponse{Properties: list, Total: total}, nil
 }
 
-func (s *service) Delete(ctx context.Context, id int) error {
-	if err := s.repo.Delete(ctx, id); err != nil {
+func (s *service) Delete(ctx context.Context, id int) (int, error) {
+	deletedID, err := s.repo.Delete(ctx, id)
+	if err != nil {
 		var nf dberrors.ErrNotFound
 		if errors.As(err, &nf) {
-			return apperrors.NewErrNotFound("property", id)
+			return 0, apperrors.NewErrNotFound("property", id)
 		}
 		s.logger.Error("delete property: repo delete failed", "err", err)
-		return apperrors.NewErrInternal("failed to delete property")
+		return 0, apperrors.NewErrInternal("failed to delete property")
 	}
-	s.logger.Info("delete property: deleted", "id", id)
-	return nil
+	s.logger.Info("delete property: deleted", "id", deletedID)
+	return deletedID, nil
 }

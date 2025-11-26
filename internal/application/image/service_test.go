@@ -20,10 +20,10 @@ import (
 type mockRepo struct {
 	CreateFn     func(ctx context.Context, img domain.PropertyImage) (int, error)
 	CreateManyFn func(ctx context.Context, imgs []domain.PropertyImage) ([]int, error)
-	DeleteManyFn func(ctx context.Context, propertyID int) error
+	DeleteManyFn func(ctx context.Context, propertyID int) ([]int, error)
 	GetByIDFn    func(ctx context.Context, id int) (domain.PropertyImage, error)
 	ListFn       func(ctx context.Context, propertyID int) ([]domain.PropertyImage, error)
-	DeleteFn     func(ctx context.Context, id int) error
+	DeleteFn     func(ctx context.Context, id int) (int, error)
 }
 
 func (m *mockRepo) Create(ctx context.Context, img domain.PropertyImage) (int, error) {
@@ -38,9 +38,9 @@ func (m *mockRepo) CreateMany(ctx context.Context, imgs []domain.PropertyImage) 
 	}
 	return m.CreateManyFn(ctx, imgs)
 }
-func (m *mockRepo) DeleteMany(ctx context.Context, propertyID int) error {
+func (m *mockRepo) DeleteMany(ctx context.Context, propertyID int) ([]int, error) {
 	if m.DeleteManyFn == nil {
-		return nil
+		return nil, nil
 	}
 	return m.DeleteManyFn(ctx, propertyID)
 }
@@ -56,9 +56,9 @@ func (m *mockRepo) ListByProperty(ctx context.Context, propertyID int) ([]domain
 	}
 	return m.ListFn(ctx, propertyID)
 }
-func (m *mockRepo) Delete(ctx context.Context, id int) error {
+func (m *mockRepo) Delete(ctx context.Context, id int) (int, error) {
 	if m.DeleteFn == nil {
-		return nil
+		return 0, nil
 	}
 	return m.DeleteFn(ctx, id)
 }
@@ -130,9 +130,11 @@ func TestGetByID_NotFound(t *testing.T) {
 func TestDelete_NotFound(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
-	repo.DeleteFn = func(ctx context.Context, id int) error { return dberrors.NewErrNotFound("property_image", id) }
+	repo.DeleteFn = func(ctx context.Context, id int) (int, error) {
+		return 0, dberrors.NewErrNotFound("property_image", id)
+	}
 	svc := New(repo, logger(), t.TempDir())
-	err := svc.Delete(ctx, 3)
+	_, err := svc.Delete(ctx, 3)
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
 	assert.True(t, errors.As(err, &nf))

@@ -21,7 +21,7 @@ type mockRepo struct {
 	GetByIDFn   func(ctx context.Context, id int) (domain.PropertyType, error)
 	GetByNameFn func(ctx context.Context, name string) (domain.PropertyType, error)
 	UpdateFn    func(ctx context.Context, pt domain.PropertyType) error
-	DeleteFn    func(ctx context.Context, id int) error
+	DeleteFn    func(ctx context.Context, id int) (int, error)
 	ListFn      func(ctx context.Context, req domain.ListRequest) ([]domain.PropertyType, error)
 }
 
@@ -37,7 +37,7 @@ func (m *mockRepo) GetByName(ctx context.Context, name string) (domain.PropertyT
 func (m *mockRepo) Update(ctx context.Context, pt domain.PropertyType) error {
 	return m.UpdateFn(ctx, pt)
 }
-func (m *mockRepo) Delete(ctx context.Context, id int) error { return m.DeleteFn(ctx, id) }
+func (m *mockRepo) Delete(ctx context.Context, id int) (int, error) { return m.DeleteFn(ctx, id) }
 func (m *mockRepo) List(ctx context.Context, req domain.ListRequest) ([]domain.PropertyType, error) {
 	return m.ListFn(ctx, req)
 }
@@ -129,11 +129,11 @@ func TestList_Success(t *testing.T) {
 func TestDelete_NotFound(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
-	repo.DeleteFn = func(ctx context.Context, id int) error {
-		return dberrors.NewErrNotFound("property_type", id)
+	repo.DeleteFn = func(ctx context.Context, id int) (int, error) {
+		return 0, dberrors.NewErrNotFound("property_type", id)
 	}
 	svc := New(repo, logger())
-	err := svc.Delete(ctx, 5)
+	_, err := svc.Delete(ctx, 5)
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
 	assert.True(t, errors.As(err, &nf))

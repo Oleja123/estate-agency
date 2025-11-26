@@ -57,7 +57,7 @@ func TestImageCRUD(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, list, 1)
 
-		err = imageRepo.Delete(testCtx, id)
+		_, err = imageRepo.Delete(testCtx, id)
 		require.NoError(t, err)
 
 		_, err = imageRepo.GetByID(testCtx, id)
@@ -88,7 +88,8 @@ func TestImageCRUD(t *testing.T) {
 
 		// cleanup
 		for _, id := range ids {
-			require.NoError(t, imageRepo.Delete(testCtx, id))
+			_, err := imageRepo.Delete(testCtx, id)
+			require.NoError(t, err)
 		}
 	})
 }
@@ -110,7 +111,9 @@ func TestDeleteManyByProperty(t *testing.T) {
 	require.Len(t, ids, len(imgs))
 
 	// delete all images for property
-	require.NoError(t, imageRepo.DeleteMany(testCtx, propID))
+	deletedIDs, err := imageRepo.DeleteMany(testCtx, propID)
+	require.NoError(t, err)
+	require.Len(t, deletedIDs, len(imgs))
 
 	// list should be empty
 	list, err := imageRepo.ListByProperty(testCtx, propID)
@@ -130,7 +133,7 @@ func TestDeleteMany_InvalidProperty(t *testing.T) {
 	imageRepo := NewImageRepository(testClient, testLogger)
 
 	// use a non-existing property id (assuming 99999 doesn't exist in test fixtures)
-	err := imageRepo.DeleteMany(testCtx, 99999)
+	_, err := imageRepo.DeleteMany(testCtx, 99999)
 	require.Error(t, err)
 	// should be NotFound for property
 	assert.True(t, basedb.IsNotFound(err))

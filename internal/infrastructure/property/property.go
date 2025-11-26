@@ -164,7 +164,7 @@ func (r *Repository) Update(ctx context.Context, prop property.Property) error {
 	return nil
 }
 
-func (r *Repository) Delete(ctx context.Context, id int) error {
+func (r *Repository) Delete(ctx context.Context, id int) (int, error) {
 	const op = "propertydb.Repository.Delete"
 
 	sql, args, err := r.sq.
@@ -173,7 +173,7 @@ func (r *Repository) Delete(ctx context.Context, id int) error {
 		ToSql()
 
 	if err != nil {
-		return basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
+		return 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
 	r.Logger.DebugContext(ctx, "deleting property",
@@ -183,7 +183,7 @@ func (r *Repository) Delete(ctx context.Context, id int) error {
 
 	result, err := r.Client.Exec(ctx, sql, args...)
 	if err != nil {
-		return r.HandleError(op, err)
+		return 0, r.HandleError(op, err)
 	}
 
 	rowsAffected := result.RowsAffected()
@@ -192,7 +192,7 @@ func (r *Repository) Delete(ctx context.Context, id int) error {
 			"operation", op,
 			"property_id", id,
 		)
-		return basedberrors.NewErrNotFound("property", id)
+		return 0, basedberrors.NewErrNotFound("property", id)
 	}
 
 	r.Logger.InfoContext(ctx, "property deleted successfully",
@@ -201,7 +201,7 @@ func (r *Repository) Delete(ctx context.Context, id int) error {
 		"rows_deleted", rowsAffected,
 	)
 
-	return nil
+	return id, nil
 }
 
 func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]property.Property, error) {

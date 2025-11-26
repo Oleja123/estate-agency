@@ -21,6 +21,6 @@ type Repository interface {
 	GetByID(ctx context.Context, id int) (User, error)
 	GetByEmail(ctx context.Context, email string) (User, error)
 	Update(ctx context.Context, user User) error
-	Delete(ctx context.Context, id int) error
+	Delete(ctx context.Context, id int) (int, error)
 	List(ctx context.Context, req ListRequest) ([]User, int, error)
 }

@@ -26,7 +26,7 @@ type mockRepo struct {
 	CreateFunc   func(ctx context.Context, u domain.User) (int, error)
 	GetByEmailFn func(ctx context.Context, email string) (domain.User, error)
 	UpdateFunc   func(ctx context.Context, u domain.User) error
-	DeleteFunc   func(ctx context.Context, id int) error
+	DeleteFunc   func(ctx context.Context, id int) (int, error)
 	GetByIDFunc  func(ctx context.Context, id int) (domain.User, error)
 	ListFunc     func(ctx context.Context, req domain.ListRequest) ([]domain.User, int, error)
 }
@@ -59,11 +59,11 @@ func (m *mockRepo) Update(ctx context.Context, u domain.User) error {
 	return nil
 }
 
-func (m *mockRepo) Delete(ctx context.Context, id int) error {
+func (m *mockRepo) Delete(ctx context.Context, id int) (int, error) {
 	if m.DeleteFunc != nil {
 		return m.DeleteFunc(ctx, id)
 	}
-	return nil
+	return id, nil
 }
 
 func (m *mockRepo) List(ctx context.Context, req domain.ListRequest) ([]domain.User, int, error) {
@@ -379,14 +379,14 @@ func TestUserService_DeleteUser_NotFound(t *testing.T) {
 	logger := makeLogger()
 
 	repo := &mockRepo{
-		DeleteFunc: func(ctx context.Context, id int) error {
-			return basedberrors.NewErrNotFound("user", id)
+		DeleteFunc: func(ctx context.Context, id int) (int, error) {
+			return 0, basedberrors.NewErrNotFound("user", id)
 		},
 	}
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
 
-	err := svc.DeleteUser(ctx, 77, 1)
+	_, err := svc.DeleteUser(ctx, 77, 1)
 	require.Error(t, err)
 	_, ok := err.(apperrors.ErrNotFound)
 	assert.True(t, ok)
@@ -520,12 +520,13 @@ func TestUserService_DeleteUser_Success(t *testing.T) {
 	logger := makeLogger()
 
 	repo := &mockRepo{
-		DeleteFunc: func(ctx context.Context, id int) error {
-			return nil
+		DeleteFunc: func(ctx context.Context, id int) (int, error) {
+			return id, nil
 		},
 	}
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
-	err := svc.DeleteUser(ctx, 7, 1)
+	did, err := svc.DeleteUser(ctx, 7, 1)
 	require.NoError(t, err)
+	assert.Equal(t, 7, did)
 }

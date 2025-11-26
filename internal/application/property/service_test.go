@@ -22,7 +22,7 @@ type mockRepo struct {
 	CreateFn  func(ctx context.Context, p domain.Property) (int, error)
 	GetByIDFn func(ctx context.Context, id int) (domain.Property, error)
 	UpdateFn  func(ctx context.Context, p domain.Property) error
-	DeleteFn  func(ctx context.Context, id int) error
+	DeleteFn  func(ctx context.Context, id int) (int, error)
 	ListFn    func(ctx context.Context, req domain.ListRequest) ([]domain.Property, error)
 }
 
@@ -31,7 +31,7 @@ type mockTypeRepo struct {
 	GetByIDFn   func(ctx context.Context, id int) (ptypedomain.PropertyType, error)
 	GetByNameFn func(ctx context.Context, name string) (ptypedomain.PropertyType, error)
 	UpdateFn    func(ctx context.Context, pt ptypedomain.PropertyType) error
-	DeleteFn    func(ctx context.Context, id int) error
+	DeleteFn    func(ctx context.Context, id int) (int, error)
 	ListFn      func(ctx context.Context, req ptypedomain.ListRequest) ([]ptypedomain.PropertyType, error)
 }
 
@@ -63,11 +63,11 @@ func (m *mockTypeRepo) Update(ctx context.Context, pt ptypedomain.PropertyType) 
 	return nil
 }
 
-func (m *mockTypeRepo) Delete(ctx context.Context, id int) error {
+func (m *mockTypeRepo) Delete(ctx context.Context, id int) (int, error) {
 	if m.DeleteFn != nil {
 		return m.DeleteFn(ctx, id)
 	}
-	return nil
+	return 0, nil
 }
 
 func (m *mockTypeRepo) List(ctx context.Context, req ptypedomain.ListRequest) ([]ptypedomain.PropertyType, error) {
@@ -84,7 +84,7 @@ func (m *mockRepo) GetByID(ctx context.Context, id int) (domain.Property, error)
 	return m.GetByIDFn(ctx, id)
 }
 func (m *mockRepo) Update(ctx context.Context, p domain.Property) error { return m.UpdateFn(ctx, p) }
-func (m *mockRepo) Delete(ctx context.Context, id int) error            { return m.DeleteFn(ctx, id) }
+func (m *mockRepo) Delete(ctx context.Context, id int) (int, error)     { return m.DeleteFn(ctx, id) }
 func (m *mockRepo) List(ctx context.Context, req domain.ListRequest) ([]domain.Property, error) {
 	return m.ListFn(ctx, req)
 }
@@ -155,10 +155,10 @@ func TestListProperties_Success(t *testing.T) {
 func TestDelete_NotFound(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
-	repo.DeleteFn = func(ctx context.Context, id int) error { return dberrors.NewErrNotFound("property", id) }
+	repo.DeleteFn = func(ctx context.Context, id int) (int, error) { return 0, dberrors.NewErrNotFound("property", id) }
 	typeRepo := &mockTypeRepo{}
 	svc := New(repo, typeRepo, logger(), geocoder.NewNoop())
-	err := svc.Delete(ctx, 7)
+	_, err := svc.Delete(ctx, 7)
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
 	assert.True(t, errors.As(err, &nf))

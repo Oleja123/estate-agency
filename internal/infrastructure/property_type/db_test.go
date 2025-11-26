@@ -134,7 +134,7 @@ func TestPropertyTypeCRUD(t *testing.T) {
 				return created
 			},
 			action: func(t *testing.T, pt propertytype.PropertyType) (propertytype.PropertyType, error) {
-				err := testRepo.Delete(testCtx, pt.Id)
+				_, err := testRepo.Delete(testCtx, pt.Id)
 				if err != nil {
 					return propertytype.PropertyType{}, err
 				}

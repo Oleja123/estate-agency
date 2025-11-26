@@ -61,16 +61,17 @@ func (s *service) GetByUserAndProperty(ctx context.Context, key dto.CreateFavori
 	return fav, nil
 }
 
-func (s *service) Delete(ctx context.Context, key dto.CreateFavoriteRequest) error {
-	if err := s.repo.Delete(ctx, key.UserID, key.PropertyID); err != nil {
+func (s *service) Delete(ctx context.Context, key dto.CreateFavoriteRequest) (int, error) {
+	deletedID, err := s.repo.Delete(ctx, key.UserID, key.PropertyID)
+	if err != nil {
 		var nf dberrors.ErrNotFound
 		if errors.As(err, &nf) {
-			return apperrors.NewErrNotFound("favorite", map[string]int{"user_id": key.UserID, "property_id": key.PropertyID})
+			return 0, apperrors.NewErrNotFound("favorite", map[string]int{"user_id": key.UserID, "property_id": key.PropertyID})
 		}
 		s.logger.Error("delete favorite: repo error", "err", err)
-		return apperrors.NewErrInternal("failed to delete favorite")
+		return 0, apperrors.NewErrInternal("failed to delete favorite")
 	}
-	return nil
+	return deletedID, nil
 }
 
 func (s *service) List(ctx context.Context, req dto.ListFavoritesRequest) (dto.ListFavoritesResponse, error) {

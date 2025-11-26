@@ -191,7 +191,7 @@ func TestFavoriteCRUD(t *testing.T) {
 				return fav
 			},
 			action: func(t *testing.T, fav favorite.Favorite) (favorite.Favorite, error) {
-				err := testRepo.Delete(testCtx, fav.UserID, fav.PropertyID)
+				_, err := testRepo.Delete(testCtx, fav.UserID, fav.PropertyID)
 				if err != nil {
 					return favorite.Favorite{}, err
 				}

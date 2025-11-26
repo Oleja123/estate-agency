@@ -185,7 +185,7 @@ func (r *Repository) Update(ctx context.Context, propertyType propertytype.Prope
 	return nil
 }
 
-func (r *Repository) Delete(ctx context.Context, Id int) error {
+func (r *Repository) Delete(ctx context.Context, Id int) (int, error) {
 	const op = "propertytypedb.Repository.Delete"
 
 	sql, args, err := r.sq.
@@ -194,7 +194,7 @@ func (r *Repository) Delete(ctx context.Context, Id int) error {
 		ToSql()
 
 	if err != nil {
-		return basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
+		return 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
 	r.Logger.DebugContext(ctx, "deleting property type",
@@ -204,7 +204,7 @@ func (r *Repository) Delete(ctx context.Context, Id int) error {
 
 	result, err := r.Client.Exec(ctx, sql, args...)
 	if err != nil {
-		return r.HandleError(op, err)
+		return 0, r.HandleError(op, err)
 	}
 
 	if result.RowsAffected() == 0 {
@@ -212,7 +212,7 @@ func (r *Repository) Delete(ctx context.Context, Id int) error {
 			"operation", op,
 			"type_id", Id,
 		)
-		return basedberrors.NewErrNotFound("property_type", Id)
+		return 0, basedberrors.NewErrNotFound("property_type", Id)
 	}
 
 	r.Logger.InfoContext(ctx, "property type deleted successfully",
@@ -221,7 +221,7 @@ func (r *Repository) Delete(ctx context.Context, Id int) error {
 		"rows_deleted", result.RowsAffected(),
 	)
 
-	return nil
+	return Id, nil
 }
 
 func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]propertytype.PropertyType, error) {

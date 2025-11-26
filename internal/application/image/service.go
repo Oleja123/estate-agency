@@ -71,7 +71,7 @@ func (s *service) Create(ctx context.Context, req dto.CreateImageRequest) (domai
 		return domain.PropertyImage{}, apperrors.NewErrInternal("failed to prepare images")
 	}
 	if len(existing) > 0 {
-		if err := s.repo.DeleteMany(ctx, req.PropertyID); err != nil {
+		if _, err := s.repo.DeleteMany(ctx, req.PropertyID); err != nil {
 			// If the rows are already gone it's fine; otherwise treat as internal
 			var nf dberrors.ErrNotFound
 			if !errors.As(err, &nf) {
@@ -314,14 +314,15 @@ func (s *service) ListByProperty(ctx context.Context, propertyID int) ([]dto.Ima
 	return dtos, nil
 }
 
-func (s *service) Delete(ctx context.Context, id int) error {
-	if err := s.repo.Delete(ctx, id); err != nil {
+func (s *service) Delete(ctx context.Context, id int) (int, error) {
+	deletedID, err := s.repo.Delete(ctx, id)
+	if err != nil {
 		var nf dberrors.ErrNotFound
 		if errors.As(err, &nf) {
-			return apperrors.NewErrNotFound("property_image", id)
+			return 0, apperrors.NewErrNotFound("property_image", id)
 		}
 		s.logger.Error("delete image: repo failed", "err", err)
-		return apperrors.NewErrInternal("failed to delete image")
+		return 0, apperrors.NewErrInternal("failed to delete image")
 	}
-	return nil
+	return deletedID, nil
 }

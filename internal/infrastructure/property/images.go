@@ -153,7 +153,7 @@ func (r *ImageRepository) ListByProperty(ctx context.Context, propertyID int) ([
 	return imgs, nil
 }
 
-func (r *ImageRepository) Delete(ctx context.Context, id int) error {
+func (r *ImageRepository) Delete(ctx context.Context, id int) (int, error) {
 	const op = "propertydb.ImageRepository.Delete"
 
 	sql, args, err := r.sq.
@@ -162,58 +162,71 @@ func (r *ImageRepository) Delete(ctx context.Context, id int) error {
 		ToSql()
 
 	if err != nil {
-		return basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
+		return 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
 	}
 
 	result, err := r.Client.Exec(ctx, sql, args...)
 	if err != nil {
-		return r.HandleError(op, err)
+		return 0, r.HandleError(op, err)
 	}
 
 	if result.RowsAffected() == 0 {
-		return basedberrors.NewErrNotFound("property_image", id)
+		return 0, basedberrors.NewErrNotFound("property_image", id)
 	}
 
-	return nil
+	return id, nil
 }
 
 // DeleteMany removes multiple images by their IDs in a single query.
-func (r *ImageRepository) DeleteMany(ctx context.Context, propertyID int) error {
+func (r *ImageRepository) DeleteMany(ctx context.Context, propertyID int) ([]int, error) {
 	const op = "propertydb.ImageRepository.DeleteMany"
 	if propertyID == 0 {
-		return basedberrors.NewErrInvalidInput("property_id", propertyID, "invalid or zero id")
+		return nil, basedberrors.NewErrInvalidInput("property_id", propertyID, "invalid or zero id")
 	}
 
 	// Ensure property exists — deleting images for a non-existent property should return NotFound.
-	// Scan into an integer (SELECT 1) rather than a bool to avoid scan type errors.
 	var existsInt int
 	checkSql, checkArgs, err := r.sq.Select("1").From("properties").Where(squirrel.Eq{"id": propertyID}).Limit(1).ToSql()
 	if err != nil {
-		return basedberrors.NewErrDatabase(op, fmt.Sprintf("build property check query: %s", err))
+		return nil, basedberrors.NewErrDatabase(op, fmt.Sprintf("build property check query: %s", err))
 	}
 	row := r.Client.QueryRow(ctx, checkSql, checkArgs...)
 	if err := row.Scan(&existsInt); err != nil {
-		// if no rows, property doesn't exist
 		if errors.Is(err, pgx.ErrNoRows) {
-			return basedberrors.NewErrNotFound("property", propertyID)
+			return nil, basedberrors.NewErrNotFound("property", propertyID)
 		}
-		return r.HandleError(op, err)
+		return nil, r.HandleError(op, err)
 	}
 
+	// Delete rows and RETURNING id so we can return deleted ids to caller.
 	sql, args, err := r.sq.
 		Delete("property_images").
 		Where(squirrel.Eq{"property_id": propertyID}).
+		Suffix("RETURNING id").
 		ToSql()
 
 	if err != nil {
-		return basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
+		return nil, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
 	}
 
-	_, err = r.Client.Exec(ctx, sql, args...)
+	rows, err := r.Client.Query(ctx, sql, args...)
 	if err != nil {
-		return r.HandleError(op, err)
+		return nil, r.HandleError(op, err)
+	}
+	defer rows.Close()
+
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan returned id error: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
 	}
 
-	// deletion of zero rows is acceptable (no images existed).
-	return nil
+	// deletion of zero rows is acceptable (no images existed) — return empty slice.
+	return ids, nil
 }

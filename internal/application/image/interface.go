@@ -12,5 +12,5 @@ type Service interface {
 	CreateMany(ctx context.Context, req dto.CreateImagesRequest) ([]domain.PropertyImage, error)
 	GetByID(ctx context.Context, id int) (domain.PropertyImage, error)
 	ListByProperty(ctx context.Context, propertyID int) ([]dto.ImageDTO, error)
-	Delete(ctx context.Context, id int) error
+	Delete(ctx context.Context, id int) (int, error)
 }

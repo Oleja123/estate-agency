@@ -102,15 +102,16 @@ func (s *service) List(ctx context.Context, req dto.ListPropertyTypesRequest) (d
 	return dto.ListPropertyTypesResponse{Types: list, Total: total}, nil
 }
 
-func (s *service) Delete(ctx context.Context, id int) error {
-	if err := s.repo.Delete(ctx, id); err != nil {
+func (s *service) Delete(ctx context.Context, id int) (int, error) {
+	deletedID, err := s.repo.Delete(ctx, id)
+	if err != nil {
 		var nf dberrors.ErrNotFound
 		if errors.As(err, &nf) {
-			return apperrors.NewErrNotFound("property_type", id)
+			return 0, apperrors.NewErrNotFound("property_type", id)
 		}
 		s.logger.Error("delete: repo delete failed", "err", err)
-		return apperrors.NewErrInternal("failed to delete property type")
+		return 0, apperrors.NewErrInternal("failed to delete property type")
 	}
-	s.logger.Info("delete: property type deleted", "id", id)
-	return nil
+	s.logger.Info("delete: property type deleted", "id", deletedID)
+	return deletedID, nil
 }

@@ -106,7 +106,7 @@ func (r *Repository) GetByUserAndProperty(ctx context.Context, userID, propertyI
 	return fav, nil
 }
 
-func (r *Repository) Delete(ctx context.Context, userID, propertyID int) error {
+func (r *Repository) Delete(ctx context.Context, userID, propertyID int) (int, error) {
 	const op = "favoritedb.Repository.Delete"
 
 	sql, args, err := r.sq.
@@ -115,7 +115,7 @@ func (r *Repository) Delete(ctx context.Context, userID, propertyID int) error {
 		ToSql()
 
 	if err != nil {
-		return basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
+		return 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
 	r.Logger.DebugContext(ctx, "deleting from favorites",
@@ -126,7 +126,7 @@ func (r *Repository) Delete(ctx context.Context, userID, propertyID int) error {
 
 	result, err := r.Client.Exec(ctx, sql, args...)
 	if err != nil {
-		return r.HandleError(op, err)
+		return 0, r.HandleError(op, err)
 	}
 
 	rowsAffected := result.RowsAffected()
@@ -136,7 +136,7 @@ func (r *Repository) Delete(ctx context.Context, userID, propertyID int) error {
 			"user_id", userID,
 			"property_id", propertyID,
 		)
-		return basedberrors.NewErrNotFound("favorite", fmt.Sprintf("user:%d,property:%d", userID, propertyID))
+		return 0, basedberrors.NewErrNotFound("favorite", fmt.Sprintf("user:%d,property:%d", userID, propertyID))
 	}
 
 	r.Logger.InfoContext(ctx, "deleted from favorites",
@@ -146,7 +146,8 @@ func (r *Repository) Delete(ctx context.Context, userID, propertyID int) error {
 		"rows_affected", rowsAffected,
 	)
 
-	return nil
+	// return propertyID as the logical deleted identifier
+	return propertyID, nil
 }
 
 func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favorite.Favorite, error) {

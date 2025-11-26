@@ -19,6 +19,6 @@ type Repository interface {
 	GetByID(ctx context.Context, id int) (PropertyType, error)
 	GetByName(ctx context.Context, name string) (PropertyType, error)
 	Update(ctx context.Context, propertyType PropertyType) error
-	Delete(ctx context.Context, id int) error
+	Delete(ctx context.Context, id int) (int, error)
 	List(ctx context.Context, req ListRequest) ([]PropertyType, error)
 }

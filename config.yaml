@@ -1,0 +1,15 @@
+# Sample configuration for estate-agency
+# Adjust values per your environment or set CONFIG_PATH env to point to another file.
+
+db_config:
+  username: root
+  password: root
+  host: localhost
+  port: "5432"
+  database: estate
+  max_attempts: 5
+  seconds_to_connect: 5
+
+geo_config: {}
+
+goose_path: db/migrations

@@ -12,5 +12,5 @@ type Service interface {
 	GetByID(ctx context.Context, id int) (domain.Property, error)
 	Update(ctx context.Context, req dto.UpdatePropertyRequest) error
 	List(ctx context.Context, req dto.ListPropertiesRequest) (dto.ListPropertiesResponse, error)
-	Delete(ctx context.Context, id int) error
+	Delete(ctx context.Context, id int) (int, error)
 }

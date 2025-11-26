@@ -23,5 +23,5 @@ type Service interface {
 	DeactivateAccount(ctx context.Context, userID int) error
 
 	ListUsers(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error)
-	DeleteUser(ctx context.Context, userID, requesterID int) error
+	DeleteUser(ctx context.Context, userID, requesterID int) (int, error)
 }

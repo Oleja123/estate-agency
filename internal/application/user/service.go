@@ -324,16 +324,16 @@ func (s *service) GetUserByID(ctx context.Context, userID, requesterID int) (dom
 	return u, nil
 }
 
-func (s *service) DeleteUser(ctx context.Context, userID, requesterID int) error {
-	err := s.repo.Delete(ctx, userID)
+func (s *service) DeleteUser(ctx context.Context, userID, requesterID int) (int, error) {
+	deletedID, err := s.repo.Delete(ctx, userID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
 		if errors.As(err, &nf) {
-			return apperrors.NewErrNotFound("user", userID)
+			return 0, apperrors.NewErrNotFound("user", userID)
 		}
 		s.logger.Error("delete user: failed to delete user", "user_id", userID, "err", err)
-		return apperrors.NewErrInternal("failed to delete user")
+		return 0, apperrors.NewErrInternal("failed to delete user")
 	}
-	s.logger.Info("delete user: user deleted", "user_id", userID)
-	return nil
+	s.logger.Info("delete user: user deleted", "user_id", deletedID)
+	return deletedID, nil
 }

@@ -18,7 +18,7 @@ type ListRequest struct {
 type Repository interface {
 	Create(ctx context.Context, favorite Favorite) error
 	GetByUserAndProperty(ctx context.Context, userID, propertyID int) (Favorite, error)
-	Delete(ctx context.Context, userID, propertyID int) error
+	Delete(ctx context.Context, userID, propertyID int) (int, error)
 	List(ctx context.Context, req ListRequest) ([]Favorite, error)
 	Exists(ctx context.Context, userID, propertyID int) (bool, error)
 }

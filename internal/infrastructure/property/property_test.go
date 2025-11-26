@@ -220,7 +220,7 @@ func TestPropertyCRUD(t *testing.T) {
 				return created
 			},
 			action: func(t *testing.T, prop property.Property) (property.Property, error) {
-				err := testRepo.Delete(testCtx, prop.ID)
+				_, err := testRepo.Delete(testCtx, prop.ID)
 				if err != nil {
 					return property.Property{}, err
 				}
