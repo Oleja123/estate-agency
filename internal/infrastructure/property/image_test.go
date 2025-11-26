@@ -92,3 +92,46 @@ func TestImageCRUD(t *testing.T) {
 		}
 	})
 }
+
+func TestDeleteManyByProperty(t *testing.T) {
+	require.NoError(t, truncateImages())
+
+	propID := createTestProperty(t)
+
+	imgs := []image.PropertyImage{
+		{PropertyID: propID, Path: "/tmp/image_a.jpg"},
+		{PropertyID: propID, Path: "/tmp/image_b.jpg"},
+	}
+
+	imageRepo := NewImageRepository(testClient, testLogger)
+
+	ids, err := imageRepo.CreateMany(testCtx, imgs)
+	require.NoError(t, err)
+	require.Len(t, ids, len(imgs))
+
+	// delete all images for property
+	require.NoError(t, imageRepo.DeleteMany(testCtx, propID))
+
+	// list should be empty
+	list, err := imageRepo.ListByProperty(testCtx, propID)
+	require.NoError(t, err)
+	require.Len(t, list, 0)
+
+	// verify GetByID returns not found
+	for _, id := range ids {
+		_, err := imageRepo.GetByID(testCtx, id)
+		require.Error(t, err)
+	}
+}
+
+func TestDeleteMany_InvalidProperty(t *testing.T) {
+	require.NoError(t, truncateImages())
+
+	imageRepo := NewImageRepository(testClient, testLogger)
+
+	// use a non-existing property id (assuming 99999 doesn't exist in test fixtures)
+	err := imageRepo.DeleteMany(testCtx, 99999)
+	require.Error(t, err)
+	// should be NotFound for property
+	assert.True(t, basedb.IsNotFound(err))
+}

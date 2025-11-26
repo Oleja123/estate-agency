@@ -1,116 +1,116 @@
 package propertytypeservice
 
 import (
-    "context"
-    "errors"
-    "strings"
+	"context"
+	"errors"
+	"strings"
 
-    "log/slog"
+	"log/slog"
 
-    apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
-    dto "github.com/Oleja123/estate-agency/internal/application/property_type/dto"
-    domain "github.com/Oleja123/estate-agency/internal/domain/property_type"
-    dberrors "github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
+	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
+	dto "github.com/Oleja123/estate-agency/internal/application/property_type/dto"
+	domain "github.com/Oleja123/estate-agency/internal/domain/property_type"
+	dberrors "github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
 )
 
 // Ensure service implements application Service at compile time.
 var _ Service = (*service)(nil)
 
 type service struct {
-    repo   domain.Repository
-    logger *slog.Logger
+	repo   domain.Repository
+	logger *slog.Logger
 }
 
 func New(repo domain.Repository, logger *slog.Logger) Service {
-    return &service{repo: repo, logger: logger}
+	return &service{repo: repo, logger: logger}
 }
 
 func (s *service) Create(ctx context.Context, req dto.CreatePropertyTypeRequest) (domain.PropertyType, error) {
-    name := strings.TrimSpace(req.Name)
-    if name == "" {
-        return domain.PropertyType{}, apperrors.NewErrInvalidInput("name", name, "must not be empty")
-    }
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return domain.PropertyType{}, apperrors.NewErrInvalidInput("name", name, "must not be empty")
+	}
 
-    pt := domain.PropertyType{ Name: name }
-    id, err := s.repo.Create(ctx, pt)
-    if err != nil {
-        var ae dberrors.ErrAlreadyExists
-        if errors.As(err, &ae) {
-            return domain.PropertyType{}, apperrors.NewErrAlreadyExists("property_type", "name", name)
-        }
-        s.logger.Error("create property type: repo create error", "err", err)
-        return domain.PropertyType{}, apperrors.NewErrInternal("failed to create property type")
-    }
+	pt := domain.PropertyType{Name: name}
+	id, err := s.repo.Create(ctx, pt)
+	if err != nil {
+		var ae dberrors.ErrAlreadyExists
+		if errors.As(err, &ae) {
+			return domain.PropertyType{}, apperrors.NewErrAlreadyExists("property_type", "name", name)
+		}
+		s.logger.Error("create property type: repo create error", "err", err)
+		return domain.PropertyType{}, apperrors.NewErrInternal("failed to create property type")
+	}
 
-    created, err := s.repo.GetByID(ctx, id)
-    if err != nil {
-        s.logger.Error("create property type: failed to fetch created", "err", err)
-        return domain.PropertyType{}, apperrors.NewErrInternal("failed to fetch created property type")
-    }
-    s.logger.Info("property type created", "id", created.Id, "name", created.Name)
-    return created, nil
+	created, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		s.logger.Error("create property type: failed to fetch created", "err", err)
+		return domain.PropertyType{}, apperrors.NewErrInternal("failed to fetch created property type")
+	}
+	s.logger.Info("property type created", "id", created.Id, "name", created.Name)
+	return created, nil
 }
 
 func (s *service) GetByID(ctx context.Context, id int) (domain.PropertyType, error) {
-    pt, err := s.repo.GetByID(ctx, id)
-    if err != nil {
-        var nf dberrors.ErrNotFound
-        if errors.As(err, &nf) {
-            return domain.PropertyType{}, apperrors.NewErrNotFound("property_type", id)
-        }
-        s.logger.Error("get by id: repo error", "err", err)
-        return domain.PropertyType{}, apperrors.NewErrInternal("failed to fetch property type")
-    }
-    return pt, nil
+	pt, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		var nf dberrors.ErrNotFound
+		if errors.As(err, &nf) {
+			return domain.PropertyType{}, apperrors.NewErrNotFound("property_type", id)
+		}
+		s.logger.Error("get by id: repo error", "err", err)
+		return domain.PropertyType{}, apperrors.NewErrInternal("failed to fetch property type")
+	}
+	return pt, nil
 }
 
 func (s *service) Update(ctx context.Context, req dto.UpdatePropertyTypeRequest) error {
-    pt, err := s.repo.GetByID(ctx, req.ID)
-    if err != nil {
-        var nf dberrors.ErrNotFound
-        if errors.As(err, &nf) {
-            return apperrors.NewErrNotFound("property_type", req.ID)
-        }
-        s.logger.Error("update: failed to fetch", "err", err)
-        return apperrors.NewErrInternal("failed to fetch property type")
-    }
-    name := strings.TrimSpace(req.Name)
-    if name == "" {
-        return apperrors.NewErrInvalidInput("name", name, "must not be empty")
-    }
-    pt.Name = name
-    if err := s.repo.Update(ctx, pt); err != nil {
-        var ae dberrors.ErrAlreadyExists
-        if errors.As(err, &ae) {
-            return apperrors.NewErrAlreadyExists("property_type", "name", name)
-        }
-        s.logger.Error("update: repo update failed", "err", err)
-        return apperrors.NewErrInternal("failed to update property type")
-    }
-    s.logger.Info("update: property type updated", "id", pt.Id)
-    return nil
+	pt, err := s.repo.GetByID(ctx, req.ID)
+	if err != nil {
+		var nf dberrors.ErrNotFound
+		if errors.As(err, &nf) {
+			return apperrors.NewErrNotFound("property_type", req.ID)
+		}
+		s.logger.Error("update: failed to fetch", "err", err)
+		return apperrors.NewErrInternal("failed to fetch property type")
+	}
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return apperrors.NewErrInvalidInput("name", name, "must not be empty")
+	}
+	pt.Name = name
+	if err := s.repo.Update(ctx, pt); err != nil {
+		var ae dberrors.ErrAlreadyExists
+		if errors.As(err, &ae) {
+			return apperrors.NewErrAlreadyExists("property_type", "name", name)
+		}
+		s.logger.Error("update: repo update failed", "err", err)
+		return apperrors.NewErrInternal("failed to update property type")
+	}
+	s.logger.Info("update: property type updated", "id", pt.Id)
+	return nil
 }
 
 func (s *service) List(ctx context.Context, req dto.ListPropertyTypesRequest) (dto.ListPropertyTypesResponse, error) {
-    dr := domain.ListRequest{ Filter: req.Filter, Limit: req.Limit, Offset: req.Offset }
-    list, err := s.repo.List(ctx, dr)
-    if err != nil {
-        s.logger.Error("list: repo list failed", "err", err)
-        return dto.ListPropertyTypesResponse{}, apperrors.NewErrInternal("failed to list property types")
-    }
-    total := len(list)
-    return dto.ListPropertyTypesResponse{ Types: list, Total: total }, nil
+	dr := domain.ListRequest{Filter: req.Filter, Limit: req.Limit, Offset: req.Offset}
+	list, err := s.repo.List(ctx, dr)
+	if err != nil {
+		s.logger.Error("list: repo list failed", "err", err)
+		return dto.ListPropertyTypesResponse{}, apperrors.NewErrInternal("failed to list property types")
+	}
+	total := len(list)
+	return dto.ListPropertyTypesResponse{Types: list, Total: total}, nil
 }
 
 func (s *service) Delete(ctx context.Context, id int) error {
-    if err := s.repo.Delete(ctx, id); err != nil {
-        var nf dberrors.ErrNotFound
-        if errors.As(err, &nf) {
-            return apperrors.NewErrNotFound("property_type", id)
-        }
-        s.logger.Error("delete: repo delete failed", "err", err)
-        return apperrors.NewErrInternal("failed to delete property type")
-    }
-    s.logger.Info("delete: property type deleted", "id", id)
-    return nil
+	if err := s.repo.Delete(ctx, id); err != nil {
+		var nf dberrors.ErrNotFound
+		if errors.As(err, &nf) {
+			return apperrors.NewErrNotFound("property_type", id)
+		}
+		s.logger.Error("delete: repo delete failed", "err", err)
+		return apperrors.NewErrInternal("failed to delete property type")
+	}
+	s.logger.Info("delete: property type deleted", "id", id)
+	return nil
 }

@@ -18,4 +18,7 @@ type ImageRepository interface {
 
 	// Delete removes image by its ID.
 	Delete(ctx context.Context, id int) error
+
+	// DeleteMany removes all images for a given property ID.
+	DeleteMany(ctx context.Context, propertyID int) error
 }
