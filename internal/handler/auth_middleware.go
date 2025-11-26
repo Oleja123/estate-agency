@@ -95,6 +95,15 @@ func RoleFromContext(ctx context.Context) (string, bool) {
 	return s, ok
 }
 
+// ContextWithUser returns a new context with user id and role set. This is
+// intended as a helper for other handler packages and tests to create a
+// request context that mimics the auth middleware.
+func ContextWithUser(ctx context.Context, userID int, role string) context.Context {
+	ctx = context.WithValue(ctx, ctxKeyUserID, userID)
+	ctx = context.WithValue(ctx, ctxKeyUserRole, role)
+	return ctx
+}
+
 // package-level logger to be set by the application bootstrap so middleware
 // can log consistently with services.
 var pkgLogger *slog.Logger

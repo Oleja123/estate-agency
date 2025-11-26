@@ -229,6 +229,7 @@ func (r *Repository) Update(ctx context.Context, user user.User) error {
 	sql, args, err := r.sq.
 		Update("users").
 		Set("email", user.Email).
+		Set("password_hash", user.PasswordHash).
 		Set("first_name", user.FirstName).
 		Set("last_name", user.LastName).
 		Set("phone_number", user.PhoneNumber).

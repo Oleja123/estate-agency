@@ -254,12 +254,12 @@ func (s *service) UpdateProfile(ctx context.Context, req dto.UpdateProfileReques
 	return nil
 }
 
-func (s *service) ChangePassword(ctx context.Context, req dto.ChangePasswordRequest) error {
-	u, err := s.repo.GetByID(ctx, req.UserID)
+func (s *service) ChangePassword(ctx context.Context, userID int, req dto.ChangePasswordRequest) error {
+	u, err := s.repo.GetByID(ctx, userID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
 		if errors.As(err, &nf) {
-			return apperrors.NewErrNotFound("user", req.UserID)
+			return apperrors.NewErrNotFound("user", userID)
 		}
 		return apperrors.NewErrInternal("failed to fetch user")
 	}
@@ -286,6 +286,31 @@ func (s *service) ChangePassword(ctx context.Context, req dto.ChangePasswordRequ
 	return nil
 }
 
+// ChangePasswordAdmin allows an admin to change a user's password without the
+// current password. This performs hashing and updates the repository.
+func (s *service) ChangePasswordAdmin(ctx context.Context, userID int, newPassword string) error {
+	u, err := s.repo.GetByID(ctx, userID)
+	if err != nil {
+		var nf dberrors.ErrNotFound
+		if errors.As(err, &nf) {
+			return apperrors.NewErrNotFound("user", userID)
+		}
+		return apperrors.NewErrInternal("failed to fetch user")
+	}
+	hash, err := s.hasher.Hash(newPassword)
+	if err != nil {
+		s.logger.Error("change password admin: failed to hash new password", "user_id", u.Id, "err", err)
+		return apperrors.NewErrInternal("failed to hash new password")
+	}
+	u.PasswordHash = hash
+	if err := s.repo.Update(ctx, u); err != nil {
+		s.logger.Error("change password admin: failed to update user", "user_id", u.Id, "err", err)
+		return apperrors.NewErrInternal("failed to update user")
+	}
+	s.logger.Info("change password admin: password updated", "user_id", u.Id)
+	return nil
+}
+
 func (s *service) DeactivateAccount(ctx context.Context, userID int) error {
 	u, err := s.repo.GetByID(ctx, userID)
 	if err != nil {
@@ -303,6 +328,27 @@ func (s *service) DeactivateAccount(ctx context.Context, userID int) error {
 		return apperrors.NewErrInternal("failed to update user")
 	}
 	s.logger.Info("deactivate account: user deactivated", "user_id", userID)
+	return nil
+}
+
+// ActivateAccount sets IsActive=true for the specified user.
+func (s *service) ActivateAccount(ctx context.Context, userID int) error {
+	u, err := s.repo.GetByID(ctx, userID)
+	if err != nil {
+		var nf dberrors.ErrNotFound
+		if errors.As(err, &nf) {
+			return apperrors.NewErrNotFound("user", userID)
+		}
+		s.logger.Error("activate account: failed to fetch user", "user_id", userID, "err", err)
+		return apperrors.NewErrInternal("failed to fetch user")
+	}
+	u.IsActive = true
+	err = s.repo.Update(ctx, u)
+	if err != nil {
+		s.logger.Error("activate account: failed to update user", "user_id", userID, "err", err)
+		return apperrors.NewErrInternal("failed to update user")
+	}
+	s.logger.Info("activate account: user activated", "user_id", userID)
 	return nil
 }
 

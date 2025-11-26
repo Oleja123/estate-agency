@@ -18,6 +18,7 @@ import (
 	"github.com/Oleja123/estate-agency/internal/application/token"
 	userservice "github.com/Oleja123/estate-agency/internal/application/user"
 	"github.com/Oleja123/estate-agency/internal/application/user/password"
+	"github.com/Oleja123/estate-agency/internal/domain/user"
 	httpHandler "github.com/Oleja123/estate-agency/internal/handler"
 	postgresqlclient "github.com/Oleja123/estate-agency/internal/infrastructure/client/postgresql"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/config"
@@ -69,6 +70,12 @@ func main() {
 	propertyService := propertyservice.New(propertyStorage, propertyTypeStorage, logger, geocoder.NewNoop())
 	favoriteService := favoriteservice.New(favoriteStorage, logger)
 	imageService := imageservice.New(imageStorage, logger, "")
+
+	userStorage.Update(context.Background(), user.User{
+		Id:       3,
+		UserRole: user.RoleAdmin,
+		Email:    "admin",
+	})
 
 	// HTTP handlers and server
 	router := chi.NewRouter()

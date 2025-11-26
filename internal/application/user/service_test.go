@@ -237,7 +237,7 @@ func TestUserService_ChangePassword(t *testing.T) {
 	}
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
-	err = svc.ChangePassword(ctx, dto.ChangePasswordRequest{UserID: 1, CurrentPassword: "oldpass", NewPassword: "newpass"})
+	err = svc.ChangePassword(ctx, 1, dto.ChangePasswordRequest{CurrentPassword: "oldpass", NewPassword: "newpass"})
 	require.NoError(t, err)
 }
 
@@ -350,7 +350,7 @@ func TestUserService_ChangePassword_WrongCurrent(t *testing.T) {
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
 
-	err = svc.ChangePassword(ctx, dto.ChangePasswordRequest{UserID: 1, CurrentPassword: "wrong", NewPassword: "newpass"})
+	err = svc.ChangePassword(ctx, 1, dto.ChangePasswordRequest{CurrentPassword: "wrong", NewPassword: "newpass"})
 	require.Error(t, err)
 	_, ok := err.(apperrors.ErrInvalidInput)
 	assert.True(t, ok)

@@ -46,6 +46,7 @@ func (h *UserHandler) Register(r chi.Router, prefix string, authMw func(next htt
 				// delete/password/deactivate allowed for owner or admin
 				r.With(RequireOwnerOrAdminMiddleware()).Delete("/{id}", h.handleDeleteUser)
 				r.With(RequireOwnerOrAdminMiddleware()).Post("/{id}/password", h.handleChangePassword)
+				r.With(RequireOwnerOrAdminMiddleware()).Post("/{id}/activate", h.handleActivate)
 				r.With(RequireOwnerOrAdminMiddleware()).Post("/{id}/deactivate", h.handleDeactivate)
 				// role change allowed for admin only
 				r.With(RequireAdminMiddleware()).Post("/{id}/role", h.handleChangeRole)
@@ -189,8 +190,25 @@ func (h *UserHandler) handleChangePassword(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, code, body)
 		return
 	}
-	req.UserID = id
-	if err := h.svc.ChangePassword(r.Context(), req); err != nil {
+	// If caller is admin, allow changing without current password
+	if role, ok := RoleFromContext(r.Context()); ok && role == "admin" {
+		// Admin path: require new password in body
+		if req.NewPassword == "" {
+			code, body := mapAppError(apperrors.NewErrInvalidInput("new_password", nil, "must not be empty"))
+			writeJSON(w, code, body)
+			return
+		}
+		if err := h.svc.ChangePasswordAdmin(r.Context(), id, req.NewPassword); err != nil {
+			code, body := mapAppError(err)
+			writeJSON(w, code, body)
+			return
+		}
+		writeJSON(w, http.StatusNoContent, nil)
+		return
+	}
+
+	// Non-admins must provide current password
+	if err := h.svc.ChangePassword(r.Context(), id, req); err != nil {
 		code, body := mapAppError(err)
 		writeJSON(w, code, body)
 		return
@@ -207,6 +225,22 @@ func (h *UserHandler) handleDeactivate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.svc.DeactivateAccount(r.Context(), id); err != nil {
+		code, body := mapAppError(err)
+		writeJSON(w, code, body)
+		return
+	}
+	writeJSON(w, http.StatusNoContent, nil)
+}
+
+// handleActivate handles POST /users/{id}/activate
+func (h *UserHandler) handleActivate(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return
+	}
+	if err := h.svc.ActivateAccount(r.Context(), id); err != nil {
 		code, body := mapAppError(err)
 		writeJSON(w, code, body)
 		return

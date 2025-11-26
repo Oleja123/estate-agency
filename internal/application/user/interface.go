@@ -18,7 +18,13 @@ type Service interface {
 	// User management
 	GetUserByID(ctx context.Context, userID int) (dto.PublicUser, error)
 	UpdateProfile(ctx context.Context, req dto.UpdateProfileRequest) error
-	ChangePassword(ctx context.Context, req dto.ChangePasswordRequest) error
+	ChangePassword(ctx context.Context, userID int, req dto.ChangePasswordRequest) error
+	// ChangePasswordAdmin changes password for a user without requiring current password.
+	// Intended to be used by admins.
+	ChangePasswordAdmin(ctx context.Context, userID int, newPassword string) error
+
+	// ActivateAccount sets user's IsActive = true
+	ActivateAccount(ctx context.Context, userID int) error
 	DeactivateAccount(ctx context.Context, userID int) error
 
 	ListUsers(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error)
