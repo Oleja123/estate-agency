@@ -3,6 +3,8 @@ package handler
 import (
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
+
 	tokensvc "github.com/Oleja123/estate-agency/internal/application/token"
 )
 
@@ -15,22 +17,16 @@ func NewTokenHandler(s tokensvc.Service) *TokenHandler {
 }
 
 // Token endpoints: generate/refresh/validate. For brevity only refresh is sketched.
-func (h *TokenHandler) Register(mux *http.ServeMux, prefix string) {
+func (h *TokenHandler) Register(r chi.Router, prefix string) {
 	if prefix == "" {
-		prefix = "/tokens/"
+		prefix = "/tokens"
 	}
-	if prefix[len(prefix)-1] != '/' {
-		prefix += "/"
-	}
-	mux.HandleFunc(prefix+"refresh", h.handleRefresh)
+	r.Route(prefix, func(r chi.Router) {
+		r.Post("/refresh", h.handleRefresh)
+	})
 }
 
 func (h *TokenHandler) handleRefresh(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
-		return
-	}
-	// simple: expect JSON {"refresh_token": "..."}
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
 	}

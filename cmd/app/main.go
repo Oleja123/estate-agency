@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	favoriteservice "github.com/Oleja123/estate-agency/internal/application/favorite"
 	imageservice "github.com/Oleja123/estate-agency/internal/application/image"
 	propertyservice "github.com/Oleja123/estate-agency/internal/application/property"
@@ -69,21 +71,21 @@ func main() {
 	imageService := imageservice.New(imageStorage, logger, "")
 
 	// HTTP handlers and server
-	mux := http.NewServeMux()
+	router := chi.NewRouter()
 	// register handlers under sensible prefixes
-	httpHandler.NewUserHandler(userService).Register(mux, "/users")
-	httpHandler.NewTokenHandler(tokSvc).Register(mux, "/tokens")
-	httpHandler.NewFavoriteHandler(favoriteService).Register(mux, "/favorites")
-	httpHandler.NewPropertyHandler(propertyService).Register(mux, "/properties")
-	httpHandler.NewPropertyTypeHandler(propertyTypeService).Register(mux, "/property_types")
-	httpHandler.NewImageHandler(imageService).Register(mux, "/images")
+	httpHandler.NewUserHandler(userService).Register(router, "/users")
+	httpHandler.NewTokenHandler(tokSvc).Register(router, "/tokens")
+	httpHandler.NewFavoriteHandler(favoriteService).Register(router, "/favorites")
+	httpHandler.NewPropertyHandler(propertyService).Register(router, "/properties")
+	httpHandler.NewPropertyTypeHandler(propertyTypeService).Register(router, "/property_types")
+	httpHandler.NewImageHandler(imageService).Register(router, "/images")
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	srv := &http.Server{Addr: ":" + port, Handler: mux}
+	srv := &http.Server{Addr: ":" + port, Handler: router}
 
 	// start server
 	go func() {

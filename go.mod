@@ -4,8 +4,9 @@ go 1.25.1
 
 require (
 	github.com/denpa16/optional-go-type v0.0.1
+	github.com/go-chi/chi/v5 v5.0.8
+	github.com/h2non/filetype v1.1.0
 	github.com/jackc/pgx/v5 v5.7.6
-		github.com/h2non/filetype v1.1.0
 )
 
 require (

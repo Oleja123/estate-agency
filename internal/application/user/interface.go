@@ -17,11 +17,11 @@ type Service interface {
 	RefreshToken(ctx context.Context, refreshToken string) (dto.LoginResponse, error)
 
 	// User management
-	GetUserByID(ctx context.Context, userID, requesterID int) (user.User, error)
+	GetUserByID(ctx context.Context, userID int) (user.User, error)
 	UpdateProfile(ctx context.Context, req dto.UpdateProfileRequest) error
 	ChangePassword(ctx context.Context, req dto.ChangePasswordRequest) error
 	DeactivateAccount(ctx context.Context, userID int) error
 
 	ListUsers(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error)
-	DeleteUser(ctx context.Context, userID, requesterID int) (int, error)
+	DeleteUser(ctx context.Context, userID int) (int, error)
 }

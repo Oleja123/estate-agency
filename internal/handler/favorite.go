@@ -3,7 +3,8 @@ package handler
 import (
 	"net/http"
 	"strconv"
-	"strings"
+
+	"github.com/go-chi/chi/v5"
 
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
 	favoritesvc "github.com/Oleja123/estate-agency/internal/application/favorite"
@@ -18,11 +19,15 @@ func NewFavoriteHandler(s favoritesvc.Service) *FavoriteHandler {
 	return &FavoriteHandler{svc: s}
 }
 
-func (h *FavoriteHandler) Register(mux *http.ServeMux, prefix string) {
-	if !strings.HasSuffix(prefix, "/") {
-		prefix += "/"
+func (h *FavoriteHandler) Register(r chi.Router, prefix string) {
+	if prefix == "" {
+		prefix = "/favorites"
 	}
-	mux.HandleFunc(prefix, h.handleFavorites)
+	r.Route(prefix, func(r chi.Router) {
+		r.Post("/", h.handleFavorites)
+		r.Get("/", h.handleFavorites)
+		r.Delete("/", h.handleFavorites)
+	})
 }
 
 func (h *FavoriteHandler) handleFavorites(w http.ResponseWriter, r *http.Request) {
@@ -42,8 +47,6 @@ func (h *FavoriteHandler) handleFavorites(w http.ResponseWriter, r *http.Request
 		}
 		writeJSON(w, http.StatusCreated, f)
 	case http.MethodGet:
-		// GET /favorites/{user_id}/{property_id} or GET /favorites?user_id=&property_id=
-		// support query form for simplicity
 		q := r.URL.Query()
 		if q.Get("user_id") != "" && q.Get("property_id") != "" {
 			uid, _ := strconv.Atoi(q.Get("user_id"))
@@ -59,7 +62,6 @@ func (h *FavoriteHandler) handleFavorites(w http.ResponseWriter, r *http.Request
 		}
 		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "listing not implemented"})
 	case http.MethodDelete:
-		// parse ids from query for simplicity
 		q := r.URL.Query()
 		uid, _ := strconv.Atoi(q.Get("user_id"))
 		pid, _ := strconv.Atoi(q.Get("property_id"))

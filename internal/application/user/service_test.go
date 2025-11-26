@@ -380,13 +380,13 @@ func TestUserService_DeleteUser_NotFound(t *testing.T) {
 
 	repo := &mockRepo{
 		DeleteFunc: func(ctx context.Context, id int) (int, error) {
-			return 0, basedberrors.NewErrNotFound("user", id)
+			return id, basedberrors.NewErrNotFound("user", id)
 		},
 	}
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
 
-	_, err := svc.DeleteUser(ctx, 77, 1)
+	_, err := svc.DeleteUser(ctx, 77)
 	require.Error(t, err)
 	_, ok := err.(apperrors.ErrNotFound)
 	assert.True(t, ok)
@@ -427,7 +427,7 @@ func TestUserService_GetUserByID_NotFound(t *testing.T) {
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
 
-	_, err := svc.GetUserByID(ctx, 42, 1)
+	_, err := svc.GetUserByID(ctx, 42)
 	require.Error(t, err)
 	_, ok := err.(apperrors.ErrNotFound)
 	assert.True(t, ok)
@@ -509,7 +509,7 @@ func TestUserService_GetUserByID_Success(t *testing.T) {
 	}
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
-	u, err := svc.GetUserByID(ctx, 10, 1)
+	u, err := svc.GetUserByID(ctx, 10)
 	require.NoError(t, err)
 	assert.Equal(t, 10, u.Id)
 	assert.Equal(t, "found@e.com", u.Email)
@@ -526,7 +526,7 @@ func TestUserService_DeleteUser_Success(t *testing.T) {
 	}
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
-	did, err := svc.DeleteUser(ctx, 7, 1)
+	did, err := svc.DeleteUser(ctx, 7)
 	require.NoError(t, err)
 	assert.Equal(t, 7, did)
 }

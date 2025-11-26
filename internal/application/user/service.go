@@ -312,7 +312,7 @@ func (s *service) ListUsers(ctx context.Context, req dto.ListUsersRequest) (dto.
 	return dto.ListUsersResponse{Users: users, Total: total}, nil
 }
 
-func (s *service) GetUserByID(ctx context.Context, userID, requesterID int) (domain.User, error) {
+func (s *service) GetUserByID(ctx context.Context, userID int) (domain.User, error) {
 	u, err := s.repo.GetByID(ctx, userID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
@@ -325,7 +325,7 @@ func (s *service) GetUserByID(ctx context.Context, userID, requesterID int) (dom
 	return u, nil
 }
 
-func (s *service) DeleteUser(ctx context.Context, userID, requesterID int) (int, error) {
+func (s *service) DeleteUser(ctx context.Context, userID int) (int, error) {
 	deletedID, err := s.repo.Delete(ctx, userID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
