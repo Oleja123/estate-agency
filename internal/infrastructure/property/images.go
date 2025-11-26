@@ -185,13 +185,14 @@ func (r *ImageRepository) DeleteMany(ctx context.Context, propertyID int) error 
 	}
 
 	// Ensure property exists — deleting images for a non-existent property should return NotFound.
-	var exists bool
+	// Scan into an integer (SELECT 1) rather than a bool to avoid scan type errors.
+	var existsInt int
 	checkSql, checkArgs, err := r.sq.Select("1").From("properties").Where(squirrel.Eq{"id": propertyID}).Limit(1).ToSql()
 	if err != nil {
 		return basedberrors.NewErrDatabase(op, fmt.Sprintf("build property check query: %s", err))
 	}
 	row := r.Client.QueryRow(ctx, checkSql, checkArgs...)
-	if err := row.Scan(&exists); err != nil {
+	if err := row.Scan(&existsInt); err != nil {
 		// if no rows, property doesn't exist
 		if errors.Is(err, pgx.ErrNoRows) {
 			return basedberrors.NewErrNotFound("property", propertyID)
