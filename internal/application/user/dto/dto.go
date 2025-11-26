@@ -23,10 +23,10 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	User         user.User `json:"user"`
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	ExpiresAt    time.Time `json:"expires_at"`
+	User         PublicUser `json:"user"`
+	AccessToken  string     `json:"access_token"`
+	RefreshToken string     `json:"refresh_token"`
+	ExpiresAt    time.Time  `json:"expires_at"`
 }
 
 type UpdateProfileRequest struct {
@@ -51,11 +51,49 @@ type ListUsersRequest struct {
 }
 
 type ListUsersResponse struct {
-	Users []user.User `json:"users"`
-	Total int         `json:"total"`
+	Users []PublicUser `json:"users"`
+	Total int          `json:"total"`
 }
 
 type ResetPasswordRequest struct {
 	Token       string `json:"token"`
 	NewPassword string `json:"new_password"`
+}
+
+// PublicUser is a sanitized view of user.User intended for JSON responses.
+// It intentionally omits sensitive fields such as PasswordHash.
+type PublicUser struct {
+	Id          int       `json:"id"`
+	Email       string    `json:"email"`
+	FirstName   string    `json:"first_name"`
+	LastName    string    `json:"last_name"`
+	PhoneNumber string    `json:"phone_number"`
+	Role        user.Role `json:"role"`
+	IsActive    bool      `json:"is_active"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// PublicUserFromDomain maps domain user.User to DTO PublicUser.
+func PublicUserFromDomain(u user.User) PublicUser {
+	return PublicUser{
+		Id:          u.Id,
+		Email:       u.Email,
+		FirstName:   u.FirstName,
+		LastName:    u.LastName,
+		PhoneNumber: u.PhoneNumber,
+		Role:        u.UserRole,
+		IsActive:    u.IsActive,
+		CreatedAt:   u.CreatedAt,
+		UpdatedAt:   u.UpdatedAt,
+	}
+}
+
+// PublicUsersFromDomain maps slice of domain users to slice of PublicUser.
+func PublicUsersFromDomain(us []user.User) []PublicUser {
+	out := make([]PublicUser, 0, len(us))
+	for _, u := range us {
+		out = append(out, PublicUserFromDomain(u))
+	}
+	return out
 }

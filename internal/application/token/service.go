@@ -15,8 +15,9 @@ type Service interface {
 	GenerateAccessToken(userID int, role string, ttl time.Duration) (string, time.Time, error)
 	// GenerateRefreshToken creates a refresh token (opaque) and stores it.
 	GenerateRefreshToken(userID int, ttl time.Duration) (string, error)
-	// ValidateAccessToken extracts userID from access token.
-	ValidateAccessToken(token string) (int, error)
+	// ValidateAccessToken extracts userID and role from access token.
+	// Returns userID, role and error.
+	ValidateAccessToken(token string) (int, string, error)
 	// ValidateRefreshToken checks the refresh token and returns associated userID.
 	ValidateRefreshToken(token string) (int, error)
 	// InvalidateRefreshToken removes refresh token from store.

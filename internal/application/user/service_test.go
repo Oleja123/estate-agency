@@ -263,7 +263,7 @@ func TestUserService_LoginWithTokens(t *testing.T) {
 	require.NotEmpty(t, resp.RefreshToken)
 
 	// validate access token via token service
-	uid, err := tokSvc.ValidateAccessToken(resp.AccessToken)
+	uid, _, err := tokSvc.ValidateAccessToken(resp.AccessToken)
 	require.NoError(t, err)
 	assert.Equal(t, 42, uid)
 }

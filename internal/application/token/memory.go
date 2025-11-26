@@ -62,45 +62,50 @@ func (m *memoryTokenService) GenerateRefreshToken(userID int, ttl time.Duration)
 	return t, nil
 }
 
-func (m *memoryTokenService) ValidateAccessToken(tokenStr string) (int, error) {
+func (m *memoryTokenService) ValidateAccessToken(tokenStr string) (int, string, error) {
 	parts := strings.Split(tokenStr, ".")
 	if len(parts) != 3 {
-		return 0, ErrInvalidToken
+		return 0, "", ErrInvalidToken
 	}
 	signingInput := parts[0] + "." + parts[1]
 	sig, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil {
-		return 0, ErrInvalidToken
+		return 0, "", ErrInvalidToken
 	}
 	mac := hmac.New(sha256.New, m.secret)
 	mac.Write([]byte(signingInput))
 	expected := mac.Sum(nil)
 	if !hmac.Equal(sig, expected) {
-		return 0, ErrInvalidToken
+		return 0, "", ErrInvalidToken
 	}
 	// parse payload
 	payloadJSON, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return 0, ErrInvalidToken
+		return 0, "", ErrInvalidToken
 	}
 	var payload map[string]interface{}
 	if err := json.Unmarshal(payloadJSON, &payload); err != nil {
-		return 0, ErrInvalidToken
+		return 0, "", ErrInvalidToken
 	}
 	// check exp
 	expf, ok := payload["exp"].(float64)
 	if !ok {
-		return 0, ErrInvalidToken
+		return 0, "", ErrInvalidToken
 	}
 	if time.Now().Unix() > int64(expf) {
-		return 0, ErrInvalidToken
+		return 0, "", ErrInvalidToken
 	}
 	// extract sub
 	subf, ok := payload["sub"].(float64)
 	if !ok {
-		return 0, ErrInvalidToken
+		return 0, "", ErrInvalidToken
 	}
-	return int(subf), nil
+	// extract role
+	roleStr := ""
+	if rv, ok := payload["role"].(string); ok {
+		roleStr = rv
+	}
+	return int(subf), roleStr, nil
 }
 
 func (m *memoryTokenService) ValidateRefreshToken(token string) (int, error) {

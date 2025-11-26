@@ -19,16 +19,28 @@ func NewPropertyHandler(s propertysvc.Service) *PropertyHandler {
 	return &PropertyHandler{svc: s}
 }
 
-func (h *PropertyHandler) Register(r chi.Router, prefix string) {
+func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next http.Handler) http.Handler) {
 	if prefix == "" {
 		prefix = "/properties"
 	}
 	r.Route(prefix, func(r chi.Router) {
-		r.Post("/", h.handleCreate)
+		// public reads
 		r.Get("/", h.handleList)
 		r.Get("/{id}", h.handleGet)
-		r.Put("/{id}", h.handleUpdate)
-		r.Delete("/{id}", h.handleDelete)
+
+		// create/update/delete require auth
+		if authMw != nil {
+			r.Group(func(r chi.Router) {
+				r.Use(authMw)
+				r.Post("/", h.handleCreate)
+				r.Put("/{id}", h.handleUpdate)
+				r.Delete("/{id}", h.handleDelete)
+			})
+		} else {
+			r.Post("/", h.handleCreate)
+			r.Put("/{id}", h.handleUpdate)
+			r.Delete("/{id}", h.handleDelete)
+		}
 	})
 }
 

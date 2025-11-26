@@ -19,16 +19,27 @@ func NewPropertyTypeHandler(s typesvc.Service) *PropertyTypeHandler {
 	return &PropertyTypeHandler{svc: s}
 }
 
-func (h *PropertyTypeHandler) Register(r chi.Router, prefix string) {
+func (h *PropertyTypeHandler) Register(r chi.Router, prefix string, authMw func(next http.Handler) http.Handler) {
 	if prefix == "" {
 		prefix = "/property_types"
 	}
 	r.Route(prefix, func(r chi.Router) {
-		r.Post("/", h.handleCreate)
+		// public reads
 		r.Get("/", h.handleList)
 		r.Get("/{id}", h.handleGet)
-		r.Put("/{id}", h.handleUpdate)
-		r.Delete("/{id}", h.handleDelete)
+
+		if authMw != nil {
+			r.Group(func(r chi.Router) {
+				r.Use(authMw)
+				r.Post("/", h.handleCreate)
+				r.Put("/{id}", h.handleUpdate)
+				r.Delete("/{id}", h.handleDelete)
+			})
+		} else {
+			r.Post("/", h.handleCreate)
+			r.Put("/{id}", h.handleUpdate)
+			r.Delete("/{id}", h.handleDelete)
+		}
 	})
 }
 

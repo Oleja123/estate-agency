@@ -17,7 +17,7 @@ func NewTokenHandler(s tokensvc.Service) *TokenHandler {
 }
 
 // Token endpoints: generate/refresh/validate. For brevity only refresh is sketched.
-func (h *TokenHandler) Register(r chi.Router, prefix string) {
+func (h *TokenHandler) Register(r chi.Router, prefix string, _ func(next http.Handler) http.Handler) {
 	if prefix == "" {
 		prefix = "/tokens"
 	}

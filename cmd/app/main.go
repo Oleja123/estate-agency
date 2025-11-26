@@ -72,13 +72,23 @@ func main() {
 
 	// HTTP handlers and server
 	router := chi.NewRouter()
-	// register handlers under sensible prefixes
-	httpHandler.NewUserHandler(userService).Register(router, "/users")
-	httpHandler.NewTokenHandler(tokSvc).Register(router, "/tokens")
-	httpHandler.NewFavoriteHandler(favoriteService).Register(router, "/favorites")
-	httpHandler.NewPropertyHandler(propertyService).Register(router, "/properties")
-	httpHandler.NewPropertyTypeHandler(propertyTypeService).Register(router, "/property_types")
-	httpHandler.NewImageHandler(imageService).Register(router, "/images")
+
+	// set package logger for handler helpers/middlewares
+	httpHandler.SetLogger(logger)
+
+	// create auth middleware (chi-style). We'll apply it per-route; public
+	// endpoints (register/login/refresh) should be mounted without this
+	// middleware.
+	authMw := httpHandler.AuthMiddleware(tokSvc)
+
+	// register handlers under sensible prefixes; pass auth middleware so handlers
+	// can apply it to protected routes using chi groups
+	httpHandler.NewUserHandler(userService).Register(router, "/users", authMw)
+	httpHandler.NewTokenHandler(tokSvc).Register(router, "/tokens", nil)
+	httpHandler.NewFavoriteHandler(favoriteService).Register(router, "/favorites", authMw)
+	httpHandler.NewPropertyHandler(propertyService).Register(router, "/properties", authMw)
+	httpHandler.NewPropertyTypeHandler(propertyTypeService).Register(router, "/property_types", authMw)
+	httpHandler.NewImageHandler(imageService).Register(router, "/images", authMw)
 
 	port := os.Getenv("PORT")
 	if port == "" {

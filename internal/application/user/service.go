@@ -30,7 +30,7 @@ func New(repo domain.Repository, logger *slog.Logger, hasher password.Hasher, to
 	return &service{repo: repo, logger: logger, hasher: hasher, tokenService: tokenService}
 }
 
-func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (domain.User, error) {
+func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (dto.PublicUser, error) {
 	email := strings.TrimSpace(req.Email)
 	pass := strings.TrimSpace(req.Password)
 	firstName := strings.TrimSpace(req.FirstName)
@@ -43,16 +43,16 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (domain
 	}
 
 	if email == "" {
-		return domain.User{}, apperrors.NewErrInvalidInput("email", email, "must not be empty")
+		return dto.PublicUser{}, apperrors.NewErrInvalidInput("email", email, "must not be empty")
 	}
 	if pass == "" {
-		return domain.User{}, apperrors.NewErrInvalidInput("password", nil, "must not be empty")
+		return dto.PublicUser{}, apperrors.NewErrInvalidInput("password", nil, "must not be empty")
 	}
 
 	hash, err := s.hasher.Hash(pass)
 	if err != nil {
 		s.logger.Error("register: failed to hash password", "err", err)
-		return domain.User{}, apperrors.NewErrInternal("failed to hash password")
+		return dto.PublicUser{}, apperrors.NewErrInternal("failed to hash password")
 	}
 
 	u := domain.User{
@@ -69,26 +69,28 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (domain
 		var ae dberrors.ErrAlreadyExists
 		if errors.As(err, &ae) {
 			s.logger.Info("register: email already exists", "email", email)
-			return domain.User{}, apperrors.NewErrAlreadyExists("user", "email", email)
+			return dto.PublicUser{}, apperrors.NewErrAlreadyExists("user", "email", email)
 		}
 		s.logger.Error("register: failed to create user", "err", err)
-		return domain.User{}, apperrors.NewErrInternal("failed to create user")
+		return dto.PublicUser{}, apperrors.NewErrInternal("failed to create user")
 	}
 
 	created, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		s.logger.Error("register: failed to fetch created user", "err", err)
-		return domain.User{}, apperrors.NewErrInternal("failed to fetch created user")
+		return dto.PublicUser{}, apperrors.NewErrInternal("failed to fetch created user")
 	}
 	s.logger.Info("user registered", "user_id", created.Id, "email", created.Email)
-	return created, nil
+	// Do not leak password hash outside the service layer and map to PublicUser
+	created.PasswordHash = ""
+	return dto.PublicUserFromDomain(created), nil
 }
 
-func (s *service) Authenticate(ctx context.Context, req dto.LoginRequest) (domain.User, error) {
+func (s *service) Authenticate(ctx context.Context, req dto.LoginRequest) (dto.PublicUser, error) {
 	email := strings.TrimSpace(req.Email)
 	password := strings.TrimSpace(req.Password)
 	if email == "" || password == "" {
-		return domain.User{}, apperrors.NewErrInvalidInput("credentials", nil, "email and password required")
+		return dto.PublicUser{}, apperrors.NewErrInvalidInput("credentials", nil, "email and password required")
 	}
 
 	u, err := s.repo.GetByEmail(ctx, email)
@@ -96,16 +98,18 @@ func (s *service) Authenticate(ctx context.Context, req dto.LoginRequest) (domai
 		var nf dberrors.ErrNotFound
 		if errors.As(err, &nf) {
 			s.logger.Info("authenticate: user not found", "email", email)
-			return domain.User{}, apperrors.NewErrNotFound("user", email)
+			return dto.PublicUser{}, apperrors.NewErrNotFound("user", email)
 		}
 		s.logger.Error("authenticate: failed to get user by email", "email", email, "err", err)
-		return domain.User{}, apperrors.NewErrInternal("authenticate failed")
+		return dto.PublicUser{}, apperrors.NewErrInternal("authenticate failed")
 	}
 	if err := s.hasher.Compare(u.PasswordHash, password); err != nil {
 		s.logger.Info("authenticate: invalid credentials", "email", email)
-		return domain.User{}, apperrors.NewErrInvalidInput("password", nil, "invalid credentials")
+		return dto.PublicUser{}, apperrors.NewErrInvalidInput("password", nil, "invalid credentials")
 	}
-	return u, nil
+	// Do not return password hash and map to PublicUser
+	u.PasswordHash = ""
+	return dto.PublicUserFromDomain(u), nil
 }
 
 func (s *service) Login(ctx context.Context, req dto.LoginRequest) (dto.LoginResponse, error) {
@@ -116,7 +120,7 @@ func (s *service) Login(ctx context.Context, req dto.LoginRequest) (dto.LoginRes
 
 	accessTTL := 15 * time.Minute
 	refreshTTL := 24 * time.Hour
-	access, exp, err := s.tokenService.GenerateAccessToken(u.Id, string(u.UserRole), accessTTL)
+	access, exp, err := s.tokenService.GenerateAccessToken(u.Id, string(u.Role), accessTTL)
 	if err != nil {
 		s.logger.Error("login: failed to generate access token", "user_id", u.Id, "err", err)
 		return dto.LoginResponse{}, apperrors.NewErrInternal("failed to generate access token")
@@ -168,7 +172,8 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken string) (dto.Lo
 	// invalidate old refresh
 	_ = s.tokenService.InvalidateRefreshToken(refreshToken)
 	s.logger.Info("refresh: tokens rotated", "user_id", u.Id)
-	return dto.LoginResponse{User: u, AccessToken: access, RefreshToken: newRefresh, ExpiresAt: exp}, nil
+	u.PasswordHash = ""
+	return dto.LoginResponse{User: dto.PublicUserFromDomain(u), AccessToken: access, RefreshToken: newRefresh, ExpiresAt: exp}, nil
 }
 func (s *service) UpdateProfile(ctx context.Context, req dto.UpdateProfileRequest) error {
 	// fetch existing
@@ -309,20 +314,25 @@ func (s *service) ListUsers(ctx context.Context, req dto.ListUsersRequest) (dto.
 		s.logger.Error("list users: failed to list users", "err", err)
 		return dto.ListUsersResponse{}, apperrors.NewErrInternal("failed to list users")
 	}
-	return dto.ListUsersResponse{Users: users, Total: total}, nil
+	// sanitize users - do not expose password hashes and map to public DTO
+	for i := range users {
+		users[i].PasswordHash = ""
+	}
+	return dto.ListUsersResponse{Users: dto.PublicUsersFromDomain(users), Total: total}, nil
 }
 
-func (s *service) GetUserByID(ctx context.Context, userID int) (domain.User, error) {
+func (s *service) GetUserByID(ctx context.Context, userID int) (dto.PublicUser, error) {
 	u, err := s.repo.GetByID(ctx, userID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
 		if errors.As(err, &nf) {
-			return domain.User{}, apperrors.NewErrNotFound("user", userID)
+			return dto.PublicUser{}, apperrors.NewErrNotFound("user", userID)
 		}
 		s.logger.Error("get user by id: failed to fetch user", "user_id", userID, "err", err)
-		return domain.User{}, apperrors.NewErrInternal("failed to fetch user")
+		return dto.PublicUser{}, apperrors.NewErrInternal("failed to fetch user")
 	}
-	return u, nil
+	u.PasswordHash = ""
+	return dto.PublicUserFromDomain(u), nil
 }
 
 func (s *service) DeleteUser(ctx context.Context, userID int) (int, error) {
