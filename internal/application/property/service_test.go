@@ -7,6 +7,8 @@ import (
 
 	"log/slog"
 
+	geocoder "github.com/Oleja123/estate-agency/internal/infrastructure/geocoder"
+
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
 	dto "github.com/Oleja123/estate-agency/internal/application/property/dto"
 	domain "github.com/Oleja123/estate-agency/internal/domain/property"
@@ -103,7 +105,7 @@ func TestCreateProperty_Success(t *testing.T) {
 	typeRepo.GetByIDFn = func(ctx context.Context, id int) (ptypedomain.PropertyType, error) {
 		return ptypedomain.PropertyType{Id: id, Name: "apartment"}, nil
 	}
-	svc := New(repo, typeRepo, logger())
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop())
 	got, err := svc.Create(ctx, dto.CreatePropertyRequest{Title: "x", TypeID: 1, CreatedBy: 1})
 	require.NoError(t, err)
 	assert.Equal(t, 10, got.ID)
@@ -116,7 +118,7 @@ func TestGetByID_NotFound(t *testing.T) {
 		return domain.Property{}, dberrors.NewErrNotFound("property", id)
 	}
 	typeRepo := &mockTypeRepo{}
-	svc := New(repo, typeRepo, logger())
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop())
 	_, err := svc.GetByID(ctx, 5)
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
@@ -131,7 +133,7 @@ func TestUpdateProperty_Success(t *testing.T) {
 	}
 	repo.UpdateFn = func(ctx context.Context, p domain.Property) error { return nil }
 	typeRepo := &mockTypeRepo{}
-	svc := New(repo, typeRepo, logger())
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop())
 	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Title: "new"})
 	require.NoError(t, err)
 }
@@ -143,7 +145,7 @@ func TestListProperties_Success(t *testing.T) {
 		return []domain.Property{{ID: 1}, {ID: 2}}, nil
 	}
 	typeRepo := &mockTypeRepo{}
-	svc := New(repo, typeRepo, logger())
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop())
 	res, err := svc.List(ctx, dto.ListPropertiesRequest{Limit: 10})
 	require.NoError(t, err)
 	assert.Len(t, res.Properties, 2)
@@ -155,7 +157,7 @@ func TestDelete_NotFound(t *testing.T) {
 	repo := &mockRepo{}
 	repo.DeleteFn = func(ctx context.Context, id int) error { return dberrors.NewErrNotFound("property", id) }
 	typeRepo := &mockTypeRepo{}
-	svc := New(repo, typeRepo, logger())
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop())
 	err := svc.Delete(ctx, 7)
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
@@ -171,7 +173,7 @@ func TestCreateProperty_TypeNotFound(t *testing.T) {
 		return ptypedomain.PropertyType{}, dberrors.NewErrNotFound("property_type", id)
 	}
 
-	svc := New(repo, typeRepo, logger())
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop())
 	_, err := svc.Create(ctx, dto.CreatePropertyRequest{Title: "x", TypeID: 99, CreatedBy: 1})
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
@@ -189,7 +191,7 @@ func TestUpdateProperty_TypeNotFound(t *testing.T) {
 		return ptypedomain.PropertyType{}, dberrors.NewErrNotFound("property_type", id)
 	}
 
-	svc := New(repo, typeRepo, logger())
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop())
 	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, TypeID: 99})
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound

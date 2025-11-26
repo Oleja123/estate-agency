@@ -11,6 +11,7 @@ import (
 	domain "github.com/Oleja123/estate-agency/internal/domain/property"
 	ptypedomain "github.com/Oleja123/estate-agency/internal/domain/property_type"
 	dberrors "github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
+	geocoder "github.com/Oleja123/estate-agency/internal/infrastructure/geocoder"
 )
 
 var _ Service = (*service)(nil)
@@ -19,11 +20,15 @@ type service struct {
 	repo     domain.Repository
 	typeRepo ptypedomain.Repository
 	logger   *slog.Logger
+	geo      geocoder.GeoService
 }
 
 // New constructs property service with property repository and property-type repository.
-func New(repo domain.Repository, typeRepo ptypedomain.Repository, logger *slog.Logger) Service {
-	return &service{repo: repo, typeRepo: typeRepo, logger: logger}
+func New(repo domain.Repository, typeRepo ptypedomain.Repository, logger *slog.Logger, geo geocoder.GeoService) Service {
+	if geo == nil {
+		geo = geocoder.NewNoop()
+	}
+	return &service{repo: repo, typeRepo: typeRepo, logger: logger, geo: geo}
 }
 
 func (s *service) Create(ctx context.Context, req dto.CreatePropertyRequest) (domain.Property, error) {
@@ -53,10 +58,18 @@ func (s *service) Create(ctx context.Context, req dto.CreatePropertyRequest) (do
 		Price:               req.Price,
 		Area:                req.Area,
 		PropertyAddress:     strings.TrimSpace(req.PropertyAddress),
-		Latitude:            req.Latitude,
-		Longitude:           req.Longitude,
 		City:                strings.TrimSpace(req.City),
 		CreatedBy:           req.CreatedBy,
+	}
+
+	// attempt to geocode address (best-effort)
+	if p.PropertyAddress != "" {
+		if lat, lon, err := s.geo.Geocode(p.PropertyAddress); err == nil {
+			p.Latitude = lat
+			p.Longitude = lon
+		} else {
+			s.logger.DebugContext(context.Background(), "geocode failed", "err", err)
+		}
 	}
 
 	id, err := s.repo.Create(ctx, p)
@@ -122,10 +135,18 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 	p.Price = req.Price
 	p.Area = req.Area
 	p.PropertyAddress = strings.TrimSpace(req.PropertyAddress)
-	p.Latitude = req.Latitude
-	p.Longitude = req.Longitude
 	p.City = strings.TrimSpace(req.City)
 	p.PropertyStatus = domain.PropertyStatus(req.PropertyStatus)
+
+	// geocode updated address if provided
+	if p.PropertyAddress != "" {
+		if lat, lon, err := s.geo.Geocode(p.PropertyAddress); err == nil {
+			p.Latitude = lat
+			p.Longitude = lon
+		} else {
+			s.logger.DebugContext(context.Background(), "geocode failed", "err", err)
+		}
+	}
 
 	if err := s.repo.Update(ctx, p); err != nil {
 		s.logger.Error("update property: repo update failed", "err", err)
