@@ -3,7 +3,11 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	favoriteservice "github.com/Oleja123/estate-agency/internal/application/favorite"
 	imageservice "github.com/Oleja123/estate-agency/internal/application/image"
@@ -12,6 +16,7 @@ import (
 	"github.com/Oleja123/estate-agency/internal/application/token"
 	userservice "github.com/Oleja123/estate-agency/internal/application/user"
 	"github.com/Oleja123/estate-agency/internal/application/user/password"
+	httpHandler "github.com/Oleja123/estate-agency/internal/handler"
 	postgresqlclient "github.com/Oleja123/estate-agency/internal/infrastructure/client/postgresql"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/config"
 	favoritedb "github.com/Oleja123/estate-agency/internal/infrastructure/favorite"
@@ -55,21 +60,51 @@ func main() {
 	imageStorage := propertydb.NewImageRepository(dbClient, logger)
 	propertyTypeStorage := propertytypedb.New(dbClient, logger)
 
-	userService := userservice.New(userStorage, logger, password.NewBcryptHasher(),
-		token.NewMemoryService())
+	// token service shared between handlers and user service
+	tokSvc := token.NewMemoryService()
+	userService := userservice.New(userStorage, logger, password.NewBcryptHasher(), tokSvc)
 	propertyTypeService := propertytypeservice.New(propertyTypeStorage, logger)
 	propertyService := propertyservice.New(propertyStorage, propertyTypeStorage, logger, geocoder.NewNoop())
 	favoriteService := favoriteservice.New(favoriteStorage, logger)
 	imageService := imageservice.New(imageStorage, logger, "")
 
-	// suppress unused variables until wiring is completed
-	_ = userStorage
-	_ = propertyStorage
-	_ = favoriteStorage
-	_ = imageStorage
-	_ = propertyTypeStorage
-	_ = userService
-	_ = propertyTypeService
-	_ = propertyService
+	// HTTP handlers and server
+	mux := http.NewServeMux()
+	// register handlers under sensible prefixes
+	httpHandler.NewUserHandler(userService).Register(mux, "/users")
+	httpHandler.NewTokenHandler(tokSvc).Register(mux, "/tokens")
+	httpHandler.NewFavoriteHandler(favoriteService).Register(mux, "/favorites")
+	httpHandler.NewPropertyHandler(propertyService).Register(mux, "/properties")
+	httpHandler.NewPropertyTypeHandler(propertyTypeService).Register(mux, "/property_types")
+	httpHandler.NewImageHandler(imageService).Register(mux, "/images")
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	srv := &http.Server{Addr: ":" + port, Handler: mux}
+
+	// start server
+	go func() {
+		logger.Info("starting server", "addr", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error("server failed", "err", err)
+			os.Exit(1)
+		}
+	}()
+
+	// graceful shutdown on SIGINT/SIGTERM
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+
+	ctxShut, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	logger.Info("shutting down server")
+	if err := srv.Shutdown(ctxShut); err != nil {
+		logger.Error("shutdown error", "err", err)
+		os.Exit(1)
+	}
 
 }
