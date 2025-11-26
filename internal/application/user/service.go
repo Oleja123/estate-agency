@@ -61,6 +61,7 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (domain
 		FirstName:    firstName,
 		LastName:     lastName,
 		PhoneNumber:  phone,
+		UserRole:     domain.RoleClient,
 	}
 
 	id, err := s.repo.Create(ctx, u)

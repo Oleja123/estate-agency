@@ -9,9 +9,9 @@ import (
 )
 
 type Config struct {
-	DbConfig  DatabaseConfig
-	GeoConfig GeoServiceConfig
-	GoosePath string `yaml:"goose_path"`
+	DbConfig  DatabaseConfig   `yaml:"db_config"`
+	GeoConfig GeoServiceConfig `yaml:"geo_config"`
+	GoosePath string           `yaml:"goose_path"`
 }
 
 func LoadConfig(path string, logger *slog.Logger) (Config, error) {

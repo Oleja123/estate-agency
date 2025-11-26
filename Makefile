@@ -2,7 +2,7 @@ COVERAGE_FILE ?= coverage.out
 
 TARGET ?= run # CHANGE THIS TO YOUR BINARY NAME
 MIGRATIONS_DIR := "db/migrations"
-PG_DSN := "postgres://root:root@localhost:5432/db?sslmode=disable"
+PG_DSN := "postgres://root:root@localhost:5432/estate?sslmode=disable"
 PG_DSN_TEST := "postgres://root:root@localhost:5432/test?sslmode=disable"
 
 .PHONY: build
@@ -23,7 +23,7 @@ migrate-generate:
 
 .PHONY: migrate-up
 migrate-up:
-	$(GOPATH)/bin/goose -dir $(MIGRATIONS_DIR) postgres $(PG_DSN) up
+	goose -dir $(MIGRATIONS_DIR) postgres $(PG_DSN) up
 
 .PHONY: migrate-down
 migrate-down:
