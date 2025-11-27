@@ -165,9 +165,19 @@ definitions:
     type: object
   userhandler.UpdateProfileRequestDoc:
     properties:
+      email:
+        type: string
       first_name:
+        description: |-
+          Optional fields: any of these may be omitted in the request. Using
+          pointer-to-string with `omitempty` models optional semantics for the
+          swagger generator.
         type: string
       last_name:
+        type: string
+      phone_number:
+        type: string
+      role:
         type: string
     type: object
 host: localhost:8080

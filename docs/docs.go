@@ -1484,10 +1484,20 @@ const docTemplate = `{
         "userhandler.UpdateProfileRequestDoc": {
             "type": "object",
             "properties": {
+                "email": {
+                    "type": "string"
+                },
                 "first_name": {
+                    "description": "Optional fields: any of these may be omitted in the request. Using\npointer-to-string with ` + "`" + `omitempty` + "`" + ` models optional semantics for the\nswagger generator.",
                     "type": "string"
                 },
                 "last_name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "role": {
                     "type": "string"
                 }
             }
