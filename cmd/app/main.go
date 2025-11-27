@@ -19,7 +19,12 @@ import (
 	userservice "github.com/Oleja123/estate-agency/internal/application/user"
 	"github.com/Oleja123/estate-agency/internal/application/user/password"
 	"github.com/Oleja123/estate-agency/internal/domain/user"
-	httpHandler "github.com/Oleja123/estate-agency/internal/handler"
+	"github.com/Oleja123/estate-agency/internal/handler/auth"
+	favoritehandler "github.com/Oleja123/estate-agency/internal/handler/favorite"
+	imagehandler "github.com/Oleja123/estate-agency/internal/handler/image"
+	propertyhandler "github.com/Oleja123/estate-agency/internal/handler/property"
+	propertytypehandler "github.com/Oleja123/estate-agency/internal/handler/property_type"
+	userhandler "github.com/Oleja123/estate-agency/internal/handler/user"
 	postgresqlclient "github.com/Oleja123/estate-agency/internal/infrastructure/client/postgresql"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/config"
 	favoritedb "github.com/Oleja123/estate-agency/internal/infrastructure/favorite"
@@ -81,21 +86,21 @@ func main() {
 	router := chi.NewRouter()
 
 	// set package logger for handler helpers/middlewares
-	httpHandler.SetLogger(logger)
+	auth.SetLogger(logger)
 
 	// create auth middleware (chi-style). We'll apply it per-route; public
 	// endpoints (register/login/refresh) should be mounted without this
 	// middleware.
-	authMw := httpHandler.AuthMiddleware(tokSvc)
+	authMw := auth.AuthMiddleware(tokSvc)
 
 	// register handlers under sensible prefixes; pass auth middleware so handlers
 	// can apply it to protected routes using chi groups
-	httpHandler.NewUserHandler(userService).Register(router, "/users", authMw)
-	httpHandler.NewTokenHandler(tokSvc).Register(router, "/tokens", nil)
-	httpHandler.NewFavoriteHandler(favoriteService).Register(router, "/favorites", authMw)
-	httpHandler.NewPropertyHandler(propertyService).Register(router, "/properties", authMw)
-	httpHandler.NewPropertyTypeHandler(propertyTypeService).Register(router, "/property_types", authMw)
-	httpHandler.NewImageHandler(imageService).Register(router, "/images", authMw)
+	userhandler.NewUserHandler(userService, logger).Register(router, "/users", authMw)
+	auth.NewTokenHandler(tokSvc).Register(router, "/tokens", nil)
+	favoritehandler.NewFavoriteHandler(favoriteService, logger).Register(router, "/favorites", authMw)
+	propertyhandler.NewPropertyHandler(propertyService, logger).Register(router, "/properties", authMw)
+	propertytypehandler.NewPropertyTypeHandler(propertyTypeService, logger).Register(router, "/property_types", authMw)
+	imagehandler.NewImageHandler(imageService, logger).Register(router, "/images", authMw)
 
 	port := os.Getenv("PORT")
 	if port == "" {

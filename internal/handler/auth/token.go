@@ -1,4 +1,4 @@
-package handler
+package auth
 
 import (
 	"net/http"
@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	tokensvc "github.com/Oleja123/estate-agency/internal/application/token"
+	handlerutils "github.com/Oleja123/estate-agency/internal/handler/utils"
 )
 
 type TokenHandler struct {
@@ -30,14 +31,14 @@ func (h *TokenHandler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
 	}
-	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
+	if err := handlerutils.DecodeJSON(r, &req); err != nil {
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
 		return
 	}
 	res, err := h.svc.ValidateRefreshToken(req.RefreshToken)
 	if err != nil {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
+		handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]int{"user_id": res})
+	handlerutils.WriteJSON(w, http.StatusOK, map[string]int{"user_id": res})
 }

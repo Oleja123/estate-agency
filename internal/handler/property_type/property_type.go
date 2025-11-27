@@ -1,22 +1,27 @@
-package handler
+package propertytypehandler
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
 
+	auth "github.com/Oleja123/estate-agency/internal/handler/auth"
+
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
 	typesvc "github.com/Oleja123/estate-agency/internal/application/property_type"
 	dto "github.com/Oleja123/estate-agency/internal/application/property_type/dto"
+	handlerutils "github.com/Oleja123/estate-agency/internal/handler/utils"
 )
 
 type PropertyTypeHandler struct {
 	svc typesvc.Service
+	lg  *slog.Logger
 }
 
-func NewPropertyTypeHandler(s typesvc.Service) *PropertyTypeHandler {
-	return &PropertyTypeHandler{svc: s}
+func NewPropertyTypeHandler(s typesvc.Service, l *slog.Logger) *PropertyTypeHandler {
+	return &PropertyTypeHandler{svc: s, lg: l}
 }
 
 func (h *PropertyTypeHandler) Register(r chi.Router, prefix string, authMw func(next http.Handler) http.Handler) {
@@ -31,9 +36,10 @@ func (h *PropertyTypeHandler) Register(r chi.Router, prefix string, authMw func(
 		if authMw != nil {
 			r.Group(func(r chi.Router) {
 				r.Use(authMw)
-				r.Post("/", h.handleCreate)
-				r.Put("/{id}", h.handleUpdate)
-				r.Delete("/{id}", h.handleDelete)
+				// only admins may create/update/delete property types
+				r.With(auth.RequireAdminMiddleware()).Post("/", h.handleCreate)
+				r.With(auth.RequireAdminMiddleware()).Put("/{id}", h.handleUpdate)
+				r.With(auth.RequireAdminMiddleware()).Delete("/{id}", h.handleDelete)
 			})
 		} else {
 			r.Post("/", h.handleCreate)
@@ -45,34 +51,34 @@ func (h *PropertyTypeHandler) Register(r chi.Router, prefix string, authMw func(
 
 func (h *PropertyTypeHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreatePropertyTypeRequest
-	if err := decodeJSON(r, &req); err != nil {
-		code, body := mapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
-		writeJSON(w, code, body)
+	if err := handlerutils.DecodeJSON(r, &req); err != nil {
+		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
+		handlerutils.WriteJSON(w, code, body)
 		return
 	}
 	t, err := h.svc.Create(r.Context(), req)
 	if err != nil {
-		code, body := mapAppError(err)
-		writeJSON(w, code, body)
+		code, body := handlerutils.MapAppError(err)
+		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	writeJSON(w, http.StatusCreated, t)
+	handlerutils.WriteJSON(w, http.StatusCreated, t)
 }
 
 func (h *PropertyTypeHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
 		return
 	}
 	t, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
-		code, body := mapAppError(err)
-		writeJSON(w, code, body)
+		code, body := handlerutils.MapAppError(err)
+		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	writeJSON(w, http.StatusOK, t)
+	handlerutils.WriteJSON(w, http.StatusOK, t)
 }
 
 func (h *PropertyTypeHandler) handleList(w http.ResponseWriter, r *http.Request) {
@@ -95,47 +101,47 @@ func (h *PropertyTypeHandler) handleList(w http.ResponseWriter, r *http.Request)
 	req := dto.ListPropertyTypesRequest{Limit: limit, Offset: offset}
 	res, err := h.svc.List(r.Context(), req)
 	if err != nil {
-		code, body := mapAppError(err)
-		writeJSON(w, code, body)
+		code, body := handlerutils.MapAppError(err)
+		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	writeJSON(w, http.StatusOK, res)
+	handlerutils.WriteJSON(w, http.StatusOK, res)
 }
 
 func (h *PropertyTypeHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
 		return
 	}
 	var req dto.UpdatePropertyTypeRequest
-	if err := decodeJSON(r, &req); err != nil {
-		code, body := mapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
-		writeJSON(w, code, body)
+	if err := handlerutils.DecodeJSON(r, &req); err != nil {
+		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
+		handlerutils.WriteJSON(w, code, body)
 		return
 	}
 	req.ID = id
 	if err := h.svc.Update(r.Context(), req); err != nil {
-		code, body := mapAppError(err)
-		writeJSON(w, code, body)
+		code, body := handlerutils.MapAppError(err)
+		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	writeJSON(w, http.StatusNoContent, nil)
+	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
 func (h *PropertyTypeHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
 		return
 	}
 	deletedID, err := h.svc.Delete(r.Context(), id)
 	if err != nil {
-		code, body := mapAppError(err)
-		writeJSON(w, code, body)
+		code, body := handlerutils.MapAppError(err)
+		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]int{"deleted_id": deletedID})
+	handlerutils.WriteJSON(w, http.StatusOK, map[string]int{"deleted_id": deletedID})
 }

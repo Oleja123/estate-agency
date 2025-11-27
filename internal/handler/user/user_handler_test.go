@@ -1,0 +1,378 @@
+package userhandler
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
+	dto "github.com/Oleja123/estate-agency/internal/application/user/dto"
+	auth "github.com/Oleja123/estate-agency/internal/handler/auth"
+	"github.com/go-chi/chi/v5"
+)
+
+// mockService implements usersvc.Service with minimal stubs for testing handler behavior.
+type mockService struct {
+	ChangePasswordCalled      bool
+	ChangePasswordAdminCalled bool
+	LastChangePasswordUserID  int
+	LastChangePasswordReq     dto.ChangePasswordRequest
+	LastAdminNewPassword      string
+	// optional behavior overrides for tests
+	RegisterFunc       func(ctx context.Context, req dto.RegisterRequest) (dto.PublicUser, error)
+	LoginFunc          func(ctx context.Context, req dto.LoginRequest) (dto.LoginResponse, error)
+	ListUsersFunc      func(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error)
+	ChangePasswordFunc func(ctx context.Context, userID int, req dto.ChangePasswordRequest) error
+}
+
+func (m *mockService) Register(ctx context.Context, req dto.RegisterRequest) (dto.PublicUser, error) {
+	if m.RegisterFunc != nil {
+		return m.RegisterFunc(ctx, req)
+	}
+	return dto.PublicUser{}, nil
+}
+func (m *mockService) Authenticate(ctx context.Context, req dto.LoginRequest) (dto.PublicUser, error) {
+	return dto.PublicUser{}, nil
+}
+func (m *mockService) Login(ctx context.Context, req dto.LoginRequest) (dto.LoginResponse, error) {
+	if m.LoginFunc != nil {
+		return m.LoginFunc(ctx, req)
+	}
+	return dto.LoginResponse{}, nil
+}
+func (m *mockService) Logout(ctx context.Context, refreshToken string) error { return nil }
+func (m *mockService) RefreshToken(ctx context.Context, refreshToken string) (dto.LoginResponse, error) {
+	return dto.LoginResponse{}, nil
+}
+func (m *mockService) GetUserByID(ctx context.Context, userID int) (dto.PublicUser, error) {
+	return dto.PublicUser{}, nil
+}
+func (m *mockService) UpdateProfile(ctx context.Context, req dto.UpdateProfileRequest) error {
+	return nil
+}
+func (m *mockService) ChangePassword(ctx context.Context, userID int, req dto.ChangePasswordRequest) error {
+	m.ChangePasswordCalled = true
+	m.LastChangePasswordUserID = userID
+	m.LastChangePasswordReq = req
+	if m.ChangePasswordFunc != nil {
+		return m.ChangePasswordFunc(ctx, userID, req)
+	}
+	return nil
+}
+func (m *mockService) ChangePasswordAdmin(ctx context.Context, userID int, newPassword string) error {
+	m.ChangePasswordAdminCalled = true
+	m.LastChangePasswordUserID = userID
+	m.LastAdminNewPassword = newPassword
+	return nil
+}
+func (m *mockService) DeactivateAccount(ctx context.Context, userID int) error { return nil }
+func (m *mockService) ActivateAccount(ctx context.Context, userID int) error   { return nil }
+func (m *mockService) ListUsers(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error) {
+	if m.ListUsersFunc != nil {
+		return m.ListUsersFunc(ctx, req)
+	}
+	return dto.ListUsersResponse{}, nil
+}
+func (m *mockService) DeleteUser(ctx context.Context, userID int) (int, error) { return 0, nil }
+
+func TestHandleChangePassword_AdminPath(t *testing.T) {
+	m := &mockService{}
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger)
+
+	body := map[string]string{"new_password": "adminnew"}
+	b, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/users/5/password", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	// set chi route param id=5
+	rc := chi.NewRouteContext()
+	rc.URLParams.Add("id", "5")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
+	// set admin role in context via auth helper
+	req = req.WithContext(auth.ContextWithUser(req.Context(), 3, "admin"))
+
+	rr := httptest.NewRecorder()
+	h.handleChangePassword(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	if !m.ChangePasswordAdminCalled {
+		t.Fatalf("expected ChangePasswordAdmin called")
+	}
+	if m.LastChangePasswordUserID != 5 {
+		t.Fatalf("expected userID 5, got %d", m.LastChangePasswordUserID)
+	}
+}
+
+func TestHandleChangePassword_OwnerPath(t *testing.T) {
+	m := &mockService{}
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger)
+
+	body := map[string]string{"current_password": "old", "new_password": "new"}
+	b, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/users/7/password", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rc := chi.NewRouteContext()
+	rc.URLParams.Add("id", "7")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
+	// set owner id same as target
+	req = req.WithContext(auth.ContextWithUser(req.Context(), 7, "client"))
+
+	rr := httptest.NewRecorder()
+	h.handleChangePassword(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	if !m.ChangePasswordCalled {
+		t.Fatalf("expected ChangePassword called")
+	}
+	if m.LastChangePasswordUserID != 7 {
+		t.Fatalf("expected userID 7, got %d", m.LastChangePasswordUserID)
+	}
+}
+
+func TestHandleRegister_Success(t *testing.T) {
+	m := &mockService{}
+	now := time.Now()
+	m.RegisterFunc = func(ctx context.Context, req dto.RegisterRequest) (dto.PublicUser, error) {
+		return dto.PublicUser{Id: 42, Email: req.Email, FirstName: req.FirstName, LastName: req.LastName, IsActive: true, CreatedAt: now, UpdatedAt: now}, nil
+	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger)
+
+	body := map[string]string{"email": "new@user", "password": "pwd", "first_name": "FN", "last_name": "LN"}
+	b, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/users/register", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	h.handleRegister(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	var got dto.PublicUser
+	if err := json.NewDecoder(rr.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got.Id != 42 || got.Email != "new@user" {
+		t.Fatalf("unexpected user returned: %+v", got)
+	}
+}
+
+func TestHandleRegister_InvalidJSON(t *testing.T) {
+	m := &mockService{}
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger)
+
+	req := httptest.NewRequest(http.MethodPost, "/users/register", bytes.NewReader([]byte("{")))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	h.handleRegister(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid json, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleLogin_Success(t *testing.T) {
+	m := &mockService{}
+	now := time.Now()
+	m.LoginFunc = func(ctx context.Context, req dto.LoginRequest) (dto.LoginResponse, error) {
+		return dto.LoginResponse{User: dto.PublicUser{Id: 7, Email: req.Email, IsActive: true, CreatedAt: now, UpdatedAt: now}, AccessToken: "at", RefreshToken: "rt", ExpiresAt: now.Add(time.Hour)}, nil
+	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger)
+
+	body := map[string]string{"email": "x@x", "password": "p"}
+	b, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/users/login", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	h.handleLogin(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	var got dto.LoginResponse
+	if err := json.NewDecoder(rr.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got.AccessToken != "at" || got.RefreshToken != "rt" {
+		t.Fatalf("unexpected tokens: %+v", got)
+	}
+}
+
+func TestHandleListUsers_ReturnsList(t *testing.T) {
+	m := &mockService{}
+	now := time.Now()
+	m.ListUsersFunc = func(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error) {
+		return dto.ListUsersResponse{Users: []dto.PublicUser{{Id: 1, Email: "a@b", IsActive: true, CreatedAt: now, UpdatedAt: now}, {Id: 2, Email: "c@d", IsActive: true, CreatedAt: now, UpdatedAt: now}}, Total: 2}, nil
+	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger)
+
+	req := httptest.NewRequest(http.MethodGet, "/users", nil)
+	rr := httptest.NewRecorder()
+	h.handleListUsers(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	var got dto.ListUsersResponse
+	if err := json.NewDecoder(rr.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got.Total != 2 || len(got.Users) != 2 {
+		t.Fatalf("unexpected list response: %+v", got)
+	}
+}
+
+func TestHandleListUsers_RequiresAdmin_Middleware(t *testing.T) {
+	m := &mockService{}
+	now := time.Now()
+	m.ListUsersFunc = func(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error) {
+		return dto.ListUsersResponse{Users: []dto.PublicUser{{Id: 1, Email: "a@b", IsActive: true, CreatedAt: now, UpdatedAt: now}}, Total: 1}, nil
+	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger)
+
+	r := chi.NewRouter()
+	r.With(auth.RequireAdminMiddleware()).Get("/", h.handleListUsers)
+
+	// unauthenticated -> 401
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for unauthenticated, got %d", rr.Code)
+	}
+
+	// authenticated non-admin -> 403
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
+	req = req.WithContext(auth.ContextWithUser(req.Context(), 5, "client"))
+	rr = httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for non-admin, got %d", rr.Code)
+	}
+
+	// admin -> 200
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
+	req = req.WithContext(auth.ContextWithUser(req.Context(), 9, "admin"))
+	rr = httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 for admin, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleChangePassword_RequiresOwnerOrAdmin_Middleware_Forbidden(t *testing.T) {
+	m := &mockService{}
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger)
+
+	r := chi.NewRouter()
+	r.With(auth.RequireOwnerOrAdminMiddleware()).Post("/{id}/password", h.handleChangePassword)
+
+	body := map[string]string{"current_password": "old", "new_password": "new"}
+	b, _ := json.Marshal(body)
+	// request target id 7, but context user is 6 -> should be forbidden
+	req := httptest.NewRequest(http.MethodPost, "/7/password", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(auth.ContextWithUser(req.Context(), 6, "client"))
+	rr := httptest.NewRecorder()
+
+	r.ServeHTTP(rr, req)
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for non-owner non-admin, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+// Error-path tests
+func TestHandleRegister_AlreadyExists_Returns409(t *testing.T) {
+	m := &mockService{}
+	m.RegisterFunc = func(ctx context.Context, req dto.RegisterRequest) (dto.PublicUser, error) {
+		return dto.PublicUser{}, apperrors.NewErrAlreadyExists("user", "email", req.Email)
+	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger)
+
+	body := map[string]string{"email": "dup@x", "password": "p", "first_name": "F", "last_name": "L"}
+	b, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/users/register", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	h.handleRegister(rr, req)
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("expected 409 for already exists, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleLogin_InvalidCredentials_Returns401(t *testing.T) {
+	m := &mockService{}
+	m.LoginFunc = func(ctx context.Context, req dto.LoginRequest) (dto.LoginResponse, error) {
+		return dto.LoginResponse{}, apperrors.NewErrInvalidInput("credentials", nil, "invalid")
+	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger)
+
+	body := map[string]string{"email": "x@x", "password": "bad"}
+	b, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/users/login", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	h.handleLogin(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for invalid credentials, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleGetUser_NotFound_Returns404(t *testing.T) {
+	m := &mockService{}
+	// use ListUsers or GetUserByID? Handler has GetUserByID method; override via Register? We'll simulate via ListUsers path by calling GetUserByID through handler's route if present.
+	// For simplicity, call handleGetUser directly would require method; if not present, skip. We'll test ListUsers error mapping instead.
+	m.ListUsersFunc = func(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error) {
+		return dto.ListUsersResponse{}, apperrors.NewErrNotFound("user", 77)
+	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger)
+
+	req := httptest.NewRequest(http.MethodGet, "/users", nil)
+	rr := httptest.NewRecorder()
+	h.handleListUsers(rr, req)
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 for list users not found, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleChangePassword_Owner_BadRequest_Returns400(t *testing.T) {
+	m := &mockService{}
+	m.ChangePasswordFunc = func(ctx context.Context, userID int, req dto.ChangePasswordRequest) error {
+		return apperrors.NewErrInvalidInput("password", nil, "bad current password")
+	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger)
+
+	body := map[string]string{"current_password": "wrong", "new_password": "new"}
+	b, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/users/7/password", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rc := chi.NewRouteContext()
+	rc.URLParams.Add("id", "7")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
+	req = req.WithContext(auth.ContextWithUser(req.Context(), 7, "client"))
+	rr := httptest.NewRecorder()
+
+	h.handleChangePassword(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for bad change password, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}

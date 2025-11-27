@@ -1,6 +1,7 @@
-package handler
+package favoritehandler
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -9,14 +10,16 @@ import (
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
 	favoritesvc "github.com/Oleja123/estate-agency/internal/application/favorite"
 	dto "github.com/Oleja123/estate-agency/internal/application/favorite/dto"
+	handlerutils "github.com/Oleja123/estate-agency/internal/handler/utils"
 )
 
 type FavoriteHandler struct {
 	svc favoritesvc.Service
+	lg  *slog.Logger
 }
 
-func NewFavoriteHandler(s favoritesvc.Service) *FavoriteHandler {
-	return &FavoriteHandler{svc: s}
+func NewFavoriteHandler(s favoritesvc.Service, l *slog.Logger) *FavoriteHandler {
+	return &FavoriteHandler{svc: s, lg: l}
 }
 
 func (h *FavoriteHandler) Register(r chi.Router, prefix string, authMw func(next http.Handler) http.Handler) {
@@ -47,18 +50,18 @@ func (h *FavoriteHandler) handleFavorites(w http.ResponseWriter, r *http.Request
 	switch r.Method {
 	case http.MethodPost:
 		var req dto.CreateFavoriteRequest
-		if err := decodeJSON(r, &req); err != nil {
-			code, body := mapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
-			writeJSON(w, code, body)
+		if err := handlerutils.DecodeJSON(r, &req); err != nil {
+			code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
+			handlerutils.WriteJSON(w, code, body)
 			return
 		}
 		f, err := h.svc.Create(r.Context(), req)
 		if err != nil {
-			code, body := mapAppError(err)
-			writeJSON(w, code, body)
+			code, body := handlerutils.MapAppError(err)
+			handlerutils.WriteJSON(w, code, body)
 			return
 		}
-		writeJSON(w, http.StatusCreated, f)
+		handlerutils.WriteJSON(w, http.StatusCreated, f)
 	case http.MethodGet:
 		q := r.URL.Query()
 		if q.Get("user_id") != "" && q.Get("property_id") != "" {
@@ -66,31 +69,31 @@ func (h *FavoriteHandler) handleFavorites(w http.ResponseWriter, r *http.Request
 			pid, _ := strconv.Atoi(q.Get("property_id"))
 			res, err := h.svc.GetByUserAndProperty(r.Context(), dto.CreateFavoriteRequest{UserID: uid, PropertyID: pid})
 			if err != nil {
-				code, body := mapAppError(err)
-				writeJSON(w, code, body)
+				code, body := handlerutils.MapAppError(err)
+				handlerutils.WriteJSON(w, code, body)
 				return
 			}
-			writeJSON(w, http.StatusOK, res)
+			handlerutils.WriteJSON(w, http.StatusOK, res)
 			return
 		}
-		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "listing not implemented"})
+		handlerutils.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "listing not implemented"})
 	case http.MethodDelete:
 		q := r.URL.Query()
 		uid, _ := strconv.Atoi(q.Get("user_id"))
 		pid, _ := strconv.Atoi(q.Get("property_id"))
 		if uid == 0 || pid == 0 {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing ids"})
+			handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "missing ids"})
 			return
 		}
 		_, err := h.svc.Delete(r.Context(), dto.CreateFavoriteRequest{UserID: uid, PropertyID: pid})
 		if err != nil {
-			code, body := mapAppError(err)
-			writeJSON(w, code, body)
+			code, body := handlerutils.MapAppError(err)
+			handlerutils.WriteJSON(w, code, body)
 			return
 		}
-		writeJSON(w, http.StatusNoContent, nil)
+		handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 	default:
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		handlerutils.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 	}
 }
 
@@ -122,11 +125,11 @@ func (h *FavoriteHandler) handleList(w http.ResponseWriter, r *http.Request) {
 	}
 	res, err := h.svc.List(r.Context(), req)
 	if err != nil {
-		code, body := mapAppError(err)
-		writeJSON(w, code, body)
+		code, body := handlerutils.MapAppError(err)
+		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	writeJSON(w, http.StatusOK, res)
+	handlerutils.WriteJSON(w, http.StatusOK, res)
 }
 
 func (h *FavoriteHandler) handleExists(w http.ResponseWriter, r *http.Request) {
@@ -134,14 +137,14 @@ func (h *FavoriteHandler) handleExists(w http.ResponseWriter, r *http.Request) {
 	uid, _ := strconv.Atoi(q.Get("user_id"))
 	pid, _ := strconv.Atoi(q.Get("property_id"))
 	if uid == 0 || pid == 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing ids"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "missing ids"})
 		return
 	}
 	ok, err := h.svc.Exists(r.Context(), dto.CreateFavoriteRequest{UserID: uid, PropertyID: pid})
 	if err != nil {
-		code, body := mapAppError(err)
-		writeJSON(w, code, body)
+		code, body := handlerutils.MapAppError(err)
+		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{"exists": ok})
+	handlerutils.WriteJSON(w, http.StatusOK, map[string]bool{"exists": ok})
 }
