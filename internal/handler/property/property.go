@@ -8,6 +8,8 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
+	favoritesvc "github.com/Oleja123/estate-agency/internal/application/favorite"
+
 	propertysvc "github.com/Oleja123/estate-agency/internal/application/property"
 	dto "github.com/Oleja123/estate-agency/internal/application/property/dto"
 	"github.com/Oleja123/estate-agency/internal/handler/auth"
@@ -15,12 +17,13 @@ import (
 )
 
 type PropertyHandler struct {
-	svc propertysvc.Service
-	lg  *slog.Logger
+	svc    propertysvc.Service
+	lg     *slog.Logger
+	favSvc favoritesvc.Service
 }
 
-func NewPropertyHandler(s propertysvc.Service, l *slog.Logger) *PropertyHandler {
-	return &PropertyHandler{svc: s, lg: l}
+func NewPropertyHandler(s propertysvc.Service, l *slog.Logger, fav favoritesvc.Service) *PropertyHandler {
+	return &PropertyHandler{svc: s, lg: l, favSvc: fav}
 }
 
 func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next http.Handler) http.Handler) {
@@ -38,6 +41,11 @@ func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next
 				r.With(auth.RequireAdminMiddleware()).Post("/", h.handleCreate)
 				r.With(auth.RequireAdminMiddleware()).Put("/{id}", h.handleUpdate)
 				r.With(auth.RequireAdminMiddleware()).Delete("/{id}", h.handleDelete)
+				// allow authenticated users to toggle favorite for a property
+				if h.favSvc != nil {
+					// toggle favorite for current user: POST /{id}/favorites
+					r.Post("/{id}/favorites", h.handleToggleFavorite)
+				}
 			})
 		} else {
 			// no auth middleware available in this environment — leave handlers attached
@@ -46,6 +54,39 @@ func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next
 			r.Delete("/{id}", h.handleDelete)
 		}
 	})
+}
+
+// constructor-only injection enforced; SetFavoriteService removed
+
+// handleToggleFavorite toggles favorite for the authenticated user and the
+// given property id. If the property was not favorited, it creates one and
+// returns 201 with the created object. If it was favorited already, it
+// deletes it and returns 204 No Content.
+func (h *PropertyHandler) handleToggleFavorite(w http.ResponseWriter, r *http.Request) {
+	pidStr := chi.URLParam(r, "id")
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return
+	}
+	uid, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authorization"})
+		return
+	}
+
+	// Delegate favorite toggle to property service: it will call favorites service.
+	created, fav, err := h.svc.ToggleFavorite(r.Context(), uid, pid)
+	if err != nil {
+		code, body := handlerutils.MapAppError(err)
+		handlerutils.WriteJSON(w, code, body)
+		return
+	}
+	if created {
+		handlerutils.WriteJSON(w, http.StatusCreated, fav)
+		return
+	}
+	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
 func (h *PropertyHandler) handleCreate(w http.ResponseWriter, r *http.Request) {

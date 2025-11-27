@@ -12,7 +12,9 @@ import (
 	"time"
 
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
+	favdto "github.com/Oleja123/estate-agency/internal/application/favorite/dto"
 	dto "github.com/Oleja123/estate-agency/internal/application/user/dto"
+	favdomain "github.com/Oleja123/estate-agency/internal/domain/favorite"
 	auth "github.com/Oleja123/estate-agency/internal/handler/auth"
 	"github.com/go-chi/chi/v5"
 )
@@ -25,10 +27,31 @@ type mockService struct {
 	LastChangePasswordReq     dto.ChangePasswordRequest
 	LastAdminNewPassword      string
 	// optional behavior overrides for tests
-	RegisterFunc       func(ctx context.Context, req dto.RegisterRequest) (dto.PublicUser, error)
-	LoginFunc          func(ctx context.Context, req dto.LoginRequest) (dto.LoginResponse, error)
-	ListUsersFunc      func(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error)
-	ChangePasswordFunc func(ctx context.Context, userID int, req dto.ChangePasswordRequest) error
+	RegisterFunc            func(ctx context.Context, req dto.RegisterRequest) (dto.PublicUser, error)
+	LoginFunc               func(ctx context.Context, req dto.LoginRequest) (dto.LoginResponse, error)
+	ListUsersFunc           func(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error)
+	ChangePasswordFunc      func(ctx context.Context, userID int, req dto.ChangePasswordRequest) error
+	GetUserByIDFunc         func(ctx context.Context, userID int) (dto.PublicUser, error)
+	ToggleActiveAccountFunc func(ctx context.Context, userID int) error
+}
+
+// mockFavorite is a lightweight favorites service mock for handler tests.
+type mockFavorite struct{}
+
+func (m *mockFavorite) Create(ctx context.Context, req favdto.CreateFavoriteRequest) (favdomain.Favorite, error) {
+	return favdomain.Favorite{}, nil
+}
+func (m *mockFavorite) GetByUserAndProperty(ctx context.Context, key favdto.CreateFavoriteRequest) (favdomain.Favorite, error) {
+	return favdomain.Favorite{}, nil
+}
+func (m *mockFavorite) Delete(ctx context.Context, key favdto.CreateFavoriteRequest) (int, error) {
+	return 0, nil
+}
+func (m *mockFavorite) List(ctx context.Context, req favdto.ListFavoritesRequest) (favdto.ListFavoritesResponse, error) {
+	return favdto.ListFavoritesResponse{}, nil
+}
+func (m *mockFavorite) Exists(ctx context.Context, key favdto.CreateFavoriteRequest) (bool, error) {
+	return false, nil
 }
 
 func (m *mockService) Register(ctx context.Context, req dto.RegisterRequest) (dto.PublicUser, error) {
@@ -51,6 +74,9 @@ func (m *mockService) RefreshToken(ctx context.Context, refreshToken string) (dt
 	return dto.LoginResponse{}, nil
 }
 func (m *mockService) GetUserByID(ctx context.Context, userID int) (dto.PublicUser, error) {
+	if m.GetUserByIDFunc != nil {
+		return m.GetUserByIDFunc(ctx, userID)
+	}
 	return dto.PublicUser{}, nil
 }
 func (m *mockService) UpdateProfile(ctx context.Context, req dto.UpdateProfileRequest) error {
@@ -73,6 +99,17 @@ func (m *mockService) ChangePasswordAdmin(ctx context.Context, userID int, newPa
 }
 func (m *mockService) DeactivateAccount(ctx context.Context, userID int) error { return nil }
 func (m *mockService) ActivateAccount(ctx context.Context, userID int) error   { return nil }
+func (m *mockService) SetActiveAccount(ctx context.Context, userID int, active bool) error {
+	// kept for interface compatibility; tests should use ToggleActiveAccount
+	return nil
+}
+
+func (m *mockService) ToggleActiveAccount(ctx context.Context, userID int) error {
+	if m.ToggleActiveAccountFunc != nil {
+		return m.ToggleActiveAccountFunc(ctx, userID)
+	}
+	return nil
+}
 func (m *mockService) ListUsers(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error) {
 	if m.ListUsersFunc != nil {
 		return m.ListUsersFunc(ctx, req)
@@ -84,7 +121,7 @@ func (m *mockService) DeleteUser(ctx context.Context, userID int) (int, error) {
 func TestHandleChangePassword_AdminPath(t *testing.T) {
 	m := &mockService{}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := NewUserHandler(m, logger)
+	h := NewUserHandler(m, logger, &mockFavorite{})
 
 	body := map[string]string{"new_password": "adminnew"}
 	b, _ := json.Marshal(body)
@@ -114,7 +151,7 @@ func TestHandleChangePassword_AdminPath(t *testing.T) {
 func TestHandleChangePassword_OwnerPath(t *testing.T) {
 	m := &mockService{}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := NewUserHandler(m, logger)
+	h := NewUserHandler(m, logger, &mockFavorite{})
 
 	body := map[string]string{"current_password": "old", "new_password": "new"}
 	b, _ := json.Marshal(body)
@@ -147,7 +184,7 @@ func TestHandleRegister_Success(t *testing.T) {
 		return dto.PublicUser{Id: 42, Email: req.Email, FirstName: req.FirstName, LastName: req.LastName, IsActive: true, CreatedAt: now, UpdatedAt: now}, nil
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := NewUserHandler(m, logger)
+	h := NewUserHandler(m, logger, &mockFavorite{})
 
 	body := map[string]string{"email": "new@user", "password": "pwd", "first_name": "FN", "last_name": "LN"}
 	b, _ := json.Marshal(body)
@@ -171,7 +208,7 @@ func TestHandleRegister_Success(t *testing.T) {
 func TestHandleRegister_InvalidJSON(t *testing.T) {
 	m := &mockService{}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := NewUserHandler(m, logger)
+	h := NewUserHandler(m, logger, &mockFavorite{})
 
 	req := httptest.NewRequest(http.MethodPost, "/users/register", bytes.NewReader([]byte("{")))
 	req.Header.Set("Content-Type", "application/json")
@@ -189,7 +226,7 @@ func TestHandleLogin_Success(t *testing.T) {
 		return dto.LoginResponse{User: dto.PublicUser{Id: 7, Email: req.Email, IsActive: true, CreatedAt: now, UpdatedAt: now}, AccessToken: "at", RefreshToken: "rt", ExpiresAt: now.Add(time.Hour)}, nil
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := NewUserHandler(m, logger)
+	h := NewUserHandler(m, logger, &mockFavorite{})
 
 	body := map[string]string{"email": "x@x", "password": "p"}
 	b, _ := json.Marshal(body)
@@ -216,7 +253,7 @@ func TestHandleListUsers_ReturnsList(t *testing.T) {
 		return dto.ListUsersResponse{Users: []dto.PublicUser{{Id: 1, Email: "a@b", IsActive: true, CreatedAt: now, UpdatedAt: now}, {Id: 2, Email: "c@d", IsActive: true, CreatedAt: now, UpdatedAt: now}}, Total: 2}, nil
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := NewUserHandler(m, logger)
+	h := NewUserHandler(m, logger, &mockFavorite{})
 
 	req := httptest.NewRequest(http.MethodGet, "/users", nil)
 	rr := httptest.NewRecorder()
@@ -240,7 +277,7 @@ func TestHandleListUsers_RequiresAdmin_Middleware(t *testing.T) {
 		return dto.ListUsersResponse{Users: []dto.PublicUser{{Id: 1, Email: "a@b", IsActive: true, CreatedAt: now, UpdatedAt: now}}, Total: 1}, nil
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := NewUserHandler(m, logger)
+	h := NewUserHandler(m, logger, &mockFavorite{})
 
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Get("/", h.handleListUsers)
@@ -275,7 +312,7 @@ func TestHandleListUsers_RequiresAdmin_Middleware(t *testing.T) {
 func TestHandleChangePassword_RequiresOwnerOrAdmin_Middleware_Forbidden(t *testing.T) {
 	m := &mockService{}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := NewUserHandler(m, logger)
+	h := NewUserHandler(m, logger, &mockFavorite{})
 
 	r := chi.NewRouter()
 	r.With(auth.RequireOwnerOrAdminMiddleware()).Post("/{id}/password", h.handleChangePassword)
@@ -301,7 +338,7 @@ func TestHandleRegister_AlreadyExists_Returns409(t *testing.T) {
 		return dto.PublicUser{}, apperrors.NewErrAlreadyExists("user", "email", req.Email)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := NewUserHandler(m, logger)
+	h := NewUserHandler(m, logger, &mockFavorite{})
 
 	body := map[string]string{"email": "dup@x", "password": "p", "first_name": "F", "last_name": "L"}
 	b, _ := json.Marshal(body)
@@ -321,7 +358,7 @@ func TestHandleLogin_InvalidCredentials_Returns401(t *testing.T) {
 		return dto.LoginResponse{}, apperrors.NewErrInvalidInput("credentials", nil, "invalid")
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := NewUserHandler(m, logger)
+	h := NewUserHandler(m, logger, &mockFavorite{})
 
 	body := map[string]string{"email": "x@x", "password": "bad"}
 	b, _ := json.Marshal(body)
@@ -343,7 +380,7 @@ func TestHandleGetUser_NotFound_Returns404(t *testing.T) {
 		return dto.ListUsersResponse{}, apperrors.NewErrNotFound("user", 77)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := NewUserHandler(m, logger)
+	h := NewUserHandler(m, logger, &mockFavorite{})
 
 	req := httptest.NewRequest(http.MethodGet, "/users", nil)
 	rr := httptest.NewRecorder()
@@ -359,7 +396,7 @@ func TestHandleChangePassword_Owner_BadRequest_Returns400(t *testing.T) {
 		return apperrors.NewErrInvalidInput("password", nil, "bad current password")
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := NewUserHandler(m, logger)
+	h := NewUserHandler(m, logger, &mockFavorite{})
 
 	body := map[string]string{"current_password": "wrong", "new_password": "new"}
 	b, _ := json.Marshal(body)
@@ -374,5 +411,62 @@ func TestHandleChangePassword_Owner_BadRequest_Returns400(t *testing.T) {
 	h.handleChangePassword(rr, req)
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for bad change password, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleSetActive_TogglesToInactive(t *testing.T) {
+	m := &mockService{}
+	// Expect ToggleActiveAccount to be called for the target user
+	setCalled := false
+	var setUserID int
+	m.ToggleActiveAccountFunc = func(ctx context.Context, userID int) error {
+		setCalled = true
+		setUserID = userID
+		return nil
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger, &mockFavorite{})
+
+	req := httptest.NewRequest(http.MethodPost, "/users/5/active", nil)
+	rc := chi.NewRouteContext()
+	rc.URLParams.Add("id", "5")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
+	rr := httptest.NewRecorder()
+
+	h.handleSetActive(rr, req)
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	if !setCalled || setUserID != 5 {
+		t.Fatalf("expected ToggleActiveAccount called with user 5, got called=%v user=%d", setCalled, setUserID)
+	}
+}
+
+func TestHandleSetActive_TogglesToActive(t *testing.T) {
+	m := &mockService{}
+	setCalled := false
+	var setUserID int
+	m.ToggleActiveAccountFunc = func(ctx context.Context, userID int) error {
+		setCalled = true
+		setUserID = userID
+		return nil
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger, &mockFavorite{})
+
+	req := httptest.NewRequest(http.MethodPost, "/users/8/active", nil)
+	rc := chi.NewRouteContext()
+	rc.URLParams.Add("id", "8")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
+	rr := httptest.NewRecorder()
+
+	h.handleSetActive(rr, req)
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	if !setCalled || setUserID != 8 {
+		t.Fatalf("expected ToggleActiveAccount called with user 8, got called=%v user=%d", setCalled, setUserID)
 	}
 }

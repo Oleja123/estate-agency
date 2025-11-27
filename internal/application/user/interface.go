@@ -23,7 +23,15 @@ type Service interface {
 	// Intended to be used by admins.
 	ChangePasswordAdmin(ctx context.Context, userID int, newPassword string) error
 
-	// ActivateAccount sets user's IsActive = true
+	// SetActiveAccount sets user's IsActive to the provided value (true = active).
+	// This centralizes activate/deactivate business logic.
+	SetActiveAccount(ctx context.Context, userID int, active bool) error
+
+	// ToggleActiveAccount flips user's IsActive value (active -> inactive, inactive -> active).
+	// The handler should call this to keep fetch/update logic inside the application layer.
+	ToggleActiveAccount(ctx context.Context, userID int) error
+
+	// Deprecated wrappers (kept for compatibility) - they delegate to SetActiveAccount.
 	ActivateAccount(ctx context.Context, userID int) error
 	DeactivateAccount(ctx context.Context, userID int) error
 

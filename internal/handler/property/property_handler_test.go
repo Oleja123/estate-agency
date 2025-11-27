@@ -11,7 +11,9 @@ import (
 	"testing"
 
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
+	favdto "github.com/Oleja123/estate-agency/internal/application/favorite/dto"
 	dto "github.com/Oleja123/estate-agency/internal/application/property/dto"
+	favdomain "github.com/Oleja123/estate-agency/internal/domain/favorite"
 	domain "github.com/Oleja123/estate-agency/internal/domain/property"
 	auth "github.com/Oleja123/estate-agency/internal/handler/auth"
 	"github.com/go-chi/chi/v5"
@@ -33,6 +35,8 @@ type mockService struct {
 
 	DeleteCalled bool
 	DeleteFunc   func(ctx context.Context, id int) (int, error)
+	// ToggleFavoriteFunc allows tests to intercept ToggleFavorite calls.
+	ToggleFavoriteFunc func(ctx context.Context, userID int, propertyID int) (bool, favdomain.Favorite, error)
 }
 
 func (m *mockService) Create(ctx context.Context, req dto.CreatePropertyRequest) (domain.Property, error) {
@@ -71,14 +75,40 @@ func (m *mockService) Delete(ctx context.Context, id int) (int, error) {
 	return id, nil
 }
 
+func (m *mockService) ToggleFavorite(ctx context.Context, userID int, propertyID int) (bool, favdomain.Favorite, error) {
+	if m.ToggleFavoriteFunc != nil {
+		return m.ToggleFavoriteFunc(ctx, userID, propertyID)
+	}
+	return false, favdomain.Favorite{}, nil
+}
+
 func newLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+}
+
+// mockFavorite is a small favorites service mock used by property handler tests.
+type mockFavorite struct{}
+
+func (m *mockFavorite) Create(ctx context.Context, req favdto.CreateFavoriteRequest) (favdomain.Favorite, error) {
+	return favdomain.Favorite{}, nil
+}
+func (m *mockFavorite) GetByUserAndProperty(ctx context.Context, key favdto.CreateFavoriteRequest) (favdomain.Favorite, error) {
+	return favdomain.Favorite{}, nil
+}
+func (m *mockFavorite) Delete(ctx context.Context, key favdto.CreateFavoriteRequest) (int, error) {
+	return 0, nil
+}
+func (m *mockFavorite) List(ctx context.Context, req favdto.ListFavoritesRequest) (favdto.ListFavoritesResponse, error) {
+	return favdto.ListFavoritesResponse{}, nil
+}
+func (m *mockFavorite) Exists(ctx context.Context, key favdto.CreateFavoriteRequest) (bool, error) {
+	return false, nil
 }
 
 func TestHandleCreate_CallsServiceAndReturnsCreated(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	body := map[string]interface{}{"title": "My prop", "created_by": 5}
 	b, _ := json.Marshal(body)
@@ -106,7 +136,7 @@ func TestHandleCreate_CallsServiceAndReturnsCreated(t *testing.T) {
 func TestHandleCreate_InvalidJSON_Returns400(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	req := httptest.NewRequest(http.MethodPost, "/properties", bytes.NewReader([]byte("{")))
 	req.Header.Set("Content-Type", "application/json")
@@ -121,7 +151,7 @@ func TestHandleCreate_InvalidJSON_Returns400(t *testing.T) {
 func TestHandleCreate_Middleware_AdminAllowed(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Post("/", http.HandlerFunc(h.handleCreate))
@@ -143,7 +173,7 @@ func TestHandleCreate_Middleware_AdminAllowed(t *testing.T) {
 func TestHandleCreate_Middleware_NonAdminForbidden(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Post("/", http.HandlerFunc(h.handleCreate))
@@ -165,7 +195,7 @@ func TestHandleCreate_Middleware_NonAdminForbidden(t *testing.T) {
 func TestHandleGet_CallsServiceAndReturns(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	req := httptest.NewRequest(http.MethodGet, "/properties/2", nil)
 	rc := chi.NewRouteContext()
@@ -189,7 +219,7 @@ func TestHandleCreate_ServiceInvalidInput_Returns400(t *testing.T) {
 		return domain.Property{}, apperrors.NewErrInvalidInput("title", req.Title, "invalid")
 	}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	body := map[string]interface{}{"title": "", "type_id": 1}
 	b, _ := json.Marshal(body)
@@ -209,7 +239,7 @@ func TestHandleCreate_ServiceAlreadyExists_Returns409(t *testing.T) {
 		return domain.Property{}, apperrors.NewErrAlreadyExists("property", "title", req.Title)
 	}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	body := map[string]interface{}{"title": "dup", "type_id": 1}
 	b, _ := json.Marshal(body)
@@ -229,7 +259,7 @@ func TestHandleGet_NotFound_Returns404(t *testing.T) {
 		return domain.Property{}, apperrors.NewErrNotFound("property", id)
 	}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	req := httptest.NewRequest(http.MethodGet, "/properties/99", nil)
 	rc := chi.NewRouteContext()
@@ -249,7 +279,7 @@ func TestHandleUpdate_NotFound_Returns404(t *testing.T) {
 		return apperrors.NewErrNotFound("property", req.ID)
 	}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	req := httptest.NewRequest(http.MethodPut, "/3", bytes.NewReader([]byte(`{"title":"x"}`)))
 	rc := chi.NewRouteContext()
@@ -269,7 +299,7 @@ func TestHandleDelete_InternalError_Returns500(t *testing.T) {
 		return 0, apperrors.NewErrInternal("db failure")
 	}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	req := httptest.NewRequest(http.MethodDelete, "/4", nil)
 	rc := chi.NewRouteContext()
@@ -286,7 +316,7 @@ func TestHandleDelete_InternalError_Returns500(t *testing.T) {
 func TestHandleUpdate_CallsServiceAndReturnsNoContent(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	req := httptest.NewRequest(http.MethodPut, "/properties/3", bytes.NewReader([]byte(`{"title":"x"}`)))
 	rc := chi.NewRouteContext()
@@ -306,7 +336,7 @@ func TestHandleUpdate_CallsServiceAndReturnsNoContent(t *testing.T) {
 func TestHandleUpdate_Middleware_AdminAllowed(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Put("/{id}", http.HandlerFunc(h.handleUpdate))
@@ -325,7 +355,7 @@ func TestHandleUpdate_Middleware_AdminAllowed(t *testing.T) {
 func TestHandleUpdate_Middleware_NonAdminForbidden(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Put("/{id}", http.HandlerFunc(h.handleUpdate))
@@ -344,7 +374,7 @@ func TestHandleUpdate_Middleware_NonAdminForbidden(t *testing.T) {
 func TestHandleDelete_CallsServiceAndReturnsOK(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	req := httptest.NewRequest(http.MethodDelete, "/properties/4", nil)
 	rc := chi.NewRouteContext()
@@ -364,7 +394,7 @@ func TestHandleDelete_CallsServiceAndReturnsOK(t *testing.T) {
 func TestHandleDelete_Middleware_AdminAllowed(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, &mockFavorite{})
 
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Delete("/{id}", http.HandlerFunc(h.handleDelete))
@@ -382,7 +412,7 @@ func TestHandleDelete_Middleware_AdminAllowed(t *testing.T) {
 func TestHandleDelete_Middleware_NonAdminForbidden(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, nil)
 
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Delete("/{id}", http.HandlerFunc(h.handleDelete))
@@ -400,7 +430,7 @@ func TestHandleDelete_Middleware_NonAdminForbidden(t *testing.T) {
 func TestHandleList_CallsServiceAndReturnsList(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger)
+	h := NewPropertyHandler(m, logger, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/properties", nil)
 	rr := httptest.NewRecorder()

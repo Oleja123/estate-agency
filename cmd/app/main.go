@@ -20,7 +20,6 @@ import (
 	"github.com/Oleja123/estate-agency/internal/application/user/password"
 	"github.com/Oleja123/estate-agency/internal/domain/user"
 	"github.com/Oleja123/estate-agency/internal/handler/auth"
-	favoritehandler "github.com/Oleja123/estate-agency/internal/handler/favorite"
 	imagehandler "github.com/Oleja123/estate-agency/internal/handler/image"
 	propertyhandler "github.com/Oleja123/estate-agency/internal/handler/property"
 	propertytypehandler "github.com/Oleja123/estate-agency/internal/handler/property_type"
@@ -72,8 +71,8 @@ func main() {
 	tokSvc := token.NewMemoryService()
 	userService := userservice.New(userStorage, logger, password.NewBcryptHasher(), tokSvc)
 	propertyTypeService := propertytypeservice.New(propertyTypeStorage, logger)
-	propertyService := propertyservice.New(propertyStorage, propertyTypeStorage, logger, geocoder.NewNoop())
 	favoriteService := favoriteservice.New(favoriteStorage, logger)
+	propertyService := propertyservice.New(propertyStorage, propertyTypeStorage, logger, geocoder.NewNoop(), favoriteService)
 	imageService := imageservice.New(imageStorage, logger, "")
 
 	userStorage.Update(context.Background(), user.User{
@@ -95,10 +94,17 @@ func main() {
 
 	// register handlers under sensible prefixes; pass auth middleware so handlers
 	// can apply it to protected routes using chi groups
-	userhandler.NewUserHandler(userService, logger).Register(router, "/users", authMw)
+	uh := userhandler.NewUserHandler(userService, logger, favoriteService)
+	uh.Register(router, "/users", authMw)
+
 	auth.NewTokenHandler(tokSvc).Register(router, "/tokens", nil)
-	favoritehandler.NewFavoriteHandler(favoriteService, logger).Register(router, "/favorites", authMw)
-	propertyhandler.NewPropertyHandler(propertyService, logger).Register(router, "/properties", authMw)
+
+	// Register property handler and wire favorites toggle endpoint
+	ph := propertyhandler.NewPropertyHandler(propertyService, logger, favoriteService)
+	ph.Register(router, "/properties", authMw)
+
+	// Do not register the standalone favorite handler: favorites endpoints are
+	// now available under /users/{id}/favorites and /properties/{id}/favorites
 	propertytypehandler.NewPropertyTypeHandler(propertyTypeService, logger).Register(router, "/property_types", authMw)
 	imagehandler.NewImageHandler(imageService, logger).Register(router, "/images", authMw)
 

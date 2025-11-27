@@ -312,43 +312,63 @@ func (s *service) ChangePasswordAdmin(ctx context.Context, userID int, newPasswo
 }
 
 func (s *service) DeactivateAccount(ctx context.Context, userID int) error {
-	u, err := s.repo.GetByID(ctx, userID)
-	if err != nil {
-		var nf dberrors.ErrNotFound
-		if errors.As(err, &nf) {
-			return apperrors.NewErrNotFound("user", userID)
-		}
-		s.logger.Error("deactivate account: failed to fetch user", "user_id", userID, "err", err)
-		return apperrors.NewErrInternal("failed to fetch user")
-	}
-	u.IsActive = false
-	err = s.repo.Update(ctx, u)
-	if err != nil {
-		s.logger.Error("deactivate account: failed to update user", "user_id", userID, "err", err)
-		return apperrors.NewErrInternal("failed to update user")
-	}
-	s.logger.Info("deactivate account: user deactivated", "user_id", userID)
-	return nil
+	return s.SetActiveAccount(ctx, userID, false)
 }
 
 // ActivateAccount sets IsActive=true for the specified user.
 func (s *service) ActivateAccount(ctx context.Context, userID int) error {
+	return s.SetActiveAccount(ctx, userID, true)
+}
+
+// SetActiveAccount sets the user's IsActive flag to the given value and
+// persists the change. Centralized implementation for activation/deactivation.
+func (s *service) SetActiveAccount(ctx context.Context, userID int, active bool) error {
 	u, err := s.repo.GetByID(ctx, userID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
 		if errors.As(err, &nf) {
 			return apperrors.NewErrNotFound("user", userID)
 		}
-		s.logger.Error("activate account: failed to fetch user", "user_id", userID, "err", err)
+		s.logger.Error("set active: failed to fetch user", "user_id", userID, "err", err)
 		return apperrors.NewErrInternal("failed to fetch user")
 	}
-	u.IsActive = true
+	u.IsActive = active
 	err = s.repo.Update(ctx, u)
 	if err != nil {
-		s.logger.Error("activate account: failed to update user", "user_id", userID, "err", err)
+		s.logger.Error("set active: failed to update user", "user_id", userID, "err", err)
 		return apperrors.NewErrInternal("failed to update user")
 	}
-	s.logger.Info("activate account: user activated", "user_id", userID)
+	if active {
+		s.logger.Info("set active: user activated", "user_id", userID)
+	} else {
+		s.logger.Info("set active: user deactivated", "user_id", userID)
+	}
+	return nil
+}
+
+// ToggleActiveAccount flips the user's IsActive flag and persists the change.
+// This keeps the fetching and update logic inside the application layer so handlers stay thin.
+func (s *service) ToggleActiveAccount(ctx context.Context, userID int) error {
+	u, err := s.repo.GetByID(ctx, userID)
+	if err != nil {
+		var nf dberrors.ErrNotFound
+		if errors.As(err, &nf) {
+			return apperrors.NewErrNotFound("user", userID)
+		}
+		s.logger.Error("toggle active: failed to fetch user", "user_id", userID, "err", err)
+		return apperrors.NewErrInternal("failed to fetch user")
+	}
+
+	u.IsActive = !u.IsActive
+	if err := s.repo.Update(ctx, u); err != nil {
+		s.logger.Error("toggle active: failed to update user", "user_id", userID, "err", err)
+		return apperrors.NewErrInternal("failed to update user")
+	}
+	if u.IsActive {
+		s.logger.Info("toggle active: user activated", "user_id", userID)
+	} else {
+		s.logger.Info("toggle active: user deactivated", "user_id", userID)
+	}
 	return nil
 }
 

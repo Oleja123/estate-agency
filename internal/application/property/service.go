@@ -7,7 +7,10 @@ import (
 	"strings"
 
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
+	favoritesvc "github.com/Oleja123/estate-agency/internal/application/favorite"
+	favdto "github.com/Oleja123/estate-agency/internal/application/favorite/dto"
 	dto "github.com/Oleja123/estate-agency/internal/application/property/dto"
+	favdomain "github.com/Oleja123/estate-agency/internal/domain/favorite"
 	domain "github.com/Oleja123/estate-agency/internal/domain/property"
 	ptypedomain "github.com/Oleja123/estate-agency/internal/domain/property_type"
 	dberrors "github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
@@ -21,14 +24,15 @@ type service struct {
 	typeRepo ptypedomain.Repository
 	logger   *slog.Logger
 	geo      geocoder.GeoService
+	favSvc   favoritesvc.Service
 }
 
 // New constructs property service with property repository and property-type repository.
-func New(repo domain.Repository, typeRepo ptypedomain.Repository, logger *slog.Logger, geo geocoder.GeoService) Service {
+func New(repo domain.Repository, typeRepo ptypedomain.Repository, logger *slog.Logger, geo geocoder.GeoService, favSvc favoritesvc.Service) Service {
 	if geo == nil {
 		geo = geocoder.NewNoop()
 	}
-	return &service{repo: repo, typeRepo: typeRepo, logger: logger, geo: geo}
+	return &service{repo: repo, typeRepo: typeRepo, logger: logger, geo: geo, favSvc: favSvc}
 }
 
 func (s *service) Create(ctx context.Context, req dto.CreatePropertyRequest) (domain.Property, error) {
@@ -179,4 +183,31 @@ func (s *service) Delete(ctx context.Context, id int) (int, error) {
 	}
 	s.logger.Info("delete property: deleted", "id", deletedID)
 	return deletedID, nil
+}
+
+// ToggleFavorite toggles favorite for the given user and property.
+// It delegates to the favorites application service to perform existence check,
+// create or delete, and maps errors accordingly.
+func (s *service) ToggleFavorite(ctx context.Context, userID int, propertyID int) (bool, favdomain.Favorite, error) {
+	if s.favSvc == nil {
+		return false, favdomain.Favorite{}, apperrors.NewErrInternal("favorites not configured")
+	}
+	key := favdto.CreateFavoriteRequest{UserID: userID, PropertyID: propertyID}
+	exists, err := s.favSvc.Exists(ctx, key)
+	if err != nil {
+		return false, favdomain.Favorite{}, err
+	}
+	if exists {
+		// delete
+		_, err := s.favSvc.Delete(ctx, key)
+		if err != nil {
+			return false, favdomain.Favorite{}, err
+		}
+		return false, favdomain.Favorite{}, nil
+	}
+	created, err := s.favSvc.Create(ctx, key)
+	if err != nil {
+		return false, favdomain.Favorite{}, err
+	}
+	return true, created, nil
 }
