@@ -13,6 +13,11 @@ type TokenHandler struct {
 	svc tokensvc.Service
 }
 
+// Documentation-only DTO for token refresh
+type RefreshRequestDoc struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
 func NewTokenHandler(s tokensvc.Service) *TokenHandler {
 	return &TokenHandler{svc: s}
 }
@@ -33,7 +38,7 @@ func (h *TokenHandler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	// @Tags tokens
 	// @Accept json
 	// @Produce json
-	// @Param body body object true "Refresh token"
+	// @Param body body RefreshRequestDoc true "Refresh token"
 	// @Success 200 {object} map[string]int
 	// @Failure 400 {object} map[string]string
 	// @Failure 401 {object} map[string]string

@@ -24,6 +24,10 @@ type UserHandler struct {
 	favSvc favoritesvc.Service
 }
 
+// Documentation-only DTOs used for swagger generation. Kept local to avoid
+// complex cross-package parsing issues.
+// Documentation-only DTOs are defined in docs_dto.go to keep handler files
+// small and to avoid redeclaration when generating swagger.
 // NewUserHandler creates a new UserHandler.
 // The favorites service may be provided as an optional third argument. This
 // keeps existing two-argument calls working in tests while allowing main to
@@ -111,13 +115,14 @@ func (h *UserHandler) handleGetFavorites(w http.ResponseWriter, r *http.Request)
 
 // handleProfile handles requests to update a user's profile.
 // Expected URL: PUT /users/{id}/profile
+// @Security BearerAuth
 // @Summary Update user profile
 // @Description Update profile for a user (owner or admin)
 // @Tags users
 // @Accept json
 // @Produce json
 // @Param id path int true "User ID"
-// @Param body body object true "Profile"
+// @Param body body UpdateProfileRequestDoc true "Profile"
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Router /users/{id}/profile [put]
@@ -154,8 +159,8 @@ func (h *UserHandler) handleProfile(w http.ResponseWriter, r *http.Request) {
 // @Tags users
 // @Accept json
 // @Produce json
-// @Param body body object true "Register"
-// @Success 201 {object} map[string]interface{}
+// @Param body body RegisterRequestDoc true "Register"
+// @Success 201 {object} PublicUserDoc
 // @Failure 400 {object} map[string]string
 // @Router /users/register [post]
 func (h *UserHandler) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -183,8 +188,8 @@ func (h *UserHandler) handleRegister(w http.ResponseWriter, r *http.Request) {
 // @Tags users
 // @Accept json
 // @Produce json
-// @Param body body object true "Login credentials"
-// @Success 200 {object} map[string]interface{}
+// @Param body body LoginRequestDoc true "Login credentials"
+// @Success 200 {object} LoginResponseDoc
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Router /users/login [post]
@@ -210,12 +215,13 @@ func (h *UserHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusOK, res)
 }
 
+// @Security BearerAuth
 // @Summary Get user
 // @Description Get user by ID
 // @Tags users
 // @Produce json
 // @Param id path int true "User ID"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} PublicUserDoc
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Router /users/{id} [get]
@@ -235,13 +241,20 @@ func (h *UserHandler) handleGetUser(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusOK, u)
 }
 
+// @Security BearerAuth
+// @Security BearerAuth
 // @Summary List users
-// @Description List users with pagination
+// @Description List users with pagination and optional filters
 // @Tags users
 // @Produce json
 // @Param limit query int false "Limit"
 // @Param offset query int false "Offset"
-// @Success 200 {object} map[string]interface{}
+// @Param email query string false "Filter by exact email"
+// @Param role query string false "Filter by role (admin/user)"
+// @Param search query string false "Search in name and email"
+// @Param is_active query boolean false "Filter by active state (true/false)"
+// @Param ids query string false "Comma-separated list of user IDs to include"
+// @Success 200 {object} ListUsersResponseDoc
 // @Router /users [get]
 func (h *UserHandler) handleListUsers(w http.ResponseWriter, r *http.Request) {
 	req, _ := parseListUsersRequest(r)
@@ -254,6 +267,7 @@ func (h *UserHandler) handleListUsers(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusOK, res)
 }
 
+// @Security BearerAuth
 // @Summary Delete user
 // @Description Delete user by ID
 // @Tags users
@@ -279,13 +293,14 @@ func (h *UserHandler) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusOK, map[string]int{"deleted_id": deletedID})
 }
 
+// @Security BearerAuth
 // @Summary Change user password
 // @Description Change password for a user (owner or admin)
 // @Tags users
 // @Accept json
 // @Produce json
 // @Param id path int true "User ID"
-// @Param body body object true "Password request"
+// @Param body body ChangePasswordRequestDoc true "Password request"
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Router /users/{id}/password [post]
@@ -326,6 +341,7 @@ func (h *UserHandler) handleChangePassword(w http.ResponseWriter, r *http.Reques
 
 // handleSetActive handles POST /users/{id}/active with body {"active": true|false}
 // This combines previous activate/deactivate endpoints into one.
+// @Security BearerAuth
 // @Summary Toggle active state
 // @Description Toggle user's active state (owner or admin)
 // @Tags users
@@ -350,13 +366,14 @@ func (h *UserHandler) handleSetActive(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
+// @Security BearerAuth
 // @Summary Change user role
 // @Description Change role for a user (admin only)
 // @Tags users
 // @Accept json
 // @Produce json
 // @Param id path int true "User ID"
-// @Param body body object true "Role body"
+// @Param body body RoleRequestDoc true "Role body"
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Router /users/{id}/role [post]

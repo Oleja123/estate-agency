@@ -56,15 +56,19 @@ func AuthMiddleware(tokSvc token.Service) func(next http.Handler) http.Handler {
 				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authorization"})
 				return
 			}
-			parts := strings.SplitN(auth, " ", 2)
-			if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			var tokenStr string
+			// Accept both "Bearer <token>" and raw token (some clients put only the token
+			// into the Authorization header). Prefer the Bearer scheme when present.
+			lower := strings.ToLower(auth)
+			if strings.HasPrefix(lower, "bearer ") {
+				tokenStr = strings.TrimSpace(auth[len("Bearer "):])
+			} else {
+				// No scheme provided — accept the whole header as token but log a hint.
 				if lg != nil {
-					lg.Info("auth middleware: invalid Authorization header format", "header", auth)
+					lg.Info("auth middleware: Authorization header missing scheme, treating value as raw token", "header_sample", auth[:min(len(auth), 32)])
 				}
-				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid authorization header"})
-				return
+				tokenStr = strings.TrimSpace(auth)
 			}
-			tokenStr := strings.TrimSpace(parts[1])
 			if lg != nil {
 				lg.Info("auth middleware: received token", "token_len", len(tokenStr))
 			}

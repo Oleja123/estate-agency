@@ -3,6 +3,10 @@
 // @description API for Estate Agency service
 // @host localhost:8080
 // @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter the token as: "Bearer <token>" (include the word Bearer and a space)
 package main
 
 import (

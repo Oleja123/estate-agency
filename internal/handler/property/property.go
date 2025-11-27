@@ -79,6 +79,7 @@ func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next
 // given property id. If the property was not favorited, it creates one and
 // returns 201 with the created object. If it was favorited already, it
 // deletes it and returns 204 No Content.
+// @Security BearerAuth
 // @Summary Toggle favorite for property
 // @Description Toggle favorite for the authenticated user and given property ID. Returns 201 with created favorite or 204 when removed.
 // @Tags properties
@@ -131,13 +132,14 @@ func (h *PropertyHandler) handleToggleFavorite(w http.ResponseWriter, r *http.Re
 // @Failure 404 {object} map[string]string
 // @Router /properties/{id}/favorites [post]
 
+// @Security BearerAuth
 // @Summary Create property
 // @Description Create a new property
 // @Tags properties
 // @Accept json
 // @Produce json
-// @Param body body object true "Property"
-// @Success 201 {object} map[string]interface{}
+// @Param body body PropertyCreateDoc true "Property"
+// @Success 201 {object} PropertyDTODoc
 // @Failure 400 {object} map[string]string
 // @Failure 409 {object} map[string]string
 // @Router /properties [post]
@@ -163,7 +165,7 @@ func (h *PropertyHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param id path int true "Property ID"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} PropertyDTODoc
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Router /properties/{id} [get]
@@ -190,7 +192,7 @@ func (h *PropertyHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param limit query int false "Limit"
 // @Param offset query int false "Offset"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} ListPropertiesResponseDoc
 // @Router /properties [get]
 func (h *PropertyHandler) handleList(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
@@ -219,6 +221,7 @@ func (h *PropertyHandler) handleList(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusOK, res)
 }
 
+// @Security BearerAuth
 // @Summary Update property
 // @Description Update an existing property
 // @Tags properties
@@ -252,6 +255,7 @@ func (h *PropertyHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
+// @Security BearerAuth
 // @Summary Delete property
 // @Description Delete property by ID
 // @Tags properties
@@ -279,6 +283,7 @@ func (h *PropertyHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleCreateImages handles multipart file upload (field name "files") and creates property images.
+// @Security BearerAuth
 // @Summary Upload images for a property
 // @Description Upload up to 10 image files for the given property. Field name: files (multipart/form-data).
 // @Tags properties
@@ -286,7 +291,7 @@ func (h *PropertyHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path int true "Property ID"
 // @Param files formData file true "Files"
-// @Success 201 {object} []object
+// @Success 201 {array} ImageDTODoc
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Failure 415 {object} map[string]string
@@ -347,13 +352,14 @@ func (h *PropertyHandler) handleCreateImages(w http.ResponseWriter, r *http.Requ
 // @Produce json
 // @Param id path int true "Property ID"
 // @Param files formData file true "Files"
-// @Success 201 {object} []object
+// @Success 201 {array} ImageDTODoc
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Failure 415 {object} map[string]string
 // @Router /properties/{id}/images [post]
 
 // handleUpdateImages replaces existing images for the property with provided files.
+// @Security BearerAuth
 // @Summary Replace images for a property
 // @Description Replace existing images for the given property with provided files (up to 10). Field name: files (multipart/form-data).
 // @Tags properties
