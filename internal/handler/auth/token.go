@@ -28,6 +28,16 @@ func (h *TokenHandler) Register(r chi.Router, prefix string, _ func(next http.Ha
 }
 
 func (h *TokenHandler) handleRefresh(w http.ResponseWriter, r *http.Request) {
+	// @Summary Refresh token
+	// @Description Validate and refresh a refresh token
+	// @Tags tokens
+	// @Accept json
+	// @Produce json
+	// @Param body body object true "Refresh token"
+	// @Success 200 {object} map[string]int
+	// @Failure 400 {object} map[string]string
+	// @Failure 401 {object} map[string]string
+	// @Router /tokens/refresh [post]
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
 	}

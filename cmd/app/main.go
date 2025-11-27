@@ -1,7 +1,13 @@
+// @title Estate Agency API
+// @version 0.0.0
+// @description API for Estate Agency service
+// @host localhost:8080
+// @BasePath /
 package main
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -18,9 +24,9 @@ import (
 	"github.com/Oleja123/estate-agency/internal/application/token"
 	userservice "github.com/Oleja123/estate-agency/internal/application/user"
 	"github.com/Oleja123/estate-agency/internal/application/user/password"
-	"github.com/Oleja123/estate-agency/internal/domain/user"
 	"github.com/Oleja123/estate-agency/internal/handler/auth"
-	imagehandler "github.com/Oleja123/estate-agency/internal/handler/image"
+
+	// imagehandler "github.com/Oleja123/estate-agency/internal/handler/image"
 	propertyhandler "github.com/Oleja123/estate-agency/internal/handler/property"
 	propertytypehandler "github.com/Oleja123/estate-agency/internal/handler/property_type"
 	userhandler "github.com/Oleja123/estate-agency/internal/handler/user"
@@ -31,6 +37,10 @@ import (
 	propertydb "github.com/Oleja123/estate-agency/internal/infrastructure/property"
 	propertytypedb "github.com/Oleja123/estate-agency/internal/infrastructure/property_type"
 	userdb "github.com/Oleja123/estate-agency/internal/infrastructure/user"
+
+	// swagger
+	docs "github.com/Oleja123/estate-agency/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func main() {
@@ -75,12 +85,6 @@ func main() {
 	propertyService := propertyservice.New(propertyStorage, propertyTypeStorage, logger, geocoder.NewNoop(), favoriteService)
 	imageService := imageservice.New(imageStorage, logger, "")
 
-	userStorage.Update(context.Background(), user.User{
-		Id:       3,
-		UserRole: user.RoleAdmin,
-		Email:    "admin",
-	})
-
 	// HTTP handlers and server
 	router := chi.NewRouter()
 
@@ -100,13 +104,22 @@ func main() {
 	auth.NewTokenHandler(tokSvc).Register(router, "/tokens", nil)
 
 	// Register property handler and wire favorites toggle endpoint
-	ph := propertyhandler.NewPropertyHandler(propertyService, logger, favoriteService)
+	ph := propertyhandler.NewPropertyHandler(propertyService, logger, favoriteService, imageService)
 	ph.Register(router, "/properties", authMw)
 
 	// Do not register the standalone favorite handler: favorites endpoints are
 	// now available under /users/{id}/favorites and /properties/{id}/favorites
 	propertytypehandler.NewPropertyTypeHandler(propertyTypeService, logger).Register(router, "/property_types", authMw)
-	imagehandler.NewImageHandler(imageService, logger).Register(router, "/images", authMw)
+	// image handler removed; image endpoints are served under properties as needed
+
+	// Serve swagger doc JSON and UI. The docs package is a stub initially; run
+	// `swag init -g cmd/app/main.go -o docs` to generate full OpenAPI docs into
+	// the `docs` package. The generated package will replace the stub.
+	router.Get("/swagger/doc.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, docs.ReadDoc())
+	})
+	router.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))
 
 	port := os.Getenv("PORT")
 	if port == "" {

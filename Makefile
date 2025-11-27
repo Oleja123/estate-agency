@@ -36,3 +36,8 @@ migrate-up-test:
 .PHONY: migrate-down-test
 migrate-down-test:
 	$(GOPATH)/bin/goose -dir $(MIGRATIONS_DIR) postgres $(PG_DSN_TEST) down
+
+.PHONY: docs
+docs:
+	@echo "Generate swagger docs (requires swag: go install github.com/swaggo/swag/cmd/swag@latest)"
+	@swag init -g cmd/app/main.go -o docs

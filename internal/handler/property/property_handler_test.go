@@ -4,11 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	imagedto "github.com/Oleja123/estate-agency/internal/application/image/dto"
+	imagedomain "github.com/Oleja123/estate-agency/internal/domain/image"
 
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
 	favdto "github.com/Oleja123/estate-agency/internal/application/favorite/dto"
@@ -86,6 +91,32 @@ func newLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 }
 
+// mockImageService implements the image service used by the property handler for tests.
+type mockImageService struct {
+	CreateManyCalled bool
+	CreateManyFunc   func(ctx context.Context, req imagedto.CreateImagesRequest) ([]imagedomain.PropertyImage, error)
+}
+
+func (m *mockImageService) Create(ctx context.Context, req imagedto.CreateImageRequest) (imagedomain.PropertyImage, error) {
+	return imagedomain.PropertyImage{}, nil
+}
+func (m *mockImageService) CreateMany(ctx context.Context, req imagedto.CreateImagesRequest) ([]imagedomain.PropertyImage, error) {
+	m.CreateManyCalled = true
+	if m.CreateManyFunc != nil {
+		return m.CreateManyFunc(ctx, req)
+	}
+	return []imagedomain.PropertyImage{{ID: 1, PropertyID: req.PropertyID, Path: "p/1.jpg"}}, nil
+}
+func (m *mockImageService) GetByID(ctx context.Context, id int) (imagedomain.PropertyImage, error) {
+	return imagedomain.PropertyImage{}, nil
+}
+func (m *mockImageService) ListByProperty(ctx context.Context, propertyID int) ([]imagedto.ImageDTO, error) {
+	return nil, nil
+}
+func (m *mockImageService) Delete(ctx context.Context, id int) (int, error) {
+	return 0, nil
+}
+
 // mockFavorite is a small favorites service mock used by property handler tests.
 type mockFavorite struct{}
 
@@ -108,7 +139,7 @@ func (m *mockFavorite) Exists(ctx context.Context, key favdto.CreateFavoriteRequ
 func TestHandleCreate_CallsServiceAndReturnsCreated(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	body := map[string]interface{}{"title": "My prop", "created_by": 5}
 	b, _ := json.Marshal(body)
@@ -133,10 +164,122 @@ func TestHandleCreate_CallsServiceAndReturnsCreated(t *testing.T) {
 	}
 }
 
+func TestHandleCreateImages_CallsServiceAndReturnsCreated(t *testing.T) {
+	m := &mockService{}
+	logger := newLogger()
+	imgMock := &mockImageService{}
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, imgMock)
+
+	// build multipart body with one file
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	fw, _ := mw.CreateFormFile("files", "a.jpg")
+	fw.Write([]byte("hello"))
+	mw.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/properties/3/images", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rc := chi.NewRouteContext()
+	rc.URLParams.Add("id", "3")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
+	rr := httptest.NewRecorder()
+
+	h.handleCreateImages(rr, req)
+	if !imgMock.CreateManyCalled {
+		t.Fatalf("expected CreateMany to be called on image service")
+	}
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleCreateImages_TooManyFiles_Returns400(t *testing.T) {
+	m := &mockService{}
+	logger := newLogger()
+	imgMock := &mockImageService{}
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, imgMock)
+
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	for i := 0; i < 11; i++ {
+		fw, _ := mw.CreateFormFile("files", fmt.Sprintf("file%d.jpg", i))
+		fw.Write([]byte("x"))
+	}
+	mw.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/properties/3/images", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rc := chi.NewRouteContext()
+	rc.URLParams.Add("id", "3")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
+	rr := httptest.NewRecorder()
+
+	h.handleCreateImages(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for too many files, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleUpdateImages_CallsServiceAndReturnsNoContent(t *testing.T) {
+	m := &mockService{}
+	logger := newLogger()
+	imgMock := &mockImageService{}
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, imgMock)
+
+	// build multipart body with one file
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	fw, _ := mw.CreateFormFile("files", "a.jpg")
+	fw.Write([]byte("hello"))
+	mw.Close()
+
+	req := httptest.NewRequest(http.MethodPut, "/properties/3/images", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rc := chi.NewRouteContext()
+	rc.URLParams.Add("id", "3")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
+	rr := httptest.NewRecorder()
+
+	h.handleUpdateImages(rr, req)
+	if !imgMock.CreateManyCalled {
+		t.Fatalf("expected CreateMany to be called on image service")
+	}
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleUpdateImages_TooManyFiles_Returns400(t *testing.T) {
+	m := &mockService{}
+	logger := newLogger()
+	imgMock := &mockImageService{}
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, imgMock)
+
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	for i := 0; i < 11; i++ {
+		fw, _ := mw.CreateFormFile("files", fmt.Sprintf("file%d.jpg", i))
+		fw.Write([]byte("x"))
+	}
+	mw.Close()
+
+	req := httptest.NewRequest(http.MethodPut, "/properties/3/images", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rc := chi.NewRouteContext()
+	rc.URLParams.Add("id", "3")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
+	rr := httptest.NewRecorder()
+
+	h.handleUpdateImages(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for too many files on update, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
 func TestHandleCreate_InvalidJSON_Returns400(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/properties", bytes.NewReader([]byte("{")))
 	req.Header.Set("Content-Type", "application/json")
@@ -151,7 +294,7 @@ func TestHandleCreate_InvalidJSON_Returns400(t *testing.T) {
 func TestHandleCreate_Middleware_AdminAllowed(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Post("/", http.HandlerFunc(h.handleCreate))
@@ -173,7 +316,7 @@ func TestHandleCreate_Middleware_AdminAllowed(t *testing.T) {
 func TestHandleCreate_Middleware_NonAdminForbidden(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Post("/", http.HandlerFunc(h.handleCreate))
@@ -195,7 +338,7 @@ func TestHandleCreate_Middleware_NonAdminForbidden(t *testing.T) {
 func TestHandleGet_CallsServiceAndReturns(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/properties/2", nil)
 	rc := chi.NewRouteContext()
@@ -219,7 +362,7 @@ func TestHandleCreate_ServiceInvalidInput_Returns400(t *testing.T) {
 		return domain.Property{}, apperrors.NewErrInvalidInput("title", req.Title, "invalid")
 	}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	body := map[string]interface{}{"title": "", "type_id": 1}
 	b, _ := json.Marshal(body)
@@ -239,7 +382,7 @@ func TestHandleCreate_ServiceAlreadyExists_Returns409(t *testing.T) {
 		return domain.Property{}, apperrors.NewErrAlreadyExists("property", "title", req.Title)
 	}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	body := map[string]interface{}{"title": "dup", "type_id": 1}
 	b, _ := json.Marshal(body)
@@ -259,7 +402,7 @@ func TestHandleGet_NotFound_Returns404(t *testing.T) {
 		return domain.Property{}, apperrors.NewErrNotFound("property", id)
 	}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/properties/99", nil)
 	rc := chi.NewRouteContext()
@@ -279,7 +422,7 @@ func TestHandleUpdate_NotFound_Returns404(t *testing.T) {
 		return apperrors.NewErrNotFound("property", req.ID)
 	}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	req := httptest.NewRequest(http.MethodPut, "/3", bytes.NewReader([]byte(`{"title":"x"}`)))
 	rc := chi.NewRouteContext()
@@ -299,7 +442,7 @@ func TestHandleDelete_InternalError_Returns500(t *testing.T) {
 		return 0, apperrors.NewErrInternal("db failure")
 	}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	req := httptest.NewRequest(http.MethodDelete, "/4", nil)
 	rc := chi.NewRouteContext()
@@ -316,7 +459,7 @@ func TestHandleDelete_InternalError_Returns500(t *testing.T) {
 func TestHandleUpdate_CallsServiceAndReturnsNoContent(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	req := httptest.NewRequest(http.MethodPut, "/properties/3", bytes.NewReader([]byte(`{"title":"x"}`)))
 	rc := chi.NewRouteContext()
@@ -336,7 +479,7 @@ func TestHandleUpdate_CallsServiceAndReturnsNoContent(t *testing.T) {
 func TestHandleUpdate_Middleware_AdminAllowed(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Put("/{id}", http.HandlerFunc(h.handleUpdate))
@@ -355,7 +498,7 @@ func TestHandleUpdate_Middleware_AdminAllowed(t *testing.T) {
 func TestHandleUpdate_Middleware_NonAdminForbidden(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Put("/{id}", http.HandlerFunc(h.handleUpdate))
@@ -374,7 +517,7 @@ func TestHandleUpdate_Middleware_NonAdminForbidden(t *testing.T) {
 func TestHandleDelete_CallsServiceAndReturnsOK(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	req := httptest.NewRequest(http.MethodDelete, "/properties/4", nil)
 	rc := chi.NewRouteContext()
@@ -394,7 +537,7 @@ func TestHandleDelete_CallsServiceAndReturnsOK(t *testing.T) {
 func TestHandleDelete_Middleware_AdminAllowed(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, &mockFavorite{})
+	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Delete("/{id}", http.HandlerFunc(h.handleDelete))
@@ -412,7 +555,7 @@ func TestHandleDelete_Middleware_AdminAllowed(t *testing.T) {
 func TestHandleDelete_Middleware_NonAdminForbidden(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, nil)
+	h := NewPropertyHandler(m, logger, nil, nil)
 
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Delete("/{id}", http.HandlerFunc(h.handleDelete))
@@ -430,7 +573,7 @@ func TestHandleDelete_Middleware_NonAdminForbidden(t *testing.T) {
 func TestHandleList_CallsServiceAndReturnsList(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
-	h := NewPropertyHandler(m, logger, nil)
+	h := NewPropertyHandler(m, logger, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/properties", nil)
 	rr := httptest.NewRecorder()

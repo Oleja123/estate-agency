@@ -75,6 +75,17 @@ func (h *UserHandler) Register(r chi.Router, prefix string, authMw func(next htt
 // preferred.
 // constructor-only injection enforced; SetFavoriteService removed
 
+// @Summary Get favorites for a user
+// @Description List favorites for the specified user. Only the owner may view their favorites.
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Success 200 {object} object
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /users/{id}/favorites [get]
 // handleGetFavorites handles GET /users/{id}/favorites
 func (h *UserHandler) handleGetFavorites(w http.ResponseWriter, r *http.Request) {
 	if h.favSvc == nil {
@@ -100,6 +111,16 @@ func (h *UserHandler) handleGetFavorites(w http.ResponseWriter, r *http.Request)
 
 // handleProfile handles requests to update a user's profile.
 // Expected URL: PUT /users/{id}/profile
+// @Summary Update user profile
+// @Description Update profile for a user (owner or admin)
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Param body body object true "Profile"
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Router /users/{id}/profile [put]
 func (h *UserHandler) handleProfile(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -128,6 +149,15 @@ func (h *UserHandler) handleProfile(w http.ResponseWriter, r *http.Request) {
 // They mirror the project's existing behavior and use handlerutils and the
 // user service to perform actions and map errors.
 
+// @Summary Register user
+// @Description Register a new user
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param body body object true "Register"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /users/register [post]
 func (h *UserHandler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		handlerutils.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
@@ -148,6 +178,16 @@ func (h *UserHandler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusCreated, u)
 }
 
+// @Summary Login
+// @Description Authenticate user and return tokens
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param body body object true "Login credentials"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /users/login [post]
 func (h *UserHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var req dto.LoginRequest
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
@@ -170,6 +210,15 @@ func (h *UserHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusOK, res)
 }
 
+// @Summary Get user
+// @Description Get user by ID
+// @Tags users
+// @Produce json
+// @Param id path int true "User ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /users/{id} [get]
 func (h *UserHandler) handleGetUser(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -186,6 +235,14 @@ func (h *UserHandler) handleGetUser(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusOK, u)
 }
 
+// @Summary List users
+// @Description List users with pagination
+// @Tags users
+// @Produce json
+// @Param limit query int false "Limit"
+// @Param offset query int false "Offset"
+// @Success 200 {object} map[string]interface{}
+// @Router /users [get]
 func (h *UserHandler) handleListUsers(w http.ResponseWriter, r *http.Request) {
 	req, _ := parseListUsersRequest(r)
 	res, err := h.svc.ListUsers(r.Context(), req)
@@ -197,6 +254,14 @@ func (h *UserHandler) handleListUsers(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusOK, res)
 }
 
+// @Summary Delete user
+// @Description Delete user by ID
+// @Tags users
+// @Produce json
+// @Param id path int true "User ID"
+// @Success 200 {object} map[string]int
+// @Failure 400 {object} map[string]string
+// @Router /users/{id} [delete]
 func (h *UserHandler) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -214,6 +279,16 @@ func (h *UserHandler) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusOK, map[string]int{"deleted_id": deletedID})
 }
 
+// @Summary Change user password
+// @Description Change password for a user (owner or admin)
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Param body body object true "Password request"
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Router /users/{id}/password [post]
 func (h *UserHandler) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -251,6 +326,13 @@ func (h *UserHandler) handleChangePassword(w http.ResponseWriter, r *http.Reques
 
 // handleSetActive handles POST /users/{id}/active with body {"active": true|false}
 // This combines previous activate/deactivate endpoints into one.
+// @Summary Toggle active state
+// @Description Toggle user's active state (owner or admin)
+// @Tags users
+// @Param id path int true "User ID"
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Router /users/{id}/active [post]
 func (h *UserHandler) handleSetActive(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -268,6 +350,16 @@ func (h *UserHandler) handleSetActive(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
+// @Summary Change user role
+// @Description Change role for a user (admin only)
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Param body body object true "Role body"
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Router /users/{id}/role [post]
 func (h *UserHandler) handleChangeRole(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)

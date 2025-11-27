@@ -1,6 +1,7 @@
 package propertyhandler
 
 import (
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -10,20 +11,31 @@ import (
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
 	favoritesvc "github.com/Oleja123/estate-agency/internal/application/favorite"
 
+	imagesvc "github.com/Oleja123/estate-agency/internal/application/image"
+	imagedto "github.com/Oleja123/estate-agency/internal/application/image/dto"
 	propertysvc "github.com/Oleja123/estate-agency/internal/application/property"
 	dto "github.com/Oleja123/estate-agency/internal/application/property/dto"
 	"github.com/Oleja123/estate-agency/internal/handler/auth"
 	handlerutils "github.com/Oleja123/estate-agency/internal/handler/utils"
 )
 
+const (
+	// maxImagesPerRequest is the maximum number of files accepted in a single
+	// multipart upload for property images.
+	maxImagesPerRequest = 10
+	// multipartMaxMemory is the max memory passed to ParseMultipartForm.
+	multipartMaxMemory = 32 << 20 // 32 MiB
+)
+
 type PropertyHandler struct {
 	svc    propertysvc.Service
 	lg     *slog.Logger
 	favSvc favoritesvc.Service
+	imgSvc imagesvc.Service
 }
 
-func NewPropertyHandler(s propertysvc.Service, l *slog.Logger, fav favoritesvc.Service) *PropertyHandler {
-	return &PropertyHandler{svc: s, lg: l, favSvc: fav}
+func NewPropertyHandler(s propertysvc.Service, l *slog.Logger, fav favoritesvc.Service, img imagesvc.Service) *PropertyHandler {
+	return &PropertyHandler{svc: s, lg: l, favSvc: fav, imgSvc: img}
 }
 
 func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next http.Handler) http.Handler) {
@@ -46,6 +58,11 @@ func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next
 					// toggle favorite for current user: POST /{id}/favorites
 					r.Post("/{id}/favorites", h.handleToggleFavorite)
 				}
+				// images upload/update endpoints (admin-protected). Attach only if image service present.
+				if h.imgSvc != nil {
+					r.With(auth.RequireAdminMiddleware()).Post("/{id}/images", h.handleCreateImages)
+					r.With(auth.RequireAdminMiddleware()).Put("/{id}/images", h.handleUpdateImages)
+				}
 			})
 		} else {
 			// no auth middleware available in this environment — leave handlers attached
@@ -62,6 +79,18 @@ func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next
 // given property id. If the property was not favorited, it creates one and
 // returns 201 with the created object. If it was favorited already, it
 // deletes it and returns 204 No Content.
+// @Summary Toggle favorite for property
+// @Description Toggle favorite for the authenticated user and given property ID. Returns 201 with created favorite or 204 when removed.
+// @Tags properties
+// @Accept json
+// @Produce json
+// @Param id path int true "Property ID"
+// @Success 201 {object} map[string]interface{}
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /properties/{id}/favorites [post]
 func (h *PropertyHandler) handleToggleFavorite(w http.ResponseWriter, r *http.Request) {
 	pidStr := chi.URLParam(r, "id")
 	pid, err := strconv.Atoi(pidStr)
@@ -89,6 +118,29 @@ func (h *PropertyHandler) handleToggleFavorite(w http.ResponseWriter, r *http.Re
 	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
+// @Summary Toggle favorite for property
+// @Description Toggle favorite for the authenticated user and given property ID. Returns 201 with created favorite or 204 when removed.
+// @Tags properties
+// @Accept json
+// @Produce json
+// @Param id path int true "Property ID"
+// @Success 201 {object} map[string]interface{}
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /properties/{id}/favorites [post]
+
+// @Summary Create property
+// @Description Create a new property
+// @Tags properties
+// @Accept json
+// @Produce json
+// @Param body body object true "Property"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 409 {object} map[string]string
+// @Router /properties [post]
 func (h *PropertyHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreatePropertyRequest
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
@@ -105,6 +157,16 @@ func (h *PropertyHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusCreated, p)
 }
 
+// @Summary Get property
+// @Description Get property by ID
+// @Tags properties
+// @Accept json
+// @Produce json
+// @Param id path int true "Property ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /properties/{id} [get]
 func (h *PropertyHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -121,6 +183,15 @@ func (h *PropertyHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusOK, p)
 }
 
+// @Summary List properties
+// @Description List properties with pagination
+// @Tags properties
+// @Accept json
+// @Produce json
+// @Param limit query int false "Limit"
+// @Param offset query int false "Offset"
+// @Success 200 {object} map[string]interface{}
+// @Router /properties [get]
 func (h *PropertyHandler) handleList(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	limit := 20
@@ -148,6 +219,17 @@ func (h *PropertyHandler) handleList(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusOK, res)
 }
 
+// @Summary Update property
+// @Description Update an existing property
+// @Tags properties
+// @Accept json
+// @Produce json
+// @Param id path int true "Property ID"
+// @Param body body object true "Property"
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /properties/{id} [put]
 func (h *PropertyHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -170,6 +252,16 @@ func (h *PropertyHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
+// @Summary Delete property
+// @Description Delete property by ID
+// @Tags properties
+// @Accept json
+// @Produce json
+// @Param id path int true "Property ID"
+// @Success 200 {object} map[string]int
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /properties/{id} [delete]
 func (h *PropertyHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -185,3 +277,153 @@ func (h *PropertyHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	handlerutils.WriteJSON(w, http.StatusOK, map[string]int{"deleted_id": deletedID})
 }
+
+// handleCreateImages handles multipart file upload (field name "files") and creates property images.
+// @Summary Upload images for a property
+// @Description Upload up to 10 image files for the given property. Field name: files (multipart/form-data).
+// @Tags properties
+// @Accept multipart/form-data
+// @Produce json
+// @Param id path int true "Property ID"
+// @Param files formData file true "Files"
+// @Success 201 {object} []object
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 415 {object} map[string]string
+// @Router /properties/{id}/images [post]
+func (h *PropertyHandler) handleCreateImages(w http.ResponseWriter, r *http.Request) {
+	pidStr := chi.URLParam(r, "id")
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return
+	}
+	if h.imgSvc == nil {
+		handlerutils.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "images not supported"})
+		return
+	}
+	if err := r.ParseMultipartForm(multipartMaxMemory); err != nil {
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid multipart form"})
+		return
+	}
+	files := r.MultipartForm.File["files"]
+	if len(files) == 0 {
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "no files provided"})
+		return
+	}
+	if len(files) > maxImagesPerRequest {
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "too many files; maximum 10 allowed"})
+		return
+	}
+	var req imagedto.CreateImagesRequest
+	req.PropertyID = pid
+	for _, fh := range files {
+		f, err := fh.Open()
+		if err != nil {
+			handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "cannot read file"})
+			return
+		}
+		data, err := io.ReadAll(f)
+		_ = f.Close()
+		if err != nil {
+			handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "cannot read file"})
+			return
+		}
+		req.Files = append(req.Files, imagedto.ImageFile{Filename: fh.Filename, Data: data})
+	}
+	imgs, err := h.imgSvc.CreateMany(r.Context(), req)
+	if err != nil {
+		code, body := handlerutils.MapAppError(err)
+		handlerutils.WriteJSON(w, code, body)
+		return
+	}
+	handlerutils.WriteJSON(w, http.StatusCreated, imgs)
+}
+
+// @Summary Upload images for a property
+// @Description Upload up to 10 image files for the given property. Field name: files (multipart/form-data).
+// @Tags properties
+// @Accept multipart/form-data
+// @Produce json
+// @Param id path int true "Property ID"
+// @Param files formData file true "Files"
+// @Success 201 {object} []object
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 415 {object} map[string]string
+// @Router /properties/{id}/images [post]
+
+// handleUpdateImages replaces existing images for the property with provided files.
+// @Summary Replace images for a property
+// @Description Replace existing images for the given property with provided files (up to 10). Field name: files (multipart/form-data).
+// @Tags properties
+// @Accept multipart/form-data
+// @Produce json
+// @Param id path int true "Property ID"
+// @Param files formData file true "Files"
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 415 {object} map[string]string
+// @Router /properties/{id}/images [put]
+func (h *PropertyHandler) handleUpdateImages(w http.ResponseWriter, r *http.Request) {
+	pidStr := chi.URLParam(r, "id")
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return
+	}
+	if h.imgSvc == nil {
+		handlerutils.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "images not supported"})
+		return
+	}
+	if err := r.ParseMultipartForm(multipartMaxMemory); err != nil {
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid multipart form"})
+		return
+	}
+	files := r.MultipartForm.File["files"]
+	if len(files) == 0 {
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "no files provided"})
+		return
+	}
+	if len(files) > maxImagesPerRequest {
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "too many files; maximum 10 allowed"})
+		return
+	}
+	var req imagedto.CreateImagesRequest
+	req.PropertyID = pid
+	for _, fh := range files {
+		f, err := fh.Open()
+		if err != nil {
+			handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "cannot read file"})
+			return
+		}
+		data, err := io.ReadAll(f)
+		_ = f.Close()
+		if err != nil {
+			handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "cannot read file"})
+			return
+		}
+		req.Files = append(req.Files, imagedto.ImageFile{Filename: fh.Filename, Data: data})
+	}
+	_, err = h.imgSvc.CreateMany(r.Context(), req)
+	if err != nil {
+		code, body := handlerutils.MapAppError(err)
+		handlerutils.WriteJSON(w, code, body)
+		return
+	}
+	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
+}
+
+// @Summary Replace images for a property
+// @Description Replace existing images for the given property with provided files (up to 10). Field name: files (multipart/form-data).
+// @Tags properties
+// @Accept multipart/form-data
+// @Produce json
+// @Param id path int true "Property ID"
+// @Param files formData file true "Files"
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 415 {object} map[string]string
+// @Router /properties/{id}/images [put]

@@ -49,6 +49,15 @@ func (h *PropertyTypeHandler) Register(r chi.Router, prefix string, authMw func(
 	})
 }
 
+// @Summary Create property type
+// @Description Create a new property type
+// @Tags property_types
+// @Accept json
+// @Produce json
+// @Param body body object true "Property type body"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /property_types [post]
 func (h *PropertyTypeHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreatePropertyTypeRequest
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
@@ -65,6 +74,14 @@ func (h *PropertyTypeHandler) handleCreate(w http.ResponseWriter, r *http.Reques
 	handlerutils.WriteJSON(w, http.StatusCreated, t)
 }
 
+// @Summary Get property type
+// @Description Get property type by ID
+// @Tags property_types
+// @Produce json
+// @Param id path int true "Property Type ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /property_types/{id} [get]
 func (h *PropertyTypeHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -81,6 +98,15 @@ func (h *PropertyTypeHandler) handleGet(w http.ResponseWriter, r *http.Request) 
 	handlerutils.WriteJSON(w, http.StatusOK, t)
 }
 
+// @Summary List property types
+// @Description List property types with pagination
+// @Tags property_types
+// @Produce json
+// @Param limit query int false "Limit"
+// @Param offset query int false "Offset"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /property_types [get]
 func (h *PropertyTypeHandler) handleList(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	limit := 20
@@ -108,6 +134,16 @@ func (h *PropertyTypeHandler) handleList(w http.ResponseWriter, r *http.Request)
 	handlerutils.WriteJSON(w, http.StatusOK, res)
 }
 
+// @Summary Update property type
+// @Description Update property type by ID
+// @Tags property_types
+// @Accept json
+// @Produce json
+// @Param id path int true "Property Type ID"
+// @Param body body object true "Property type body"
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Router /property_types/{id} [put]
 func (h *PropertyTypeHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -130,6 +166,14 @@ func (h *PropertyTypeHandler) handleUpdate(w http.ResponseWriter, r *http.Reques
 	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
+// @Summary Delete property type
+// @Description Delete property type by ID
+// @Tags property_types
+// @Produce json
+// @Param id path int true "Property Type ID"
+// @Success 200 {object} map[string]int
+// @Failure 400 {object} map[string]string
+// @Router /property_types/{id} [delete]
 func (h *PropertyTypeHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
