@@ -1272,6 +1272,9 @@ const docTemplate = `{
                 "city": {
                     "type": "string"
                 },
+                "created_by": {
+                    "type": "integer"
+                },
                 "price": {
                     "type": "number"
                 },
@@ -1310,6 +1313,12 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
                 "price": {
                     "type": "number"
                 },
@@ -1317,6 +1326,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "property_description": {
+                    "type": "string"
+                },
+                "property_status": {
                     "type": "string"
                 },
                 "title": {
