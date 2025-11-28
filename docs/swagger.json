@@ -1,23 +1,4 @@
-{
-    "swagger": "2.0",
-    "info": {
-        "description": "Enter the token as: \"Bearer \u003ctoken\u003e\" (include the word Bearer and a space)",
-        "title": "Estate Agency API",
-        "contact": {},
-        "version": "0.0.0"
-    },
-    "host": "localhost:8080",
-    "basePath": "/",
-    "security": [
-        {
-            "BearerAuth": []
-        }
-    ],
-    "paths": {
-        "/properties": {
-            "get": {
-                "security": [
-                    {
+{}
                         "BearerAuth": []
                     }
                 ],
@@ -1512,6 +1493,7 @@
         },
         "propertyhandler.UpdatePropertyDoc": {
             "type": "object",
+            "required": [],
             "properties": {
                 "area": {
                     "type": "number"
@@ -1710,6 +1692,7 @@
         },
         "userhandler.UpdateProfileRequestDoc": {
             "type": "object",
+            "required": [],
             "properties": {
                 "email": {
                     "type": "string",

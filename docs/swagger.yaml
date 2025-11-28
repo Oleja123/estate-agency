@@ -31,13 +31,20 @@ definitions:
         type: integer
     type: object
   propertyhandler.PropertyCreateDoc:
+    required:
+      - area
+      - city
+      - price
+      - property_address
+      - property_description
+      - title
+      - transaction_type
+      - type_id
     properties:
       area:
         type: number
       city:
         type: string
-      created_by:
-        type: integer
       price:
         type: number
       property_address:
@@ -46,13 +53,10 @@ definitions:
         type: string
       title:
         type: string
-        x-nullable: true
       transaction_type:
         type: string
-        x-nullable: true
       type_id:
         type: integer
-        x-nullable: true
     type: object
   propertyhandler.PropertyDTODoc:
     properties:
@@ -62,8 +66,6 @@ definitions:
         type: string
       created_at:
         type: string
-      created_by:
-        type: integer
       id:
         type: integer
       latitude:
@@ -107,15 +109,14 @@ definitions:
         type: string
       title:
         type: string
-        x-nullable: true
       transaction_type:
         type: string
-        x-nullable: true
       type_id:
         type: integer
-        x-nullable: true
     type: object
   propertytypehandler.CreatePropertyTypeDoc:
+    required:
+      - name
     properties:
       name:
         type: string
@@ -137,6 +138,8 @@ definitions:
         type: string
     type: object
   propertytypehandler.UpdatePropertyTypeDoc:
+    required:
+      - name
     properties:
       name:
         type: string
@@ -148,6 +151,8 @@ definitions:
       new_password:
         type: string
     type: object
+    required:
+      - new_password
   userhandler.ListUsersResponseDoc:
     properties:
       total:
@@ -187,6 +192,8 @@ definitions:
         type: string
       phone_number:
         type: string
+        x-nullable: true
+        nullable: true
       role:
         type: string
       updated_at:
@@ -204,6 +211,8 @@ definitions:
         type: string
       phone_number:
         type: string
+        x-nullable: true
+        nullable: true
     type: object
   userhandler.RoleRequestDoc:
     properties:
@@ -224,9 +233,8 @@ definitions:
         type: string
       phone_number:
         type: string
-      role:
-        type: string
         x-nullable: true
+        nullable: true
     type: object
 host: localhost:8080
 info:

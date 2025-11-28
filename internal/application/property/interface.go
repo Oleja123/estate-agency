@@ -9,7 +9,7 @@ import (
 )
 
 type Service interface {
-	Create(ctx context.Context, req dto.CreatePropertyRequest) (domain.Property, error)
+	Create(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error)
 	GetByID(ctx context.Context, id int) (domain.Property, error)
 	Update(ctx context.Context, req dto.UpdatePropertyRequest) error
 	List(ctx context.Context, req dto.ListPropertiesRequest) (dto.ListPropertiesResponse, error)

@@ -27,7 +27,7 @@ import (
 // mockService implements the property service interface used by handlers.
 type mockService struct {
 	CreateCalled bool
-	CreateFunc   func(ctx context.Context, req dto.CreatePropertyRequest) (domain.Property, error)
+	CreateFunc   func(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error)
 
 	GetByIDCalled bool
 	GetByIDFunc   func(ctx context.Context, id int) (domain.Property, error)
@@ -44,12 +44,12 @@ type mockService struct {
 	ToggleFavoriteFunc func(ctx context.Context, userID int, propertyID int) (bool, favdomain.Favorite, error)
 }
 
-func (m *mockService) Create(ctx context.Context, req dto.CreatePropertyRequest) (domain.Property, error) {
+func (m *mockService) Create(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error) {
 	m.CreateCalled = true
 	if m.CreateFunc != nil {
-		return m.CreateFunc(ctx, req)
+		return m.CreateFunc(ctx, userID, req)
 	}
-	return domain.Property{ID: 1, Title: req.Title, CreatedBy: req.CreatedBy}, nil
+	return domain.Property{ID: 1, Title: req.Title, CreatedBy: userID}, nil
 }
 func (m *mockService) GetByID(ctx context.Context, id int) (domain.Property, error) {
 	m.GetByIDCalled = true
@@ -70,7 +70,7 @@ func (m *mockService) List(ctx context.Context, req dto.ListPropertiesRequest) (
 	if m.ListFunc != nil {
 		return m.ListFunc(ctx, req)
 	}
-	return dto.ListPropertiesResponse{Properties: []domain.Property{{ID: 1, Title: "a"}}, Total: 1}, nil
+	return dto.ListPropertiesResponse{Properties: []dto.PropertyDTO{{ID: 1, Title: "a"}}, Total: 1}, nil
 }
 func (m *mockService) Delete(ctx context.Context, id int) (int, error) {
 	m.DeleteCalled = true
@@ -141,12 +141,13 @@ func TestHandleCreate_CallsServiceAndReturnsCreated(t *testing.T) {
 	logger := newLogger()
 	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
 
-	body := map[string]interface{}{"title": "My prop", "created_by": 5}
+	body := map[string]interface{}{"title": "My prop"}
 	b, _ := json.Marshal(body)
 	req := httptest.NewRequest(http.MethodPost, "/properties", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
+	req = req.WithContext(auth.ContextWithUser(req.Context(), 1, "admin"))
 	h.handleCreate(rr, req)
 
 	if !m.CreateCalled {
@@ -285,6 +286,7 @@ func TestHandleCreate_InvalidJSON_Returns400(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
+	req = req.WithContext(auth.ContextWithUser(req.Context(), 1, "admin"))
 	h.handleCreate(rr, req)
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for invalid json, got %d", rr.Code)
@@ -299,7 +301,7 @@ func TestHandleCreate_Middleware_AdminAllowed(t *testing.T) {
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Post("/", http.HandlerFunc(h.handleCreate))
 
-	body := map[string]interface{}{"title": "My prop", "created_by": 5}
+	body := map[string]interface{}{"title": "My prop"}
 	b, _ := json.Marshal(body)
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
@@ -321,7 +323,7 @@ func TestHandleCreate_Middleware_NonAdminForbidden(t *testing.T) {
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Post("/", http.HandlerFunc(h.handleCreate))
 
-	body := map[string]interface{}{"title": "My prop", "created_by": 5}
+	body := map[string]interface{}{"title": "My prop"}
 	b, _ := json.Marshal(body)
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
@@ -358,7 +360,7 @@ func TestHandleGet_CallsServiceAndReturns(t *testing.T) {
 // Service error mapping tests
 func TestHandleCreate_ServiceInvalidInput_Returns400(t *testing.T) {
 	m := &mockService{}
-	m.CreateFunc = func(ctx context.Context, req dto.CreatePropertyRequest) (domain.Property, error) {
+	m.CreateFunc = func(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error) {
 		return domain.Property{}, apperrors.NewErrInvalidInput("title", req.Title, "invalid")
 	}
 	logger := newLogger()
@@ -370,6 +372,7 @@ func TestHandleCreate_ServiceInvalidInput_Returns400(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
+	req = req.WithContext(auth.ContextWithUser(req.Context(), 1, "admin"))
 	h.handleCreate(rr, req)
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for invalid input, got %d body=%s", rr.Code, rr.Body.String())
@@ -378,7 +381,7 @@ func TestHandleCreate_ServiceInvalidInput_Returns400(t *testing.T) {
 
 func TestHandleCreate_ServiceAlreadyExists_Returns409(t *testing.T) {
 	m := &mockService{}
-	m.CreateFunc = func(ctx context.Context, req dto.CreatePropertyRequest) (domain.Property, error) {
+	m.CreateFunc = func(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error) {
 		return domain.Property{}, apperrors.NewErrAlreadyExists("property", "title", req.Title)
 	}
 	logger := newLogger()
@@ -390,6 +393,7 @@ func TestHandleCreate_ServiceAlreadyExists_Returns409(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
+	req = req.WithContext(auth.ContextWithUser(req.Context(), 1, "admin"))
 	h.handleCreate(rr, req)
 	if rr.Code != http.StatusConflict {
 		t.Fatalf("expected 409 for already exists, got %d body=%s", rr.Code, rr.Body.String())

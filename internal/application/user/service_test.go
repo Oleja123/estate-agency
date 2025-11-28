@@ -100,8 +100,12 @@ func TestUserService_Register(t *testing.T) {
 						if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte("secret")); err != nil {
 							return 0, err
 						}
-						if u.PhoneNumber != "100500" {
-							return 0, fmt.Errorf("phone mismatch: %s", u.PhoneNumber)
+						if u.PhoneNumber == nil || *u.PhoneNumber != "100500" {
+							var got string
+							if u.PhoneNumber != nil {
+								got = *u.PhoneNumber
+							}
+							return 0, fmt.Errorf("phone mismatch: %s", got)
 						}
 						return 11, nil
 					},
@@ -439,7 +443,7 @@ func TestUserService_UpdateProfile_Success(t *testing.T) {
 
 	repo := &mockRepo{
 		GetByIDFunc: func(ctx context.Context, id int) (domain.User, error) {
-			return domain.User{Id: id, Email: "a@b.com", FirstName: "", LastName: "", PhoneNumber: "", UserRole: domain.RoleClient}, nil
+			return domain.User{Id: id, Email: "a@b.com", FirstName: "", LastName: "", PhoneNumber: nil, UserRole: domain.RoleClient}, nil
 		},
 		UpdateFunc: func(ctx context.Context, u domain.User) error {
 			// verify updated fields applied
@@ -449,15 +453,17 @@ func TestUserService_UpdateProfile_Success(t *testing.T) {
 			if u.LastName != "Doe" {
 				return fmt.Errorf("last name not updated: %s", u.LastName)
 			}
-			if u.PhoneNumber != "123" {
-				return fmt.Errorf("phone not updated: %s", u.PhoneNumber)
+			if u.PhoneNumber == nil || *u.PhoneNumber != "123" {
+				var got string
+				if u.PhoneNumber != nil {
+					got = *u.PhoneNumber
+				}
+				return fmt.Errorf("phone not updated: %s", got)
 			}
 			if u.Email != "new@e.com" {
 				return fmt.Errorf("email not updated: %s", u.Email)
 			}
-			if u.UserRole != domain.RoleAdmin {
-				return fmt.Errorf("role not updated: %s", u.UserRole)
-			}
+			// role should not be changed via UpdateProfile
 			return nil
 		},
 	}
@@ -474,6 +480,65 @@ func TestUserService_UpdateProfile_Success(t *testing.T) {
 	}
 
 	err := svc.UpdateProfile(ctx, req)
+	require.NoError(t, err)
+}
+
+func TestUserService_UpdateProfile_Partial(t *testing.T) {
+	ctx := context.Background()
+	logger := makeLogger()
+
+	// repo returns a user with existing fields; UpdateFunc should only see FirstName changed
+	repo := &mockRepo{
+		GetByIDFunc: func(ctx context.Context, id int) (domain.User, error) {
+			p := "P"
+			return domain.User{Id: id, Email: "a@b.com", FirstName: "", LastName: "L", PhoneNumber: &p, UserRole: domain.RoleClient}, nil
+		},
+		UpdateFunc: func(ctx context.Context, u domain.User) error {
+			if u.FirstName != "OnlyFirst" {
+				return fmt.Errorf("first name not updated: %s", u.FirstName)
+			}
+			// other fields should remain as provided by repo GetByID
+			if u.LastName != "L" {
+				return fmt.Errorf("last name was modified: %s", u.LastName)
+			}
+			if u.Email != "a@b.com" {
+				return fmt.Errorf("email was modified: %s", u.Email)
+			}
+			return nil
+		},
+	}
+
+	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
+
+	req := dto.UpdateProfileRequest{
+		UserID:    1,
+		FirstName: optional.OptionalString{Defined: true, Valid: true, Value: func() *string { v := "OnlyFirst"; return &v }()},
+		// other fields omitted
+	}
+
+	err := svc.UpdateProfile(ctx, req)
+	require.NoError(t, err)
+}
+
+func TestUserService_SetUserRole_Success(t *testing.T) {
+	ctx := context.Background()
+	logger := makeLogger()
+
+	repo := &mockRepo{
+		GetByIDFunc: func(ctx context.Context, id int) (domain.User, error) {
+			return domain.User{Id: id, Email: "a@b.com", UserRole: domain.RoleClient}, nil
+		},
+		UpdateFunc: func(ctx context.Context, u domain.User) error {
+			if u.UserRole != domain.RoleAdmin {
+				return fmt.Errorf("role not updated: %s", u.UserRole)
+			}
+			return nil
+		},
+	}
+
+	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
+
+	err := svc.SetUserRole(ctx, 1, "admin")
 	require.NoError(t, err)
 }
 

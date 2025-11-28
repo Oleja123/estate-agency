@@ -31,7 +31,7 @@ type User struct {
 	PasswordHash string    `json:"password_hash"`
 	FirstName    string    `json:"first_name"`
 	LastName     string    `json:"last_name"`
-	PhoneNumber  string    `json:"phone_number"`
+	PhoneNumber  *string   `json:"phone_number"`
 	UserRole     Role      `json:"role"`
 	IsActive     bool      `json:"is_active"`
 	CreatedAt    time.Time `json:"created_at"`

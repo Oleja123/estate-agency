@@ -18,7 +18,6 @@ type PropertyDTO struct {
 	Longitude           float64   `json:"longitude"`
 	City                string    `json:"city"`
 	PropertyStatus      string    `json:"property_status"`
-	CreatedBy           int       `json:"created_by"`
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
 }

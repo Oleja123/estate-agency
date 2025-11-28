@@ -87,7 +87,7 @@ func main() {
 	propertyTypeService := propertytypeservice.New(propertyTypeStorage, logger)
 	favoriteService := favoriteservice.New(favoriteStorage, logger)
 	propertyService := propertyservice.New(propertyStorage, propertyTypeStorage, logger, geocoder.NewNoop(), favoriteService)
-	imageService := imageservice.New(imageStorage, logger, "")
+	imageService := imageservice.New(imageStorage, logger, "images/")
 
 	// HTTP handlers and server
 	router := chi.NewRouter()

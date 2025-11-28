@@ -15,7 +15,6 @@ import (
 	dto "github.com/Oleja123/estate-agency/internal/application/user/dto"
 	"github.com/Oleja123/estate-agency/internal/handler/auth"
 	handlerutils "github.com/Oleja123/estate-agency/internal/handler/utils"
-	optional "github.com/denpa16/optional-go-type"
 )
 
 type UserHandler struct {
@@ -398,9 +397,8 @@ func (h *UserHandler) handleChangeRole(w http.ResponseWriter, r *http.Request) {
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	roleVal := req.Role
-	upr := dto.UpdateProfileRequest{UserID: id, Role: optional.OptionalString{Defined: true, Valid: true, Value: &roleVal}}
-	if err := h.svc.UpdateProfile(r.Context(), upr); err != nil {
+	// Use dedicated SetUserRole admin flow instead of UpdateProfile to modify roles
+	if err := h.svc.SetUserRole(r.Context(), id, req.Role); err != nil {
 		code, body := handlerutils.MapAppError(err)
 		handlerutils.WriteJSON(w, code, body)
 		return

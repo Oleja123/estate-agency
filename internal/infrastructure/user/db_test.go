@@ -77,14 +77,17 @@ func TestCreateUser(t *testing.T) {
 	}{
 		{
 			name: "successful_creation",
-			user: user.User{
-				Email:        "success@example.com",
-				PasswordHash: "hashed_password",
-				FirstName:    "John",
-				LastName:     "Doe",
-				PhoneNumber:  "+1234567890",
-				UserRole:     "client",
-			},
+			user: func() user.User {
+				v := "+1234567890"
+				return user.User{
+					Email:        "success@example.com",
+					PasswordHash: "hashed_password",
+					FirstName:    "John",
+					LastName:     "Doe",
+					PhoneNumber:  &v,
+					UserRole:     "client",
+				}
+			}(),
 			wantErr: false,
 			validate: func(t *testing.T, userID int) {
 				createdUser, err := testRepo.GetByID(testCtx, userID)
@@ -118,14 +121,17 @@ func TestCreateUser(t *testing.T) {
 		},
 		{
 			name: "user_with_all_fields",
-			user: user.User{
-				Email:        "full@example.com",
-				PasswordHash: "full_hash",
-				FirstName:    "Full",
-				LastName:     "User",
-				PhoneNumber:  "+1111111111",
-				UserRole:     "admin",
-			},
+			user: func() user.User {
+				v := "+1111111111"
+				return user.User{
+					Email:        "full@example.com",
+					PasswordHash: "full_hash",
+					FirstName:    "Full",
+					LastName:     "User",
+					PhoneNumber:  &v,
+					UserRole:     "admin",
+				}
+			}(),
 			wantErr: false,
 			validate: func(t *testing.T, userID int) {
 				createdUser, err := testRepo.GetByID(testCtx, userID)
@@ -133,7 +139,9 @@ func TestCreateUser(t *testing.T) {
 				assert.Equal(t, "full@example.com", createdUser.Email)
 				assert.Equal(t, "Full", createdUser.FirstName)
 				assert.Equal(t, "User", createdUser.LastName)
-				assert.Equal(t, "+1111111111", createdUser.PhoneNumber)
+				if assert.NotNil(t, createdUser.PhoneNumber) {
+					assert.Equal(t, "+1111111111", *createdUser.PhoneNumber)
+				}
 				assert.Equal(t, user.RoleAdmin, createdUser.UserRole)
 			},
 		},
@@ -151,7 +159,7 @@ func TestCreateUser(t *testing.T) {
 				createdUser, err := testRepo.GetByID(testCtx, userID)
 				require.NoError(t, err)
 				assert.Equal(t, "nophone@example.com", createdUser.Email)
-				assert.Empty(t, createdUser.PhoneNumber)
+				assert.Nil(t, createdUser.PhoneNumber)
 			},
 		},
 	}
@@ -342,21 +350,26 @@ func TestUpdateUser(t *testing.T) {
 				require.NoError(t, err)
 				return id
 			},
-			updateUser: user.User{
-				Email:       "update_all@example.com",
-				FirstName:   "Updated",
-				LastName:    "Name",
-				PhoneNumber: "+9999999999",
-				UserRole:    "admin",
-				IsActive:    false,
-			},
+			updateUser: func() user.User {
+				v := "+9999999999"
+				return user.User{
+					Email:       "update_all@example.com",
+					FirstName:   "Updated",
+					LastName:    "Name",
+					PhoneNumber: &v,
+					UserRole:    "admin",
+					IsActive:    false,
+				}
+			}(),
 			wantErr: false,
 			validate: func(t *testing.T, userID int) {
 				updated, err := testRepo.GetByID(testCtx, userID)
 				require.NoError(t, err)
 				assert.Equal(t, "Updated", updated.FirstName)
 				assert.Equal(t, "Name", updated.LastName)
-				assert.Equal(t, "+9999999999", updated.PhoneNumber)
+				if assert.NotNil(t, updated.PhoneNumber) {
+					assert.Equal(t, "+9999999999", *updated.PhoneNumber)
+				}
 				assert.Equal(t, user.RoleAdmin, updated.UserRole)
 				assert.False(t, updated.IsActive)
 			},

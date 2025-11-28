@@ -35,10 +35,15 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (dto.Pu
 	pass := strings.TrimSpace(req.Password)
 	firstName := strings.TrimSpace(req.FirstName)
 	lastName := strings.TrimSpace(req.LastName)
-	phone := ""
+	var phone *string
 	if req.PhoneNumber.Defined {
 		if req.PhoneNumber.Valid && req.PhoneNumber.Value != nil {
-			phone = strings.TrimSpace(*req.PhoneNumber.Value)
+			v := strings.TrimSpace(*req.PhoneNumber.Value)
+			phone = &v
+		} else {
+			// defined but invalid -> explicit empty string
+			v := ""
+			phone = &v
 		}
 	}
 
@@ -207,9 +212,11 @@ func (s *service) UpdateProfile(ctx context.Context, req dto.UpdateProfileReques
 	// PhoneNumber
 	if req.PhoneNumber.Defined {
 		if !req.PhoneNumber.Valid {
-			u.PhoneNumber = ""
+			v := ""
+			u.PhoneNumber = &v
 		} else if req.PhoneNumber.Value != nil {
-			u.PhoneNumber = strings.TrimSpace(*req.PhoneNumber.Value)
+			v := strings.TrimSpace(*req.PhoneNumber.Value)
+			u.PhoneNumber = &v
 		}
 	}
 
@@ -222,24 +229,7 @@ func (s *service) UpdateProfile(ctx context.Context, req dto.UpdateProfileReques
 		}
 	}
 
-	// Role (optional string -> domain.Role)
-	if req.Role.Defined {
-		if !req.Role.Valid {
-			u.UserRole = domain.Role("")
-		} else if req.Role.Value != nil {
-			rv := strings.TrimSpace(*req.Role.Value)
-			if rv == "" {
-				u.UserRole = domain.Role("")
-			} else {
-				// parse/validate role via domain helper
-				r, err := domain.ParseRole(rv)
-				if err != nil {
-					return apperrors.NewErrInvalidInput("role", rv, "invalid role")
-				}
-				u.UserRole = r
-			}
-		}
-	}
+	// NOTE: role changes are not applied via UpdateProfile. Use SetUserRole for role modifications.
 
 	err = s.repo.Update(ctx, u)
 	if err != nil {
@@ -308,6 +298,34 @@ func (s *service) ChangePasswordAdmin(ctx context.Context, userID int, newPasswo
 		return apperrors.NewErrInternal("failed to update user")
 	}
 	s.logger.Info("change password admin: password updated", "user_id", u.Id)
+	return nil
+}
+
+// SetUserRole sets the user's role to the provided role string after validation.
+// This is intended to be used by admin flows only.
+func (s *service) SetUserRole(ctx context.Context, userID int, role string) error {
+	u, err := s.repo.GetByID(ctx, userID)
+	if err != nil {
+		var nf dberrors.ErrNotFound
+		if errors.As(err, &nf) {
+			return apperrors.NewErrNotFound("user", userID)
+		}
+		return apperrors.NewErrInternal("failed to fetch user")
+	}
+	rv := strings.TrimSpace(role)
+	if rv == "" {
+		return apperrors.NewErrInvalidInput("role", role, "must not be empty")
+	}
+	r, err := domain.ParseRole(rv)
+	if err != nil {
+		return apperrors.NewErrInvalidInput("role", role, "invalid role")
+	}
+	u.UserRole = r
+	if err := s.repo.Update(ctx, u); err != nil {
+		s.logger.Error("set user role: failed to update user", "user_id", u.Id, "err", err)
+		return apperrors.NewErrInternal("failed to set user role")
+	}
+	s.logger.Info("set user role", "user_id", u.Id, "role", u.UserRole)
 	return nil
 }
 

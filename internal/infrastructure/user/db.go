@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	sqlpkg "database/sql"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/Oleja123/estate-agency/internal/domain/user"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/basedb"
@@ -84,12 +86,20 @@ func (r *Repository) GetByID(ctx context.Context, id int) (user.User, error) {
 	)
 
 	var u user.User
+	var phone sqlpkg.NullString
 
 	err = r.Client.QueryRow(ctx, sql, args...).Scan(
 		&u.Id, &u.Email, &u.PasswordHash, &u.FirstName,
-		&u.LastName, &u.PhoneNumber, &u.UserRole, &u.IsActive,
+		&u.LastName, &phone, &u.UserRole, &u.IsActive,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
+	if err == nil {
+		if phone.Valid {
+			u.PhoneNumber = &phone.String
+		} else {
+			u.PhoneNumber = nil
+		}
+	}
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -130,11 +140,19 @@ func (r Repository) GetByEmail(ctx context.Context, email string) (user.User, er
 	)
 
 	var u user.User
+	var phone sqlpkg.NullString
 	err = r.Client.QueryRow(ctx, sql, args...).Scan(
 		&u.Id, &u.Email, &u.PasswordHash, &u.FirstName,
-		&u.LastName, &u.PhoneNumber, &u.UserRole, &u.IsActive,
+		&u.LastName, &phone, &u.UserRole, &u.IsActive,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
+	if err == nil {
+		if phone.Valid {
+			u.PhoneNumber = &phone.String
+		} else {
+			u.PhoneNumber = nil
+		}
+	}
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -188,11 +206,19 @@ func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.Use
 
 	for rows.Next() {
 		var user user.User
+		var phone sqlpkg.NullString
 		err := rows.Scan(
 			&user.Id, &user.Email, &user.PasswordHash, &user.FirstName,
-			&user.LastName, &user.PhoneNumber, &user.UserRole, &user.IsActive,
+			&user.LastName, &phone, &user.UserRole, &user.IsActive,
 			&user.CreatedAt, &user.UpdatedAt,
 		)
+		if err == nil {
+			if phone.Valid {
+				user.PhoneNumber = &phone.String
+			} else {
+				user.PhoneNumber = nil
+			}
+		}
 		if err != nil {
 			return nil, 0, fmt.Errorf("row scan error: %w", err)
 		}

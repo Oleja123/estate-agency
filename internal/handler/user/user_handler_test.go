@@ -33,6 +33,7 @@ type mockService struct {
 	ChangePasswordFunc      func(ctx context.Context, userID int, req dto.ChangePasswordRequest) error
 	GetUserByIDFunc         func(ctx context.Context, userID int) (dto.PublicUser, error)
 	ToggleActiveAccountFunc func(ctx context.Context, userID int) error
+	SetUserRoleFunc         func(ctx context.Context, userID int, role string) error
 }
 
 // mockFavorite is a lightweight favorites service mock for handler tests.
@@ -107,6 +108,12 @@ func (m *mockService) SetActiveAccount(ctx context.Context, userID int, active b
 func (m *mockService) ToggleActiveAccount(ctx context.Context, userID int) error {
 	if m.ToggleActiveAccountFunc != nil {
 		return m.ToggleActiveAccountFunc(ctx, userID)
+	}
+	return nil
+}
+func (m *mockService) SetUserRole(ctx context.Context, userID int, role string) error {
+	if m.SetUserRoleFunc != nil {
+		return m.SetUserRoleFunc(ctx, userID, role)
 	}
 	return nil
 }

@@ -3,11 +3,14 @@ package propertyservice
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"log/slog"
 
 	geocoder "github.com/Oleja123/estate-agency/internal/infrastructure/geocoder"
+
+	optional "github.com/denpa16/optional-go-type"
 
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
 	favdto "github.com/Oleja123/estate-agency/internal/application/favorite/dto"
@@ -127,7 +130,7 @@ func TestCreateProperty_Success(t *testing.T) {
 		return ptypedomain.PropertyType{Id: id, Name: "apartment"}, nil
 	}
 	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
-	got, err := svc.Create(ctx, dto.CreatePropertyRequest{Title: "x", TypeID: 1, CreatedBy: 1})
+	got, err := svc.Create(ctx, 1, dto.CreatePropertyRequest{Title: "x", TypeID: 1})
 	require.NoError(t, err)
 	assert.Equal(t, 10, got.ID)
 }
@@ -156,7 +159,7 @@ func TestUpdateProperty_Success(t *testing.T) {
 	typeRepo := &mockTypeRepo{}
 	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
 	title := "new"
-	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Title: &title})
+	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Title: optional.OptionalString{Defined: true, Valid: true, Value: &title}})
 	require.NoError(t, err)
 }
 
@@ -196,7 +199,7 @@ func TestCreateProperty_TypeNotFound(t *testing.T) {
 	}
 
 	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
-	_, err := svc.Create(ctx, dto.CreatePropertyRequest{Title: "x", TypeID: 99, CreatedBy: 1})
+	_, err := svc.Create(ctx, 1, dto.CreatePropertyRequest{Title: "x", TypeID: 99})
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
 	assert.True(t, errors.As(err, &nf))
@@ -215,8 +218,40 @@ func TestUpdateProperty_TypeNotFound(t *testing.T) {
 
 	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
 	tid := 99
-	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, TypeID: &tid})
+	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, TypeID: optional.OptionalInt{Defined: true, Valid: true, Value: &tid}})
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
 	assert.True(t, errors.As(err, &nf))
+}
+
+func TestUpdateProperty_PartialPriceArea(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockRepo{}
+	// initial property has some values
+	repo.GetByIDFn = func(ctx context.Context, id int) (domain.Property, error) {
+		return domain.Property{ID: id, Title: "old", Price: 100.0, Area: 50.0, TypeID: 1}, nil
+	}
+	repo.UpdateFn = func(ctx context.Context, p domain.Property) error {
+		// only price and area should change
+		if p.Price != 200.5 {
+			return fmt.Errorf("price not updated: %v", p.Price)
+		}
+		if p.Area != 75.25 {
+			return fmt.Errorf("area not updated: %v", p.Area)
+		}
+		if p.Title != "old" {
+			return fmt.Errorf("title was modified: %s", p.Title)
+		}
+		if p.TypeID != 1 {
+			return fmt.Errorf("type id was modified: %d", p.TypeID)
+		}
+		return nil
+	}
+	typeRepo := &mockTypeRepo{}
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
+
+	price := 200.5
+	area := 75.25
+	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Price: optional.OptionalFloat64{Defined: true, Valid: true, Value: &price}, Area: optional.OptionalFloat64{Defined: true, Valid: true, Value: &area}})
+	require.NoError(t, err)
 }

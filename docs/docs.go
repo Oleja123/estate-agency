@@ -1366,6 +1366,16 @@ const docTemplate = `{
         },
         "propertyhandler.PropertyCreateDoc": {
             "type": "object",
+            "required": [
+                "area",
+                "city",
+                "price",
+                "property_address",
+                "property_description",
+                "title",
+                "transaction_type",
+                "type_id"
+            ],
             "properties": {
                 "area": {
                     "type": "number"
@@ -1373,9 +1383,7 @@ const docTemplate = `{
                 "city": {
                     "type": "string"
                 },
-                "created_by": {
-                    "type": "integer"
-                },
+                
                 "price": {
                     "type": "number"
                 },
@@ -1386,16 +1394,13 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "title": {
-                    "type": "string",
-                    "x-nullable": true
+                    "type": "string"
                 },
                 "transaction_type": {
-                    "type": "string",
-                    "x-nullable": true
+                    "type": "string"
                 },
                 "type_id": {
-                    "type": "integer",
-                    "x-nullable": true
+                    "type": "integer"
                 }
             }
         },
@@ -1410,9 +1415,6 @@ const docTemplate = `{
                 },
                 "created_at": {
                     "type": "string"
-                },
-                "created_by": {
-                    "type": "integer"
                 },
                 "id": {
                     "type": "integer"
@@ -1454,52 +1456,42 @@ const docTemplate = `{
             "properties": {
                 "area": {
                     "type": "number"
-                ,"x-nullable": true
                 },
                 "city": {
                     "type": "string"
-                ,"x-nullable": true
                 },
                 "latitude": {
                     "type": "number"
-                ,"x-nullable": true
                 },
                 "longitude": {
                     "type": "number"
-                ,"x-nullable": true
                 },
                 "price": {
                     "type": "number"
-                ,"x-nullable": true
                 },
                 "property_address": {
                     "type": "string"
-                ,"x-nullable": true
                 },
                 "property_description": {
                     "type": "string"
-                ,"x-nullable": true
                 },
                 "property_status": {
                     "type": "string"
-                ,"x-nullable": true
                 },
                 "title": {
-                    "type": "string",
-                    "x-nullable": true
+                    "type": "string"
                 },
                 "transaction_type": {
-                    "type": "string",
-                    "x-nullable": true
+                    "type": "string"
                 },
                 "type_id": {
-                    "type": "integer",
-                    "x-nullable": true
+                    "type": "integer"
                 }
             }
         },
         "propertytypehandler.CreatePropertyTypeDoc": {
             "type": "object",
+            "required": ["name"],
             "properties": {
                 "name": {
                     "type": "string"
@@ -1533,15 +1525,16 @@ const docTemplate = `{
         },
         "propertytypehandler.UpdatePropertyTypeDoc": {
             "type": "object",
+            "required": ["name"],
             "properties": {
                 "name": {
                     "type": "string"
-                ,"x-nullable": true
                 }
             }
         },
         "userhandler.ChangePasswordRequestDoc": {
             "type": "object",
+            "required": ["new_password"],
             "properties": {
                 "current_password": {
                     "type": "string"
@@ -1609,7 +1602,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "phone_number": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true,
+                    "nullable": true
                 },
                 "role": {
                     "type": "string"
@@ -1635,7 +1630,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "phone_number": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true,
+                    "nullable": true
                 }
             }
         },
@@ -1643,8 +1640,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "role": {
-                    "type": "string",
-                    "x-nullable": true
+                    "type": "string"
                 }
             }
         },
@@ -1652,25 +1648,19 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "email": {
-                    "type": "string",
-                    "x-nullable": true
+                    "type": "string"
                 },
                 "first_name": {
                     "description": "Optional fields: any of these may be omitted in the request. Using\npointer-to-string with 'omitempty' models optional semantics for the\nswagger generator.",
-                    "type": "string",
-                    "x-nullable": true
+                    "type": "string"
                 },
                 "last_name": {
-                    "type": "string",
-                    "x-nullable": true
+                    "type": "string"
                 },
                 "phone_number": {
                     "type": "string",
-                    "x-nullable": true
-                },
-                "role": {
-                    "type": "string",
-                    "x-nullable": true
+                    "x-nullable": true,
+                    "nullable": true
                 }
             }
         },

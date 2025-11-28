@@ -35,7 +35,7 @@ func New(repo domain.Repository, typeRepo ptypedomain.Repository, logger *slog.L
 	return &service{repo: repo, typeRepo: typeRepo, logger: logger, geo: geo, favSvc: favSvc}
 }
 
-func (s *service) Create(ctx context.Context, req dto.CreatePropertyRequest) (domain.Property, error) {
+func (s *service) Create(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error) {
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		return domain.Property{}, apperrors.NewErrInvalidInput("title", title, "must not be empty")
@@ -64,7 +64,7 @@ func (s *service) Create(ctx context.Context, req dto.CreatePropertyRequest) (do
 		PropertyAddress:     strings.TrimSpace(req.PropertyAddress),
 		City:                strings.TrimSpace(req.City),
 		PropertyStatus:      domain.StatusActive,
-		CreatedBy:           req.CreatedBy,
+		CreatedBy:           userID,
 	}
 
 	// attempt to geocode address (best-effort)
@@ -120,43 +120,46 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 		return apperrors.NewErrInternal("failed to fetch property")
 	}
 
-	// if type changed (non-nil and non-zero), validate existence
-	if req.TypeID != nil && *req.TypeID != 0 && *req.TypeID != p.TypeID {
-		if _, err := s.typeRepo.GetByID(ctx, *req.TypeID); err != nil {
-			var nf dberrors.ErrNotFound
-			if errors.As(err, &nf) {
-				return apperrors.NewErrNotFound("property_type", *req.TypeID)
+	// if type changed (provided, valid and non-zero), validate existence
+	if req.TypeID.Defined && req.TypeID.Valid {
+		val := *req.TypeID.Value
+		if val != 0 && val != p.TypeID {
+			if _, err := s.typeRepo.GetByID(ctx, val); err != nil {
+				var nf dberrors.ErrNotFound
+				if errors.As(err, &nf) {
+					return apperrors.NewErrNotFound("property_type", val)
+				}
+				s.logger.Error("update property: type repo error", "err", err)
+				return apperrors.NewErrInternal("failed to validate property type")
 			}
-			s.logger.Error("update property: type repo error", "err", err)
-			return apperrors.NewErrInternal("failed to validate property type")
+			p.TypeID = val
 		}
-		p.TypeID = *req.TypeID
 	}
 
 	// apply updates (only if provided)
-	if req.Title != nil {
-		p.Title = strings.TrimSpace(*req.Title)
+	if req.Title.Defined && req.Title.Valid {
+		p.Title = strings.TrimSpace(*req.Title.Value)
 	}
-	if req.PropertyDescription != nil {
-		p.PropertyDescription = strings.TrimSpace(*req.PropertyDescription)
+	if req.PropertyDescription.Defined && req.PropertyDescription.Valid {
+		p.PropertyDescription = strings.TrimSpace(*req.PropertyDescription.Value)
 	}
-	if req.TransactionType != nil {
-		p.TransactionType = domain.TransactionType(*req.TransactionType)
+	if req.TransactionType.Defined && req.TransactionType.Valid {
+		p.TransactionType = domain.TransactionType(*req.TransactionType.Value)
 	}
-	if req.Price != nil {
-		p.Price = *req.Price
+	if req.Price.Defined && req.Price.Valid {
+		p.Price = *req.Price.Value
 	}
-	if req.Area != nil {
-		p.Area = *req.Area
+	if req.Area.Defined && req.Area.Valid {
+		p.Area = *req.Area.Value
 	}
-	if req.PropertyAddress != nil {
-		p.PropertyAddress = strings.TrimSpace(*req.PropertyAddress)
+	if req.PropertyAddress.Defined && req.PropertyAddress.Valid {
+		p.PropertyAddress = strings.TrimSpace(*req.PropertyAddress.Value)
 	}
-	if req.City != nil {
-		p.City = strings.TrimSpace(*req.City)
+	if req.City.Defined && req.City.Valid {
+		p.City = strings.TrimSpace(*req.City.Value)
 	}
-	if req.PropertyStatus != nil {
-		p.PropertyStatus = domain.PropertyStatus(*req.PropertyStatus)
+	if req.PropertyStatus.Defined && req.PropertyStatus.Valid {
+		p.PropertyStatus = domain.PropertyStatus(*req.PropertyStatus.Value)
 	}
 
 	// geocode updated address if provided
@@ -185,7 +188,8 @@ func (s *service) List(ctx context.Context, req dto.ListPropertiesRequest) (dto.
 		return dto.ListPropertiesResponse{}, apperrors.NewErrInternal("failed to list properties")
 	}
 	total := len(list)
-	return dto.ListPropertiesResponse{Properties: list, Total: total}, nil
+	props := MapProperties(list)
+	return dto.ListPropertiesResponse{Properties: props, Total: total}, nil
 }
 
 func (s *service) Delete(ctx context.Context, id int) (int, error) {

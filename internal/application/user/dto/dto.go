@@ -66,7 +66,7 @@ type PublicUser struct {
 	Email       string    `json:"email"`
 	FirstName   string    `json:"first_name"`
 	LastName    string    `json:"last_name"`
-	PhoneNumber string    `json:"phone_number"`
+	PhoneNumber *string   `json:"phone_number"`
 	Role        user.Role `json:"role"`
 	IsActive    bool      `json:"is_active"`
 	CreatedAt   time.Time `json:"created_at"`

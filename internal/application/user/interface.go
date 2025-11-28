@@ -37,4 +37,7 @@ type Service interface {
 
 	ListUsers(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error)
 	DeleteUser(ctx context.Context, userID int) (int, error)
+
+	// SetUserRole sets the user's role (admin-only operation). Role must be a valid domain role string.
+	SetUserRole(ctx context.Context, userID int, role string) error
 }

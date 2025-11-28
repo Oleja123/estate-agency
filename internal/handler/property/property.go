@@ -145,13 +145,19 @@ func (h *PropertyHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	p, err := h.svc.Create(r.Context(), req)
+	uid, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authorization"})
+		return
+	}
+	p, err := h.svc.Create(r.Context(), uid, req)
 	if err != nil {
 		code, body := handlerutils.MapAppError(err)
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	handlerutils.WriteJSON(w, http.StatusCreated, p)
+	// map domain.Property to API DTO to avoid exposing internal fields like created_by
+	handlerutils.WriteJSON(w, http.StatusCreated, propertysvc.MapProperty(p))
 }
 
 // @Security BearerAuth
@@ -178,7 +184,8 @@ func (h *PropertyHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	handlerutils.WriteJSON(w, http.StatusOK, p)
+	// map domain.Property to API DTO using centralized mapper
+	handlerutils.WriteJSON(w, http.StatusOK, propertysvc.MapProperty(p))
 }
 
 // @Security BearerAuth
