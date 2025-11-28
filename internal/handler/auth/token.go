@@ -27,6 +27,7 @@ func (h *TokenHandler) Register(r chi.Router, prefix string, _ func(next http.Ha
 	if prefix == "" {
 		prefix = "/tokens"
 	}
+	// Token refresh must remain publicly accessible (no auth required).
 	r.Route(prefix, func(r chi.Router) {
 		r.Post("/refresh", h.handleRefresh)
 	})

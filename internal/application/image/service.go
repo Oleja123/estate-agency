@@ -287,7 +287,8 @@ func (s *service) ListByProperty(ctx context.Context, propertyID int) ([]dto.Ima
 		return nil, apperrors.NewErrInternal("failed to list images")
 	}
 
-	dtos := make([]dto.ImageDTO, 0, len(list))
+	// Aggregate files for the property into a single ImageDTO (property level)
+	files := make([]dto.ImageFile, 0, len(list))
 	for _, img := range list {
 		data, err := s.store.Read(img.Path)
 		if err != nil {
@@ -309,9 +310,13 @@ func (s *service) ListByProperty(ctx context.Context, propertyID int) ([]dto.Ima
 			return nil, apperrors.NewErrInternal("failed to read image files")
 		}
 		fname := filepath.Base(img.Path)
-		dtos = append(dtos, dto.ImageDTO{ID: img.ID, PropertyID: img.PropertyID, Filename: fname, Data: data})
+		files = append(files, dto.ImageFile{Filename: fname, Data: data})
 	}
-	return dtos, nil
+	// Return a single ImageDTO representing the property and its images.
+	if len(files) == 0 {
+		return []dto.ImageDTO{}, nil
+	}
+	return []dto.ImageDTO{{PropertyID: propertyID, Files: files}}, nil
 }
 
 func (s *service) Delete(ctx context.Context, id int) (int, error) {

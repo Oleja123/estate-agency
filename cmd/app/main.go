@@ -105,7 +105,9 @@ func main() {
 	uh := userhandler.NewUserHandler(userService, logger, favoriteService)
 	uh.Register(router, "/users", authMw)
 
-	auth.NewTokenHandler(tokSvc).Register(router, "/tokens", nil)
+	// Protect token endpoints by passing auth middleware. Per requirement,
+	// all endpoints except /users/register and /users/login must require authorization.
+	auth.NewTokenHandler(tokSvc).Register(router, "/tokens", authMw)
 
 	// Register property handler and wire favorites toggle endpoint
 	ph := propertyhandler.NewPropertyHandler(propertyService, logger, favoriteService, imageService)

@@ -42,33 +42,39 @@ func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next
 	if prefix == "" {
 		prefix = "/properties"
 	}
+	// Enforce auth for all property endpoints. If auth middleware is not
+	// provided, insert a denying middleware so endpoints are not exposed.
+	if authMw == nil {
+		authMw = func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authorization"})
+			})
+		}
+	}
+
 	r.Route(prefix, func(r chi.Router) {
-		// public reads
+		// Require authentication for all routes under /properties
+		r.Use(authMw)
+
+		// reads now require authentication as well
 		r.Get("/", h.handleList)
 		r.Get("/{id}", h.handleGet)
-		// create/update/delete require auth and admin role
-		if authMw != nil {
-			r.Group(func(r chi.Router) {
-				r.Use(authMw)
-				r.With(auth.RequireAdminMiddleware()).Post("/", h.handleCreate)
-				r.With(auth.RequireAdminMiddleware()).Put("/{id}", h.handleUpdate)
-				r.With(auth.RequireAdminMiddleware()).Delete("/{id}", h.handleDelete)
-				// allow authenticated users to toggle favorite for a property
-				if h.favSvc != nil {
-					// toggle favorite for current user: POST /{id}/favorites
-					r.Post("/{id}/favorites", h.handleToggleFavorite)
-				}
-				// images upload/update endpoints (admin-protected). Attach only if image service present.
-				if h.imgSvc != nil {
-					r.With(auth.RequireAdminMiddleware()).Post("/{id}/images", h.handleCreateImages)
-					r.With(auth.RequireAdminMiddleware()).Put("/{id}/images", h.handleUpdateImages)
-				}
-			})
-		} else {
-			// no auth middleware available in this environment — leave handlers attached
-			r.Post("/", h.handleCreate)
-			r.Put("/{id}", h.handleUpdate)
-			r.Delete("/{id}", h.handleDelete)
+
+		// create/update/delete require admin role
+		r.With(auth.RequireAdminMiddleware()).Post("/", h.handleCreate)
+		r.With(auth.RequireAdminMiddleware()).Put("/{id}", h.handleUpdate)
+		r.With(auth.RequireAdminMiddleware()).Delete("/{id}", h.handleDelete)
+
+		// allow authenticated users to toggle favorite for a property
+		if h.favSvc != nil {
+			// toggle favorite for current user: POST /{id}/favorites
+			r.Post("/{id}/favorites", h.handleToggleFavorite)
+		}
+
+		// images upload/update endpoints (admin-protected). Attach only if image service present.
+		if h.imgSvc != nil {
+			r.With(auth.RequireAdminMiddleware()).Post("/{id}/images", h.handleCreateImages)
+			r.With(auth.RequireAdminMiddleware()).Put("/{id}/images", h.handleUpdateImages)
 		}
 	})
 }
@@ -86,7 +92,7 @@ func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next
 // @Accept json
 // @Produce json
 // @Param id path int true "Property ID"
-// @Success 201 {object} map[string]interface{}
+// @Success 201 {object} FavoriteDTODoc
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
@@ -119,19 +125,6 @@ func (h *PropertyHandler) handleToggleFavorite(w http.ResponseWriter, r *http.Re
 	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
-// @Summary Toggle favorite for property
-// @Description Toggle favorite for the authenticated user and given property ID. Returns 201 with created favorite or 204 when removed.
-// @Tags properties
-// @Accept json
-// @Produce json
-// @Param id path int true "Property ID"
-// @Success 201 {object} map[string]interface{}
-// @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /properties/{id}/favorites [post]
-
 // @Security BearerAuth
 // @Summary Create property
 // @Description Create a new property
@@ -159,6 +152,7 @@ func (h *PropertyHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusCreated, p)
 }
 
+// @Security BearerAuth
 // @Summary Get property
 // @Description Get property by ID
 // @Tags properties
@@ -185,6 +179,7 @@ func (h *PropertyHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusOK, p)
 }
 
+// @Security BearerAuth
 // @Summary List properties
 // @Description List properties with pagination
 // @Tags properties
@@ -228,7 +223,7 @@ func (h *PropertyHandler) handleList(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param id path int true "Property ID"
-// @Param body body object true "Property"
+// @Param body body UpdatePropertyDoc true "Property"
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
@@ -290,7 +285,7 @@ func (h *PropertyHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 // @Accept multipart/form-data
 // @Produce json
 // @Param id path int true "Property ID"
-// @Param files formData file true "Files"
+// @Param files formData []file true "Files"
 // @Success 201 {array} ImageDTODoc
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
@@ -344,14 +339,8 @@ func (h *PropertyHandler) handleCreateImages(w http.ResponseWriter, r *http.Requ
 	}
 	handlerutils.WriteJSON(w, http.StatusCreated, imgs)
 }
-
-// @Summary Upload images for a property
-// @Description Upload up to 10 image files for the given property. Field name: files (multipart/form-data).
-// @Tags properties
-// @Accept multipart/form-data
-// @Produce json
 // @Param id path int true "Property ID"
-// @Param files formData file true "Files"
+// @Param files formData []file true "Files"
 // @Success 201 {array} ImageDTODoc
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
@@ -421,15 +410,3 @@ func (h *PropertyHandler) handleUpdateImages(w http.ResponseWriter, r *http.Requ
 	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
-// @Summary Replace images for a property
-// @Description Replace existing images for the given property with provided files (up to 10). Field name: files (multipart/form-data).
-// @Tags properties
-// @Accept multipart/form-data
-// @Produce json
-// @Param id path int true "Property ID"
-// @Param files formData file true "Files"
-// @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 415 {object} map[string]string
-// @Router /properties/{id}/images [put]

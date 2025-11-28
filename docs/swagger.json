@@ -8,9 +8,19 @@
     },
     "host": "localhost:8080",
     "basePath": "/",
+    "security": [
+        {
+            "BearerAuth": []
+        }
+    ],
     "paths": {
         "/properties": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "List properties with pagination",
                 "consumes": [
                     "application/json"
@@ -103,6 +113,11 @@
         },
         "/properties/{id}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get property by ID",
                 "consumes": [
                     "application/json"
@@ -181,7 +196,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/propertyhandler.UpdatePropertyDoc"
                         }
                     }
                 ],
@@ -297,8 +312,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/propertyhandler.FavoriteDTODoc"
                         }
                     },
                     "204": {
@@ -361,11 +375,15 @@
                         "required": true
                     },
                     {
-                        "type": "file",
-                        "description": "Files",
                         "name": "files",
                         "in": "formData",
-                        "required": true
+                        "description": "Files",
+                        "required": true,
+                        "type": "array",
+                        "items": {
+                            "type": "file"
+                        },
+                        "collectionFormat": "multi"
                     }
                 ],
                 "responses": {
@@ -427,11 +445,15 @@
                         "required": true
                     },
                     {
-                        "type": "file",
-                        "description": "Files",
                         "name": "files",
                         "in": "formData",
-                        "required": true
+                        "description": "Files",
+                        "required": true,
+                        "type": "array",
+                        "items": {
+                            "type": "file"
+                        },
+                        "collectionFormat": "multi"
                     }
                 ],
                 "responses": {
@@ -464,6 +486,59 @@
                     },
                     "415": {
                         "description": "Unsupported Media Type",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/tokens/refresh": {
+            "post": {
+                "security": [],
+                "description": "Validate and refresh a refresh token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tokens"
+                ],
+                "summary": "Refresh token",
+                "parameters": [
+                    {
+                        "description": "Refresh token",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.RefreshRequestDoc"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -779,6 +854,7 @@
         },
         "/users/login": {
             "post": {
+                "security": [],
                 "description": "Authenticate user and return tokens",
                 "consumes": [
                     "application/json"
@@ -831,6 +907,7 @@
         },
         "/users/register": {
             "post": {
+                "security": [],
                 "description": "Register a new user",
                 "consumes": [
                     "application/json"
@@ -1007,6 +1084,11 @@
         },
         "/users/{id}/favorites": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "List favorites for the specified user. Only the owner may view their favorites.",
                 "consumes": [
                     "application/json"
@@ -1222,6 +1304,20 @@
         }
     },
     "definitions": {
+        "propertyhandler.FavoriteDTODoc": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "property_id": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "propertyhandler.ImageDTODoc": {
             "type": "object",
             "properties": {
@@ -1288,6 +1384,14 @@
                 }
             }
         },
+        "auth.RefreshRequestDoc": {
+            "type": "object",
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
         "propertyhandler.PropertyDTODoc": {
             "type": "object",
             "properties": {
@@ -1335,6 +1439,44 @@
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "propertyhandler.UpdatePropertyDoc": {
+            "type": "object",
+            "properties": {
+                "area": {
+                    "type": "number"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "property_address": {
+                    "type": "string"
+                },
+                "property_description": {
+                    "type": "string"
+                },
+                "property_status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "transaction_type": {
+                    "type": "string"
+                },
+                "type_id": {
+                    "type": "integer"
                 }
             }
         },

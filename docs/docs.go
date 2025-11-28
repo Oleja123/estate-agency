@@ -18,6 +18,11 @@ const docTemplate = `{
     "paths": {
         "/properties": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "List properties with pagination",
                 "consumes": [
                     "application/json"
@@ -110,6 +115,11 @@ const docTemplate = `{
         },
         "/properties/{id}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get property by ID",
                 "consumes": [
                     "application/json"
@@ -188,7 +198,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/propertyhandler.UpdatePropertyDoc"
                         }
                     }
                 ],
@@ -304,8 +314,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/propertyhandler.FavoriteDTODoc"
                         }
                     },
                     "204": {
@@ -368,11 +377,15 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "type": "file",
-                        "description": "Files",
                         "name": "files",
                         "in": "formData",
-                        "required": true
+                        "description": "Files",
+                        "required": true,
+                        "type": "array",
+                        "items": {
+                            "type": "file"
+                        },
+                        "collectionFormat": "multi"
                     }
                 ],
                 "responses": {
@@ -434,11 +447,15 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "type": "file",
-                        "description": "Files",
                         "name": "files",
                         "in": "formData",
-                        "required": true
+                        "description": "Files",
+                        "required": true,
+                        "type": "array",
+                        "items": {
+                            "type": "file"
+                        },
+                        "collectionFormat": "multi"
                     }
                 ],
                 "responses": {
@@ -1014,6 +1031,11 @@ const docTemplate = `{
         },
         "/users/{id}/favorites": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "List favorites for the specified user. Only the owner may view their favorites.",
                 "consumes": [
                     "application/json"
@@ -1229,6 +1251,20 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "propertyhandler.FavoriteDTODoc": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "property_id": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "propertyhandler.ImageDTODoc": {
             "type": "object",
             "properties": {
@@ -1342,6 +1378,44 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "propertyhandler.UpdatePropertyDoc": {
+            "type": "object",
+            "properties": {
+                "area": {
+                    "type": "number"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "property_address": {
+                    "type": "string"
+                },
+                "property_description": {
+                    "type": "string"
+                },
+                "property_status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "transaction_type": {
+                    "type": "string"
+                },
+                "type_id": {
+                    "type": "integer"
                 }
             }
         },

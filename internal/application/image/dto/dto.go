@@ -16,11 +16,11 @@ type CreateImageRequest struct {
 	File       ImageFile `json:"file"`
 }
 
-// ImageDTO is the representation returned to callers for images.
+// ImageDTO represents images grouped by property. It contains the property id
+// and a list of image files for that property.
 type ImageDTO struct {
-	ID         int    `json:"id"`
-	PropertyID int    `json:"property_id"`
-	Filename   string `json:"filename"`
-	Data       []byte `json:"data"`
-	// CreatedAt omitted for simplicity; add time.Time if needed by consumers.
+	PropertyID int         `json:"property_id"`
+	Files      []ImageFile `json:"files"`
 }
+
+// CreatedAt omitted for simplicity; add time.Time if needed by consumers.

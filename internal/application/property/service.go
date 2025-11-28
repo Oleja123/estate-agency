@@ -63,6 +63,7 @@ func (s *service) Create(ctx context.Context, req dto.CreatePropertyRequest) (do
 		Area:                req.Area,
 		PropertyAddress:     strings.TrimSpace(req.PropertyAddress),
 		City:                strings.TrimSpace(req.City),
+		PropertyStatus:      domain.StatusActive,
 		CreatedBy:           req.CreatedBy,
 	}
 

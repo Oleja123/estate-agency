@@ -40,8 +40,33 @@ type ListPropertiesResponseDoc struct {
 }
 
 type ImageDTODoc struct {
-	ID         int    `json:"id"`
+	PropertyID int            `json:"property_id"`
+	Files      []ImageFileDoc `json:"files"`
+}
+
+type ImageFileDoc struct {
+	Filename string `json:"filename"`
+	Data     []byte `json:"data"`
+}
+
+// UpdatePropertyDoc represents the request body for updating a property.
+type UpdatePropertyDoc struct {
+	Title               string  `json:"title"`
+	PropertyDescription string  `json:"property_description"`
+	TypeID              int     `json:"type_id"`
+	TransactionType     string  `json:"transaction_type"`
+	Price               float64 `json:"price"`
+	Area                float64 `json:"area"`
+	PropertyAddress     string  `json:"property_address"`
+	City                string  `json:"city"`
+	Latitude            float64 `json:"latitude"`
+	Longitude           float64 `json:"longitude"`
+	PropertyStatus      string  `json:"property_status"`
+}
+
+// FavoriteDTODoc describes a favorite relation between a user and a property.
+type FavoriteDTODoc struct {
+	UserID     int    `json:"user_id"`
 	PropertyID int    `json:"property_id"`
-	Filename   string `json:"filename"`
-	Data       []byte `json:"data"`
+	CreatedAt  string `json:"created_at"`
 }

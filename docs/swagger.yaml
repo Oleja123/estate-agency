@@ -1,5 +1,14 @@
 basePath: /
 definitions:
+  propertyhandler.FavoriteDTODoc:
+    properties:
+      created_at:
+        type: string
+      property_id:
+        type: integer
+      user_id:
+        type: integer
+    type: object
   propertyhandler.ImageDTODoc:
     properties:
       data:
@@ -75,6 +84,31 @@ definitions:
         type: integer
       updated_at:
         type: string
+    type: object
+  propertyhandler.UpdatePropertyDoc:
+    properties:
+      area:
+        type: number
+      city:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      price:
+        type: number
+      property_address:
+        type: string
+      property_description:
+        type: string
+      property_status:
+        type: string
+      title:
+        type: string
+      transaction_type:
+        type: string
+      type_id:
+        type: integer
     type: object
   propertytypehandler.CreatePropertyTypeDoc:
     properties:
@@ -339,7 +373,7 @@ paths:
         name: body
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/propertyhandler.UpdatePropertyDoc'
       produces:
       - application/json
       responses:
@@ -380,8 +414,7 @@ paths:
         "201":
           description: Created
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/propertyhandler.FavoriteDTODoc'
         "204":
           description: ""
         "400":

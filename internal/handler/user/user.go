@@ -79,6 +79,7 @@ func (h *UserHandler) Register(r chi.Router, prefix string, authMw func(next htt
 // preferred.
 // constructor-only injection enforced; SetFavoriteService removed
 
+// @Security BearerAuth
 // @Summary Get favorites for a user
 // @Description List favorites for the specified user. Only the owner may view their favorites.
 // @Tags users
