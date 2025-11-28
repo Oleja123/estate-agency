@@ -98,8 +98,6 @@ func (m *mockService) ChangePasswordAdmin(ctx context.Context, userID int, newPa
 	m.LastAdminNewPassword = newPassword
 	return nil
 }
-func (m *mockService) DeactivateAccount(ctx context.Context, userID int) error { return nil }
-func (m *mockService) ActivateAccount(ctx context.Context, userID int) error   { return nil }
 func (m *mockService) SetActiveAccount(ctx context.Context, userID int, active bool) error {
 	// kept for interface compatibility; tests should use ToggleActiveAccount
 	return nil

@@ -122,6 +122,15 @@ func (s *service) Create(ctx context.Context, req dto.CreateImageRequest) (domai
 	img := domain.PropertyImage{PropertyID: req.PropertyID, Path: finalPath}
 	id, err := s.repo.Create(ctx, img)
 	if err != nil {
+		var fk dberrors.ErrForeignKeyViolation
+		var di dberrors.ErrInvalidInput
+		if errors.As(err, &fk) {
+			// Likely the property does not exist (foreign key violation) — map to NotFound
+			return domain.PropertyImage{}, apperrors.NewErrNotFound("property", req.PropertyID)
+		}
+		if errors.As(err, &di) {
+			return domain.PropertyImage{}, apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
+		}
 		s.logger.Error("create image: repo create failed", "err", err)
 		return domain.PropertyImage{}, apperrors.NewErrInternal("failed to create image")
 	}
@@ -213,6 +222,17 @@ func (s *service) CreateMany(ctx context.Context, req dto.CreateImagesRequest) (
 
 	ids, err := s.repo.CreateMany(ctx, imgs)
 	if err != nil {
+		var fk dberrors.ErrForeignKeyViolation
+		var di dberrors.ErrInvalidInput
+		if errors.As(err, &fk) {
+			// map foreign key violation to NotFound for the property
+			_ = s.store.DeletePropertyDir(req.PropertyID)
+			return nil, apperrors.NewErrNotFound("property", req.PropertyID)
+		}
+		if errors.As(err, &di) {
+			_ = s.store.DeletePropertyDir(req.PropertyID)
+			return nil, apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
+		}
 		s.logger.Error("create many images: repo failed", "err", err)
 		// attempt to cleanup final dir to avoid orphan files
 		if remErr := s.store.DeletePropertyDir(req.PropertyID); remErr != nil {

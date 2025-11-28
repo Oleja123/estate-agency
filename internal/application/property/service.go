@@ -173,6 +173,14 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 	}
 
 	if err := s.repo.Update(ctx, p); err != nil {
+		var ae dberrors.ErrAlreadyExists
+		var di dberrors.ErrInvalidInput
+		if errors.As(err, &ae) {
+			return apperrors.NewErrAlreadyExists("property", ae.Field, ae.Value)
+		}
+		if errors.As(err, &di) {
+			return apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
+		}
 		s.logger.Error("update property: repo update failed", "err", err)
 		return apperrors.NewErrInternal("failed to update property")
 	}

@@ -31,9 +31,7 @@ type Service interface {
 	// The handler should call this to keep fetch/update logic inside the application layer.
 	ToggleActiveAccount(ctx context.Context, userID int) error
 
-	// Deprecated wrappers (kept for compatibility) - they delegate to SetActiveAccount.
-	ActivateAccount(ctx context.Context, userID int) error
-	DeactivateAccount(ctx context.Context, userID int) error
+	// Note: ActivateAccount/DeactivateAccount wrappers removed — use SetActiveAccount or ToggleActiveAccount.
 
 	ListUsers(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error)
 	DeleteUser(ctx context.Context, userID int) (int, error)

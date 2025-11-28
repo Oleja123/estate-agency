@@ -796,9 +796,6 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
-                    },
-                    {
-                        "BearerAuth": []
                     }
                 ],
                 "description": "List users with pagination and optional filters",

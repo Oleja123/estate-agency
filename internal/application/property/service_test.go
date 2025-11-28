@@ -255,3 +255,38 @@ func TestUpdateProperty_PartialPriceArea(t *testing.T) {
 	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Price: optional.OptionalFloat64{Defined: true, Valid: true, Value: &price}, Area: optional.OptionalFloat64{Defined: true, Valid: true, Value: &area}})
 	require.NoError(t, err)
 }
+
+func TestCreateProperty_AlreadyExists(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockRepo{}
+	repo.CreateFn = func(ctx context.Context, p domain.Property) (int, error) {
+		return 0, dberrors.NewErrAlreadyExists("property", "title", p.Title)
+	}
+	typeRepo := &mockTypeRepo{}
+	typeRepo.GetByIDFn = func(ctx context.Context, id int) (ptypedomain.PropertyType, error) {
+		return ptypedomain.PropertyType{Id: id, Name: "apartment"}, nil
+	}
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
+	_, err := svc.Create(ctx, 1, dto.CreatePropertyRequest{Title: "x", TypeID: 1})
+	require.Error(t, err)
+	var ae apperrors.ErrAlreadyExists
+	assert.True(t, errors.As(err, &ae))
+}
+
+func TestUpdateProperty_AlreadyExists(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockRepo{}
+	repo.GetByIDFn = func(ctx context.Context, id int) (domain.Property, error) {
+		return domain.Property{ID: id, Title: "old"}, nil
+	}
+	repo.UpdateFn = func(ctx context.Context, p domain.Property) error {
+		return dberrors.NewErrAlreadyExists("property", "title", p.Title)
+	}
+	typeRepo := &mockTypeRepo{}
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
+	title := "x"
+	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Title: optional.OptionalString{Defined: true, Valid: true, Value: &title}})
+	require.Error(t, err)
+	var ae apperrors.ErrAlreadyExists
+	assert.True(t, errors.As(err, &ae))
+}

@@ -372,7 +372,7 @@ func TestUserService_DeactivateAccount_NotFound(t *testing.T) {
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
 
-	err := svc.DeactivateAccount(ctx, 99)
+	err := svc.SetActiveAccount(ctx, 99, false)
 	require.Error(t, err)
 	_, ok := err.(apperrors.ErrNotFound)
 	assert.True(t, ok)
@@ -559,8 +559,48 @@ func TestUserService_DeactivateAccount_Success(t *testing.T) {
 	}
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
-	err := svc.DeactivateAccount(ctx, 5)
+	err := svc.SetActiveAccount(ctx, 5, false)
 	require.NoError(t, err)
+}
+
+func TestUserService_ChangePasswordAdmin_RepoAlreadyExists(t *testing.T) {
+	ctx := context.Background()
+	logger := makeLogger()
+
+	repo := &mockRepo{
+		GetByIDFunc: func(ctx context.Context, id int) (domain.User, error) {
+			return domain.User{Id: id}, nil
+		},
+		UpdateFunc: func(ctx context.Context, u domain.User) error {
+			return basedberrors.NewErrAlreadyExists("user", "email", "dup@e.com")
+		},
+	}
+
+	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
+	err := svc.ChangePasswordAdmin(ctx, 1, "newpass")
+	require.Error(t, err)
+	_, ok := err.(apperrors.ErrAlreadyExists)
+	assert.True(t, ok)
+}
+
+func TestUserService_SetUserRole_RepoAlreadyExists(t *testing.T) {
+	ctx := context.Background()
+	logger := makeLogger()
+
+	repo := &mockRepo{
+		GetByIDFunc: func(ctx context.Context, id int) (domain.User, error) {
+			return domain.User{Id: id, UserRole: domain.RoleClient}, nil
+		},
+		UpdateFunc: func(ctx context.Context, u domain.User) error {
+			return basedberrors.NewErrAlreadyExists("user", "email", "dup@e.com")
+		},
+	}
+
+	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
+	err := svc.SetUserRole(ctx, 1, "admin")
+	require.Error(t, err)
+	_, ok := err.(apperrors.ErrAlreadyExists)
+	assert.True(t, ok)
 }
 
 func TestUserService_GetUserByID_Success(t *testing.T) {

@@ -294,6 +294,14 @@ func (s *service) ChangePasswordAdmin(ctx context.Context, userID int, newPasswo
 	}
 	u.PasswordHash = hash
 	if err := s.repo.Update(ctx, u); err != nil {
+		var ae dberrors.ErrAlreadyExists
+		var di dberrors.ErrInvalidInput
+		if errors.As(err, &ae) {
+			return apperrors.NewErrAlreadyExists("user", ae.Field, ae.Value)
+		}
+		if errors.As(err, &di) {
+			return apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
+		}
 		s.logger.Error("change password admin: failed to update user", "user_id", u.Id, "err", err)
 		return apperrors.NewErrInternal("failed to update user")
 	}
@@ -322,6 +330,14 @@ func (s *service) SetUserRole(ctx context.Context, userID int, role string) erro
 	}
 	u.UserRole = r
 	if err := s.repo.Update(ctx, u); err != nil {
+		var ae dberrors.ErrAlreadyExists
+		var di dberrors.ErrInvalidInput
+		if errors.As(err, &ae) {
+			return apperrors.NewErrAlreadyExists("user", ae.Field, ae.Value)
+		}
+		if errors.As(err, &di) {
+			return apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
+		}
 		s.logger.Error("set user role: failed to update user", "user_id", u.Id, "err", err)
 		return apperrors.NewErrInternal("failed to set user role")
 	}
@@ -329,14 +345,7 @@ func (s *service) SetUserRole(ctx context.Context, userID int, role string) erro
 	return nil
 }
 
-func (s *service) DeactivateAccount(ctx context.Context, userID int) error {
-	return s.SetActiveAccount(ctx, userID, false)
-}
-
-// ActivateAccount sets IsActive=true for the specified user.
-func (s *service) ActivateAccount(ctx context.Context, userID int) error {
-	return s.SetActiveAccount(ctx, userID, true)
-}
+// Deprecated wrapper removed: use SetActiveAccount or ToggleActiveAccount instead.
 
 // SetActiveAccount sets the user's IsActive flag to the given value and
 // persists the change. Centralized implementation for activation/deactivation.
@@ -353,6 +362,14 @@ func (s *service) SetActiveAccount(ctx context.Context, userID int, active bool)
 	u.IsActive = active
 	err = s.repo.Update(ctx, u)
 	if err != nil {
+		var ae dberrors.ErrAlreadyExists
+		var di dberrors.ErrInvalidInput
+		if errors.As(err, &ae) {
+			return apperrors.NewErrAlreadyExists("user", ae.Field, ae.Value)
+		}
+		if errors.As(err, &di) {
+			return apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
+		}
 		s.logger.Error("set active: failed to update user", "user_id", userID, "err", err)
 		return apperrors.NewErrInternal("failed to update user")
 	}
@@ -379,6 +396,14 @@ func (s *service) ToggleActiveAccount(ctx context.Context, userID int) error {
 
 	u.IsActive = !u.IsActive
 	if err := s.repo.Update(ctx, u); err != nil {
+		var ae dberrors.ErrAlreadyExists
+		var di dberrors.ErrInvalidInput
+		if errors.As(err, &ae) {
+			return apperrors.NewErrAlreadyExists("user", ae.Field, ae.Value)
+		}
+		if errors.As(err, &di) {
+			return apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
+		}
 		s.logger.Error("toggle active: failed to update user", "user_id", userID, "err", err)
 		return apperrors.NewErrInternal("failed to update user")
 	}

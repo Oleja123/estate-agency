@@ -466,6 +466,804 @@ paths:
         name: id
         required: true
         type: integer
+      - name: files
+        in: formData
+        description: Files
+        required: true
+        type: array
+        items:
+          type: file
+        collectionFormat: multi
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            items:
+              $ref: '#/definitions/propertyhandler.ImageDTODoc'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "415":
+          description: Unsupported Media Type
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload images for a property
+      tags:
+      - properties
+    put:
+      consumes:
+      - multipart/form-data
+      description: 'Replace existing images for the given property with provided files
+        (up to 10). Field name: files (multipart/form-data).'
+      parameters:
+      - description: Property ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - name: files
+        in: formData
+        description: Files
+        required: true
+        type: array
+        items:
+          type: file
+        collectionFormat: multi
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: ""
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "415":
+          description: Unsupported Media Type
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Replace images for a property
+      tags:
+      - properties
+  /property_types:
+    get:
+      description: List property types with pagination
+      parameters:
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/propertytypehandler.ListPropertyTypesResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List property types
+      tags:
+      - property_types
+    post:
+      consumes:
+      - application/json
+      description: Create a new property type
+      parameters:
+      - description: Property type body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/propertytypehandler.CreatePropertyTypeDoc'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/propertytypehandler.PropertyTypeDTODoc'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create property type
+      tags:
+      - property_types
+  /property_types/{id}:
+    delete:
+      description: Delete property type by ID
+      parameters:
+      - description: Property Type ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete property type
+      tags:
+      - property_types
+    get:
+      description: Get property type by ID
+      parameters:
+      - description: Property Type ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/propertytypehandler.PropertyTypeDTODoc'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get property type
+      tags:
+      - property_types
+    put:
+      consumes:
+      - application/json
+      description: Update property type by ID
+      parameters:
+      - description: Property Type ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Property type body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/propertytypehandler.UpdatePropertyTypeDoc'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: ""
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update property type
+      tags:
+      - property_types
+  /users:
+    get:
+      description: List users with pagination and optional filters
+      parameters:
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by exact email
+        in: query
+        name: email
+        type: string
+      - description: Filter by role (admin/user)
+        in: query
+        name: role
+        type: string
+      - description: Search in name and email
+        in: query
+        name: search
+        type: string
+      - description: Filter by active state (true/false)
+        in: query
+        name: is_active
+        type: boolean
+      - description: Comma-separated list of user IDs to include
+        in: query
+        name: ids
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/userhandler.ListUsersResponseDoc'
+      security:
+      - BearerAuth: []
+      summary: List users
+      tags:
+      - users
+  /users/{id}:
+    delete:
+      description: Delete user by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete user
+      tags:
+      - users
+    get:
+      description: Get user by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/userhandler.PublicUserDoc'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user
+      tags:
+      - users
+  /users/{id}/active:
+    post:
+      description: Toggle user's active state (owner or admin)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: ""
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Toggle active state
+      tags:
+      - users
+  /users/{id}/favorites:
+    get:
+      consumes:
+      - application/json
+      description: List favorites for the specified user. Only the owner may view
+        their favorites.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get favorites for a user
+      tags:
+      - users
+  /users/{id}/password:
+    post:
+      consumes:
+      - application/json
+      description: Change password for a user (owner or admin)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Password request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/userhandler.ChangePasswordRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: ""
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Change user password
+      tags:
+      - users
+  /users/{id}/profile:
+    put:
+      consumes:
+      - application/json
+      description: Update profile for a user (owner or admin)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Profile
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/userhandler.UpdateProfileRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: ""
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update user profile
+      tags:
+      - users
+  /users/{id}/role:
+    post:
+      consumes:
+      - application/json
+      description: Change role for a user (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Role body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/userhandler.RoleRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: ""
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Change user role
+      tags:
+      - users
+  /users/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return tokens
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/userhandler.LoginRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/userhandler.LoginResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Login
+      tags:
+      - users
+  /users/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user
+      parameters:
+      - description: Register
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/userhandler.RegisterRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/userhandler.PublicUserDoc'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Register user
+      tags:
+      - users
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
+host: localhost:8080
+info:
+  contact: {}
+  description: 'Enter the token as: "Bearer <token>" (include the word Bearer and
+    a space)'
+  title: Estate Agency API
+  version: 0.0.0
+paths:
+  /properties:
+    get:
+      consumes:
+      - application/json
+      description: List properties with pagination
+      parameters:
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/propertyhandler.ListPropertiesResponseDoc'
+      summary: List properties
+      tags:
+      - properties
+    post:
+      consumes:
+      - application/json
+      description: Create a new property
+      parameters:
+      - description: Property
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/propertyhandler.PropertyCreateDoc'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/propertyhandler.PropertyDTODoc'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create property
+      tags:
+      - properties
+  /properties/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete property by ID
+      parameters:
+      - description: Property ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete property
+      tags:
+      - properties
+    get:
+      consumes:
+      - application/json
+      description: Get property by ID
+      parameters:
+      - description: Property ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/propertyhandler.PropertyDTODoc'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get property
+      tags:
+      - properties
+    put:
+      consumes:
+      - application/json
+      description: Update an existing property
+      parameters:
+      - description: Property ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Property
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/propertyhandler.UpdatePropertyDoc'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: ""
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update property
+      tags:
+      - properties
+  /properties/{id}/favorites:
+    post:
+      consumes:
+      - application/json
+      description: Toggle favorite for the authenticated user and given property ID.
+        Returns 201 with created favorite or 204 when removed.
+      parameters:
+      - description: Property ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/propertyhandler.FavoriteDTODoc'
+        "204":
+          description: ""
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Toggle favorite for property
+      tags:
+      - properties
+  /properties/{id}/images:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 'Upload up to 10 image files for the given property. Field name:
+        files (multipart/form-data).'
+      parameters:
+      - description: Property ID
+        in: path
+        name: id
+        required: true
+        type: integer
       - description: Files
         in: formData
         name: files
@@ -732,9 +1530,8 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/userhandler.ListUsersResponseDoc'
-      security:
-      - BearerAuth: []
-      - BearerAuth: []
+        security:
+        - BearerAuth: []
       summary: List users
       tags:
       - users

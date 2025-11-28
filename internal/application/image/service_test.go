@@ -139,3 +139,35 @@ func TestDelete_NotFound(t *testing.T) {
 	var nf apperrors.ErrNotFound
 	assert.True(t, errors.As(err, &nf))
 }
+
+func TestCreate_PropertyNotFound(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockRepo{}
+	repo.ListFn = func(ctx context.Context, propertyID int) ([]domain.PropertyImage, error) { return nil, nil }
+	repo.DeleteManyFn = func(ctx context.Context, propertyID int) ([]int, error) { return nil, nil }
+	repo.CreateFn = func(ctx context.Context, img domain.PropertyImage) (int, error) {
+		return 0, dberrors.NewErrForeignKeyViolation("property", "fk_property", "property_id")
+	}
+	svc := New(repo, logger(), t.TempDir())
+	jpeg := []byte{0xFF, 0xD8, 0xFF}
+	_, err := svc.Create(ctx, dto.CreateImageRequest{PropertyID: 123, File: dto.ImageFile{Filename: "x.jpg", Data: jpeg}})
+	require.Error(t, err)
+	var nf apperrors.ErrNotFound
+	assert.True(t, errors.As(err, &nf))
+}
+
+func TestCreateMany_PropertyNotFound(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockRepo{}
+	repo.ListFn = func(ctx context.Context, propertyID int) ([]domain.PropertyImage, error) { return nil, nil }
+	repo.DeleteManyFn = func(ctx context.Context, propertyID int) ([]int, error) { return nil, nil }
+	repo.CreateManyFn = func(ctx context.Context, imgs []domain.PropertyImage) ([]int, error) {
+		return nil, dberrors.NewErrForeignKeyViolation("property", "fk_property", "property_id")
+	}
+	svc := New(repo, logger(), t.TempDir())
+	jpeg := []byte{0xFF, 0xD8, 0xFF}
+	_, err := svc.CreateMany(ctx, dto.CreateImagesRequest{PropertyID: 123, Files: []dto.ImageFile{{Filename: "a.jpg", Data: jpeg}}})
+	require.Error(t, err)
+	var nf apperrors.ErrNotFound
+	assert.True(t, errors.As(err, &nf))
+}
