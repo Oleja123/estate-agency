@@ -1453,27 +1453,35 @@ const docTemplate = `{
             "properties": {
                 "area": {
                     "type": "number"
+                ,"x-nullable": true
                 },
                 "city": {
                     "type": "string"
+                ,"x-nullable": true
                 },
                 "latitude": {
                     "type": "number"
+                ,"x-nullable": true
                 },
                 "longitude": {
                     "type": "number"
+                ,"x-nullable": true
                 },
                 "price": {
                     "type": "number"
+                ,"x-nullable": true
                 },
                 "property_address": {
                     "type": "string"
+                ,"x-nullable": true
                 },
                 "property_description": {
                     "type": "string"
+                ,"x-nullable": true
                 },
                 "property_status": {
                     "type": "string"
+                ,"x-nullable": true
                 },
                 "title": {
                     "type": "string"
@@ -1524,6 +1532,7 @@ const docTemplate = `{
             "properties": {
                 "name": {
                     "type": "string"
+                ,"x-nullable": true
                 }
             }
         },
@@ -1638,23 +1647,27 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "first_name": {
-                    "description": "Optional fields: any of these may be omitted in the request. Using\npointer-to-string with ` + "`" + `omitempty` + "`" + ` models optional semantics for the\nswagger generator.",
-                    "type": "string"
+                    "description": "Optional fields: any of these may be omitted in the request. Using\npointer-to-string with 'omitempty' models optional semantics for the\nswagger generator.",
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "last_name": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "phone_number": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "role": {
                     "type": "string"
                 }
             }
-        }
+        },
     },
     "securityDefinitions": {
         "BearerAuth": {
