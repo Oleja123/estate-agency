@@ -155,7 +155,8 @@ func TestUpdateProperty_Success(t *testing.T) {
 	repo.UpdateFn = func(ctx context.Context, p domain.Property) error { return nil }
 	typeRepo := &mockTypeRepo{}
 	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
-	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Title: "new"})
+	title := "new"
+	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Title: &title})
 	require.NoError(t, err)
 }
 
@@ -213,7 +214,8 @@ func TestUpdateProperty_TypeNotFound(t *testing.T) {
 	}
 
 	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
-	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, TypeID: 99})
+	tid := 99
+	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, TypeID: &tid})
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
 	assert.True(t, errors.As(err, &nf))

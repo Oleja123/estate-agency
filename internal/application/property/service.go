@@ -120,28 +120,44 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 		return apperrors.NewErrInternal("failed to fetch property")
 	}
 
-	// if type changed (non-zero), validate existence
-	if req.TypeID != 0 && req.TypeID != p.TypeID {
-		if _, err := s.typeRepo.GetByID(ctx, req.TypeID); err != nil {
+	// if type changed (non-nil and non-zero), validate existence
+	if req.TypeID != nil && *req.TypeID != 0 && *req.TypeID != p.TypeID {
+		if _, err := s.typeRepo.GetByID(ctx, *req.TypeID); err != nil {
 			var nf dberrors.ErrNotFound
 			if errors.As(err, &nf) {
-				return apperrors.NewErrNotFound("property_type", req.TypeID)
+				return apperrors.NewErrNotFound("property_type", *req.TypeID)
 			}
 			s.logger.Error("update property: type repo error", "err", err)
 			return apperrors.NewErrInternal("failed to validate property type")
 		}
-		p.TypeID = req.TypeID
+		p.TypeID = *req.TypeID
 	}
 
-	// apply updates
-	p.Title = strings.TrimSpace(req.Title)
-	p.PropertyDescription = strings.TrimSpace(req.PropertyDescription)
-	p.TransactionType = domain.TransactionType(req.TransactionType)
-	p.Price = req.Price
-	p.Area = req.Area
-	p.PropertyAddress = strings.TrimSpace(req.PropertyAddress)
-	p.City = strings.TrimSpace(req.City)
-	p.PropertyStatus = domain.PropertyStatus(req.PropertyStatus)
+	// apply updates (only if provided)
+	if req.Title != nil {
+		p.Title = strings.TrimSpace(*req.Title)
+	}
+	if req.PropertyDescription != nil {
+		p.PropertyDescription = strings.TrimSpace(*req.PropertyDescription)
+	}
+	if req.TransactionType != nil {
+		p.TransactionType = domain.TransactionType(*req.TransactionType)
+	}
+	if req.Price != nil {
+		p.Price = *req.Price
+	}
+	if req.Area != nil {
+		p.Area = *req.Area
+	}
+	if req.PropertyAddress != nil {
+		p.PropertyAddress = strings.TrimSpace(*req.PropertyAddress)
+	}
+	if req.City != nil {
+		p.City = strings.TrimSpace(*req.City)
+	}
+	if req.PropertyStatus != nil {
+		p.PropertyStatus = domain.PropertyStatus(*req.PropertyStatus)
+	}
 
 	// geocode updated address if provided
 	if p.PropertyAddress != "" {
