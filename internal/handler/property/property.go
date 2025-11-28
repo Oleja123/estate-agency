@@ -73,6 +73,8 @@ func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next
 
 		// images upload/update endpoints (admin-protected). Attach only if image service present.
 		if h.imgSvc != nil {
+			// allow authenticated users to list images for a property
+			r.Get("/{id}/images", h.handleListImages)
 			r.With(auth.RequireAdminMiddleware()).Post("/{id}/images", h.handleCreateImages)
 			r.With(auth.RequireAdminMiddleware()).Put("/{id}/images", h.handleUpdateImages)
 		}
@@ -339,6 +341,7 @@ func (h *PropertyHandler) handleCreateImages(w http.ResponseWriter, r *http.Requ
 	}
 	handlerutils.WriteJSON(w, http.StatusCreated, imgs)
 }
+
 // @Param id path int true "Property ID"
 // @Param files formData []file true "Files"
 // @Success 201 {array} ImageDTODoc
@@ -410,3 +413,34 @@ func (h *PropertyHandler) handleUpdateImages(w http.ResponseWriter, r *http.Requ
 	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
+// @Security BearerAuth
+// @Summary List images for a property
+// @Description Get list of images for the given property ID. Requires authentication.
+// @Tags properties
+// @Accept json
+// @Produce json
+// @Param id path int true "Property ID"
+// @Success 200 {array} ImageDTODoc
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /properties/{id}/images [get]
+func (h *PropertyHandler) handleListImages(w http.ResponseWriter, r *http.Request) {
+	pidStr := chi.URLParam(r, "id")
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		return
+	}
+	if h.imgSvc == nil {
+		handlerutils.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "images not supported"})
+		return
+	}
+	imgs, err := h.imgSvc.ListByProperty(r.Context(), pid)
+	if err != nil {
+		code, body := handlerutils.MapAppError(err)
+		handlerutils.WriteJSON(w, code, body)
+		return
+	}
+	handlerutils.WriteJSON(w, http.StatusOK, imgs)
+}
