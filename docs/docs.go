@@ -1485,13 +1485,16 @@ const docTemplate = `{
                 ,"x-nullable": true
                 },
                 "title": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "transaction_type": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "type_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "x-nullable": true
                 }
             }
         },
@@ -1666,7 +1669,8 @@ const docTemplate = `{
                     "x-nullable": true
                 },
                 "role": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 }
             }
         },

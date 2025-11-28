@@ -46,10 +46,13 @@ definitions:
         type: string
       title:
         type: string
+        x-nullable: true
       transaction_type:
         type: string
+        x-nullable: true
       type_id:
         type: integer
+        x-nullable: true
     type: object
   propertyhandler.PropertyDTODoc:
     properties:
