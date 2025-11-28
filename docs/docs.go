@@ -1342,10 +1342,8 @@ const docTemplate = `{
                                 "type": "string"
                             },
                             "data": {
-                                "type": "array",
-                                "items": {
-                                    "type": "integer"
-                                }
+                                "type": "string",
+                                "format": "byte"
                             }
                         }
                     }
@@ -1388,13 +1386,16 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "title": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "transaction_type": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "type_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "x-nullable": true
                 }
             }
         },
@@ -1639,7 +1640,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "role": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 }
             }
         },

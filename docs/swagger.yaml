@@ -12,9 +12,8 @@ definitions:
   propertyhandler.ImageDTODoc:
     properties:
       data:
-        items:
-          type: integer
-        type: array
+        type: string
+        format: byte
       filename:
         type: string
       id:
@@ -105,10 +104,13 @@ definitions:
         type: string
       title:
         type: string
+        x-nullable: true
       transaction_type:
         type: string
+        x-nullable: true
       type_id:
         type: integer
+        x-nullable: true
     type: object
   propertytypehandler.CreatePropertyTypeDoc:
     properties:
@@ -221,6 +223,7 @@ definitions:
         type: string
       role:
         type: string
+        x-nullable: true
     type: object
 host: localhost:8080
 info:

@@ -1395,10 +1395,8 @@
                                 "type": "string"
                             },
                             "data": {
-                                "type": "array",
-                                "items": {
-                                    "type": "integer"
-                                }
+                                "type": "string",
+                                "format": "byte"
                             }
                         }
                     }
@@ -1441,13 +1439,16 @@
                     "type": "string"
                 },
                 "title": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "transaction_type": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "type_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "x-nullable": true
                 }
             }
         },
@@ -1725,7 +1726,8 @@
                     "x-nullable": true
                 },
                 "role": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 }
             }
         }
