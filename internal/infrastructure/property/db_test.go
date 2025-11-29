@@ -74,11 +74,11 @@ func createTestUser() int {
 
 	var userID int
 	err := testClient.QueryRow(context.Background(), `
-		INSERT INTO users (email, password_hash, first_name, last_name, phone_number, user_role, is_active)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		ON CONFLICT (email) DO NOTHING
-		RETURNING id
-	`, "test@example.com", "hash", "Test", "User", "+123456789", user.RoleClient, true).Scan(&userID)
+        INSERT INTO users (email, password_hash, first_name, last_name, phone_number, user_role, is_active)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (email) DO NOTHING
+        RETURNING id
+    `, "test@example.com", "hash", "Test", "User", "+123456789", user.RoleClient, true).Scan(&userID)
 
 	if err != nil {
 		// if no rows returned due to conflict, select existing id
@@ -103,9 +103,9 @@ func createDefaultPropertyTypes() {
 	types := []string{"apartment", "house", "commercial", "land"}
 	for _, name := range types {
 		_, err := testClient.Exec(context.Background(), `
-			INSERT INTO property_types (property_name) VALUES ($1)
-			ON CONFLICT (property_name) DO NOTHING
-		`, name)
+            INSERT INTO property_types (property_name) VALUES ($1)
+            ON CONFLICT (property_name) DO NOTHING
+        `, name)
 		if err != nil {
 			panic("Failed to create test property_types: " + err.Error())
 		}

@@ -74,11 +74,11 @@ func createTestUser() int {
 
 	var userID int
 	err := testClient.QueryRow(context.Background(), `
-		INSERT INTO users (email, password_hash, first_name, last_name, phone_number, user_role, is_active)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		ON CONFLICT (email) DO NOTHING
-		RETURNING id
-	`, "test@example.com", "hash", "Test", "User", "+123456789", user.RoleClient, true).Scan(&userID)
+        INSERT INTO users (email, password_hash, first_name, last_name, phone_number, user_role, is_active)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (email) DO NOTHING
+        RETURNING id
+    `, "test@example.com", "hash", "Test", "User", "+123456789", user.RoleClient, true).Scan(&userID)
 
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
@@ -96,10 +96,10 @@ func createTestProperties() []int {
 
 	// ensure default types exist
 	_, _ = testClient.Exec(context.Background(), `
-		INSERT INTO property_types (property_name) VALUES
-		('apartment'), ('house'), ('commercial'), ('land')
-		ON CONFLICT (property_name) DO NOTHING
-	`)
+        INSERT INTO property_types (property_name) VALUES
+        ('apartment'), ('house'), ('commercial'), ('land')
+        ON CONFLICT (property_name) DO NOTHING
+    `)
 
 	properties := []property.Property{
 		{

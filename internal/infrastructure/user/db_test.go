@@ -750,11 +750,12 @@ func TestListUsersTableDriven(t *testing.T) {
 			wantLen: 5,
 		},
 		{
-			name: "zero_limit_returns_empty",
+			name: "zero_limit_returns_all",
 			request: user.ListRequest{
 				Limit: 0,
 			},
-			wantLen: 0,
+			// treat limit==0 as "no limit" (return all matching rows)
+			wantLen: 5,
 		},
 	}
 
