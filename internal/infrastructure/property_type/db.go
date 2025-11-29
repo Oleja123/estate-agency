@@ -281,13 +281,8 @@ func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]
 	return propertyTypes, total, nil
 }
 
-// rowScanner abstracts types that support Scan(...interface{}) error
-type rowScanner interface {
-	Scan(dest ...interface{}) error
-}
-
 // scanPropertyType reads a single property_type row into the domain model
-func (r *Repository) scanPropertyType(sc rowScanner) (propertytype.PropertyType, error) {
+func (r *Repository) scanPropertyType(sc basedb.RowScanner) (propertytype.PropertyType, error) {
 	var pt propertytype.PropertyType
 	if err := sc.Scan(&pt.Id, &pt.Name, &pt.CreatedAt); err != nil {
 		return propertytype.PropertyType{}, err

@@ -280,9 +280,15 @@ func TestFavoriteList(t *testing.T) {
 			require.NoError(t, truncateTables())
 			setupTestData()
 
-			result, err := testRepo.List(testCtx, tt.request)
+			result, total, err := testRepo.List(testCtx, tt.request)
 			require.NoError(t, err)
 			require.Len(t, result, tt.wantLen)
+			// Total must reflect overall matching rows regardless of limit/offset
+			if tt.request.Limit > 0 && tt.wantLen < total {
+				assert.GreaterOrEqual(t, total, tt.wantLen)
+			} else {
+				assert.Equal(t, tt.wantLen, total)
+			}
 
 			if tt.validate != nil {
 				tt.validate(t, result)
@@ -329,12 +335,13 @@ func TestGetByUser(t *testing.T) {
 		}
 
 		// Используем List вместо GetByUser
-		result, err := testRepo.List(testCtx, favorite.ListRequest{
+		result, total, err := testRepo.List(testCtx, favorite.ListRequest{
 			Filter: favorite.Filter{UserID: testUserID},
 			Limit:  100,
 		})
 		require.NoError(t, err)
 		require.Len(t, result, 2)
+		assert.Equal(t, 2, total)
 
 		for _, fav := range result {
 			assert.Equal(t, testUserID, fav.UserID)
@@ -354,12 +361,13 @@ func TestGetByProperty(t *testing.T) {
 		err := testRepo.Create(testCtx, fav)
 		require.NoError(t, err)
 
-		result, err := testRepo.List(testCtx, favorite.ListRequest{
+		result, total, err := testRepo.List(testCtx, favorite.ListRequest{
 			Filter: favorite.Filter{PropertyID: testPropertyIDs[0]},
 			Limit:  100,
 		})
 		require.NoError(t, err)
 		require.Len(t, result, 1)
 		assert.Equal(t, testPropertyIDs[0], result[0].PropertyID)
+		assert.Equal(t, 1, total)
 	})
 }

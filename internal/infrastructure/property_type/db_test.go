@@ -217,9 +217,14 @@ func TestPropertyTypeList(t *testing.T) {
 			require.NoError(t, truncateTables())
 			setupTestData()
 
-			result, _, err := testRepo.List(testCtx, tt.request)
+			result, total, err := testRepo.List(testCtx, tt.request)
 			require.NoError(t, err)
 			require.Len(t, result, tt.wantLen)
+			if tt.request.Limit > 0 && tt.wantLen < total {
+				assert.GreaterOrEqual(t, total, tt.wantLen)
+			} else {
+				assert.Equal(t, tt.wantLen, total)
+			}
 
 			if tt.validate != nil {
 				tt.validate(t, result)

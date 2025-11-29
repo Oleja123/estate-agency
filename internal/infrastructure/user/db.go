@@ -317,13 +317,8 @@ func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter user.Filt
 	return query
 }
 
-// rowScanner abstracts types that support Scan(...interface{}) error
-type rowScanner interface {
-	Scan(dest ...interface{}) error
-}
-
 // scanUser populates a user.User from a row scanner (either QueryRow result or rows iterator).
-func (r *Repository) scanUser(sc rowScanner) (user.User, error) {
+func (r *Repository) scanUser(sc basedb.RowScanner) (user.User, error) {
 	var u user.User
 	var phone sqlpkg.NullString
 	if err := sc.Scan(

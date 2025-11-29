@@ -150,7 +150,7 @@ func (r *Repository) Delete(ctx context.Context, userID, propertyID int) (int, e
 	return propertyID, nil
 }
 
-func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favorite.Favorite, error) {
+func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favorite.Favorite, int, error) {
 	const op = "favoritedb.Repository.List"
 
 	var favorites []favorite.Favorite
@@ -161,6 +161,19 @@ func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favo
 
 	query = r.applyFilters(query, req.Filter)
 
+	// build total count query with same filters
+	countQ := r.sq.Select("COUNT(1)").From("favorites")
+	countQ = r.applyFilters(countQ, req.Filter)
+	countSQL, countArgs, err := countQ.ToSql()
+	if err != nil {
+		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("build count query: %s", err))
+	}
+
+	var total int
+	if err := r.Client.QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
+		return nil, 0, r.HandleError(op, err)
+	}
+
 	sql, args, err := query.
 		OrderBy("created_at DESC").
 		Limit(uint64(req.Limit)).
@@ -168,7 +181,7 @@ func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favo
 		ToSql()
 
 	if err != nil {
-		return nil, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
+		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
 	}
 
 	r.Logger.DebugContext(ctx, "listing favorites",
@@ -180,25 +193,20 @@ func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favo
 
 	rows, err := r.Client.Query(ctx, sql, args...)
 	if err != nil {
-		return nil, r.HandleError(op, err)
+		return nil, 0, r.HandleError(op, err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var fav favorite.Favorite
-		err := rows.Scan(
-			&fav.UserID,
-			&fav.PropertyID,
-			&fav.CreatedAt,
-		)
+		fav, err := r.scanFavorite(rows)
 		if err != nil {
-			return nil, fmt.Errorf("row scan error: %w", err)
+			return nil, 0, fmt.Errorf("row scan error: %w", err)
 		}
 		favorites = append(favorites, fav)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration error: %w", err)
+		return nil, 0, fmt.Errorf("rows iteration error: %w", err)
 	}
 
 	r.Logger.DebugContext(ctx, "favorites list retrieved",
@@ -206,7 +214,7 @@ func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favo
 		"favorites_count", len(favorites),
 	)
 
-	return favorites, nil
+	return favorites, total, nil
 }
 
 func (r *Repository) Exists(ctx context.Context, userID, propertyID int) (bool, error) {
@@ -253,4 +261,13 @@ func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter favorite.
 	}
 
 	return query
+}
+
+// scanFavorite reads a single favorites row into the domain model
+func (r *Repository) scanFavorite(sc basedb.RowScanner) (favorite.Favorite, error) {
+	var fav favorite.Favorite
+	if err := sc.Scan(&fav.UserID, &fav.PropertyID, &fav.CreatedAt); err != nil {
+		return favorite.Favorite{}, err
+	}
+	return fav, nil
 }

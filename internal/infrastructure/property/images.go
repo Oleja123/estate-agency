@@ -231,7 +231,7 @@ func (r *ImageRepository) DeleteMany(ctx context.Context, propertyID int) ([]int
 }
 
 // scanImage reads a single property_images row into the domain model
-func (r *ImageRepository) scanImage(sc rowScanner) (image.PropertyImage, error) {
+func (r *ImageRepository) scanImage(sc basedb.RowScanner) (image.PropertyImage, error) {
 	var img image.PropertyImage
 	if err := sc.Scan(&img.ID, &img.PropertyID, &img.Path, &img.CreatedAt); err != nil {
 		return image.PropertyImage{}, err

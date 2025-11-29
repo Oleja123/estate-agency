@@ -101,7 +101,7 @@ func (s *service) Delete(ctx context.Context, key dto.CreateFavoriteRequest) (in
 
 func (s *service) List(ctx context.Context, req dto.ListFavoritesRequest) (dto.ListFavoritesResponse, error) {
 	dr := domain.ListRequest{Filter: req.Filter, Limit: req.Limit, Offset: req.Offset}
-	list, err := s.repo.List(ctx, dr)
+	list, total, err := s.repo.List(ctx, dr)
 	if err != nil {
 		var te dberrors.ErrTimeout
 		switch {
@@ -113,7 +113,6 @@ func (s *service) List(ctx context.Context, req dto.ListFavoritesRequest) (dto.L
 			return dto.ListFavoritesResponse{}, apperrors.NewErrInternal("failed to list favorites")
 		}
 	}
-	total := len(list)
 	return dto.ListFavoritesResponse{Favorites: list, Total: total}, nil
 }
 

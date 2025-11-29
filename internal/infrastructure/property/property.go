@@ -271,12 +271,7 @@ func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]prop
 	return properties, total, nil
 }
 
-// rowScanner abstracts Scan interface for both *pgx.Row and *pgx.Rows
-type rowScanner interface {
-	Scan(dest ...interface{}) error
-}
-
-func (r *Repository) scanProperty(sc rowScanner) (property.Property, error) {
+func (r *Repository) scanProperty(sc basedb.RowScanner) (property.Property, error) {
 	var prop property.Property
 	if err := sc.Scan(
 		&prop.ID, &prop.Title, &prop.PropertyDescription, &prop.TypeID,

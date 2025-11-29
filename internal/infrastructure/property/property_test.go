@@ -420,9 +420,14 @@ func TestPropertyList(t *testing.T) {
 			require.NoError(t, truncateTables())
 			setupTestData()
 
-			result, _, err := testRepo.List(testCtx, tt.request)
+			result, total, err := testRepo.List(testCtx, tt.request)
 			require.NoError(t, err)
 			require.Len(t, result, tt.wantLen)
+			if tt.request.Limit > 0 && tt.wantLen < total {
+				assert.GreaterOrEqual(t, total, tt.wantLen)
+			} else {
+				assert.Equal(t, tt.wantLen, total)
+			}
 
 			if tt.validate != nil {
 				tt.validate(t, result)
@@ -483,10 +488,11 @@ func TestPropertyListWithDistanceFilter(t *testing.T) {
 			Limit: 10,
 		}
 
-		result, _, err := testRepo.List(testCtx, request)
+		result, total, err := testRepo.List(testCtx, request)
 		require.NoError(t, err)
 
 		require.Len(t, result, 1)
+		assert.Equal(t, 1, total)
 		assert.Equal(t, "Close property", result[0].Title)
 	})
 }

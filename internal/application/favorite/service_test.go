@@ -20,7 +20,7 @@ type mockRepo struct {
 	CreateFn               func(ctx context.Context, fav domain.Favorite) error
 	GetByUserAndPropertyFn func(ctx context.Context, userID, propertyID int) (domain.Favorite, error)
 	DeleteFn               func(ctx context.Context, userID, propertyID int) (int, error)
-	ListFn                 func(ctx context.Context, req domain.ListRequest) ([]domain.Favorite, error)
+	ListFn                 func(ctx context.Context, req domain.ListRequest) ([]domain.Favorite, int, error)
 	ExistsFn               func(ctx context.Context, userID, propertyID int) (bool, error)
 }
 
@@ -42,9 +42,9 @@ func (m *mockRepo) Delete(ctx context.Context, userID, propertyID int) (int, err
 	}
 	return m.DeleteFn(ctx, userID, propertyID)
 }
-func (m *mockRepo) List(ctx context.Context, req domain.ListRequest) ([]domain.Favorite, error) {
+func (m *mockRepo) List(ctx context.Context, req domain.ListRequest) ([]domain.Favorite, int, error) {
 	if m.ListFn == nil {
-		return nil, nil
+		return nil, 0, nil
 	}
 	return m.ListFn(ctx, req)
 }
@@ -111,8 +111,8 @@ func TestDelete_NotFound(t *testing.T) {
 func TestList_Success(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
-	repo.ListFn = func(ctx context.Context, req domain.ListRequest) ([]domain.Favorite, error) {
-		return []domain.Favorite{{UserID: 1, PropertyID: 2}, {UserID: 2, PropertyID: 3}}, nil
+	repo.ListFn = func(ctx context.Context, req domain.ListRequest) ([]domain.Favorite, int, error) {
+		return []domain.Favorite{{UserID: 1, PropertyID: 2}, {UserID: 2, PropertyID: 3}}, 2, nil
 	}
 	svc := New(repo, logger())
 	res, err := svc.List(ctx, dto.ListFavoritesRequest{Limit: 10, Offset: 0})

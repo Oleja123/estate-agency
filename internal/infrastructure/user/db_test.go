@@ -763,10 +763,15 @@ func TestListUsersTableDriven(t *testing.T) {
 			require.NoError(t, truncateTables())
 			setupTestUsers()
 
-			users, _, err := testRepo.List(testCtx, tt.request)
+			users, total, err := testRepo.List(testCtx, tt.request)
 
 			require.NoError(t, err)
 			require.Len(t, users, tt.wantLen)
+			if tt.request.Limit > 0 && tt.wantLen < total {
+				assert.GreaterOrEqual(t, total, tt.wantLen)
+			} else {
+				assert.Equal(t, tt.wantLen, total)
+			}
 
 			if tt.validate != nil {
 				tt.validate(t, users)
@@ -815,11 +820,12 @@ func TestListUsersEmptyDatabase(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			require.NoError(t, truncateTables())
 
-			users, _, err := testRepo.List(testCtx, tt.request)
+			users, total, err := testRepo.List(testCtx, tt.request)
 
 			require.NoError(t, err)
 			require.Empty(t, users)
 			require.Len(t, users, tt.wantLen)
+			assert.Equal(t, tt.wantLen, total)
 		})
 	}
 }
