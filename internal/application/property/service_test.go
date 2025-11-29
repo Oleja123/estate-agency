@@ -46,7 +46,7 @@ type mockRepo struct {
 	GetByIDFn func(ctx context.Context, id int) (domain.Property, error)
 	UpdateFn  func(ctx context.Context, p domain.Property) error
 	DeleteFn  func(ctx context.Context, id int) (int, error)
-	ListFn    func(ctx context.Context, req domain.ListRequest) ([]domain.Property, error)
+	ListFn    func(ctx context.Context, req domain.ListRequest) ([]domain.Property, int, error)
 }
 
 type mockTypeRepo struct {
@@ -108,7 +108,7 @@ func (m *mockRepo) GetByID(ctx context.Context, id int) (domain.Property, error)
 }
 func (m *mockRepo) Update(ctx context.Context, p domain.Property) error { return m.UpdateFn(ctx, p) }
 func (m *mockRepo) Delete(ctx context.Context, id int) (int, error)     { return m.DeleteFn(ctx, id) }
-func (m *mockRepo) List(ctx context.Context, req domain.ListRequest) ([]domain.Property, error) {
+func (m *mockRepo) List(ctx context.Context, req domain.ListRequest) ([]domain.Property, int, error) {
 	return m.ListFn(ctx, req)
 }
 
@@ -165,8 +165,8 @@ func TestUpdateProperty_Success(t *testing.T) {
 func TestListProperties_Success(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
-	repo.ListFn = func(ctx context.Context, req domain.ListRequest) ([]domain.Property, error) {
-		return []domain.Property{{ID: 1}, {ID: 2}}, nil
+	repo.ListFn = func(ctx context.Context, req domain.ListRequest) ([]domain.Property, int, error) {
+		return []domain.Property{{ID: 1}, {ID: 2}}, 2, nil
 	}
 	typeRepo := &mockTypeRepo{}
 	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})

@@ -420,7 +420,7 @@ func TestPropertyList(t *testing.T) {
 			require.NoError(t, truncateTables())
 			setupTestData()
 
-			result, err := testRepo.List(testCtx, tt.request)
+			result, _, err := testRepo.List(testCtx, tt.request)
 			require.NoError(t, err)
 			require.Len(t, result, tt.wantLen)
 
@@ -483,7 +483,7 @@ func TestPropertyListWithDistanceFilter(t *testing.T) {
 			Limit: 10,
 		}
 
-		result, err := testRepo.List(testCtx, request)
+		result, _, err := testRepo.List(testCtx, request)
 		require.NoError(t, err)
 
 		require.Len(t, result, 1)

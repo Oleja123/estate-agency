@@ -204,7 +204,7 @@ func (r *Repository) Delete(ctx context.Context, id int) (int, error) {
 	return id, nil
 }
 
-func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]property.Property, error) {
+func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]property.Property, int, error) {
 	const op = "propertydb.Repository.List"
 
 	var properties []property.Property
@@ -215,6 +215,19 @@ func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]prop
 
 	query = r.applyFilters(query, req.Filter)
 
+	// build count query with same filters
+	countQ := r.sq.Select("COUNT(1)").From("properties")
+	countQ = r.applyFilters(countQ, req.Filter)
+	countSQL, countArgs, err := countQ.ToSql()
+	if err != nil {
+		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("build count query: %s", err))
+	}
+
+	var total int
+	if err := r.Client.QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
+		return nil, 0, r.HandleError(op, err)
+	}
+
 	sql, args, err := query.
 		OrderBy("created_at DESC").
 		Limit(uint64(req.Limit)).
@@ -222,7 +235,7 @@ func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]prop
 		ToSql()
 
 	if err != nil {
-		return nil, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
+		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
 	}
 
 	r.Logger.DebugContext(ctx, "listing properties",
@@ -234,26 +247,20 @@ func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]prop
 
 	rows, err := r.Client.Query(ctx, sql, args...)
 	if err != nil {
-		return nil, r.HandleError(op, err)
+		return nil, 0, r.HandleError(op, err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var prop property.Property
-		err := rows.Scan(
-			&prop.ID, &prop.Title, &prop.PropertyDescription, &prop.TypeID,
-			&prop.TransactionType, &prop.Price, &prop.Area, &prop.PropertyAddress,
-			&prop.Latitude, &prop.Longitude, &prop.City, &prop.PropertyStatus,
-			&prop.CreatedBy, &prop.CreatedAt, &prop.UpdatedAt,
-		)
+		prop, err := r.scanProperty(rows)
 		if err != nil {
-			return nil, fmt.Errorf("row scan error: %w", err)
+			return nil, 0, fmt.Errorf("row scan error: %w", err)
 		}
 		properties = append(properties, prop)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration error: %w", err)
+		return nil, 0, fmt.Errorf("rows iteration error: %w", err)
 	}
 
 	r.Logger.DebugContext(ctx, "properties list retrieved",
@@ -261,7 +268,25 @@ func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]prop
 		"count", len(properties),
 	)
 
-	return properties, nil
+	return properties, total, nil
+}
+
+// rowScanner abstracts Scan interface for both *pgx.Row and *pgx.Rows
+type rowScanner interface {
+	Scan(dest ...interface{}) error
+}
+
+func (r *Repository) scanProperty(sc rowScanner) (property.Property, error) {
+	var prop property.Property
+	if err := sc.Scan(
+		&prop.ID, &prop.Title, &prop.PropertyDescription, &prop.TypeID,
+		&prop.TransactionType, &prop.Price, &prop.Area, &prop.PropertyAddress,
+		&prop.Latitude, &prop.Longitude, &prop.City, &prop.PropertyStatus,
+		&prop.CreatedBy, &prop.CreatedAt, &prop.UpdatedAt,
+	); err != nil {
+		return property.Property{}, err
+	}
+	return prop, nil
 }
 
 func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter property.Filter) squirrel.SelectBuilder {

@@ -190,12 +190,11 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 
 func (s *service) List(ctx context.Context, req dto.ListPropertiesRequest) (dto.ListPropertiesResponse, error) {
 	dr := domain.ListRequest{Filter: req.Filter, Limit: req.Limit, Offset: req.Offset}
-	list, err := s.repo.List(ctx, dr)
+	list, total, err := s.repo.List(ctx, dr)
 	if err != nil {
 		s.logger.Error("list properties: repo list failed", "err", err)
 		return dto.ListPropertiesResponse{}, apperrors.NewErrInternal("failed to list properties")
 	}
-	total := len(list)
 	props := MapProperties(list)
 	return dto.ListPropertiesResponse{Properties: props, Total: total}, nil
 }
