@@ -35,31 +35,14 @@ func (fsys *FileStore) Save(propertyID int, filename string, data []byte) (strin
 		return "", NewErrInvalidInput("file", nil, "empty filename or data")
 	}
 
-	// validate extension
+	// validate extension quickly (SaveToDir will perform final detection and may append
+	// a missing extension). This avoids duplicating the content-based detection twice.
 	ext := strings.ToLower(filepath.Ext(filename))
 	switch ext {
 	case ".png", ".jpg", ".jpeg":
 		// ok
 	default:
 		return "", NewErrUnsupportedFormat(filename, ext)
-	}
-
-	// Use filetype to validate content and detect MIME/extension
-	kind, err := filetype.Match(data)
-	if err != nil {
-		return "", NewErrInvalidInput("file_data", nil, "unable to detect file type")
-	}
-	if kind == filetype.Unknown {
-		return "", NewErrUnsupportedFormat(filename, "unknown")
-	}
-
-	detectedExt := strings.ToLower(kind.Extension)
-	// filetype reports "jpg" for JPEGs; normalize to allow jpeg as well
-	if detectedExt == "jpg" {
-		detectedExt = "jpeg"
-	}
-	if detectedExt != "png" && detectedExt != "jpeg" {
-		return "", NewErrUnsupportedFormat(filename, kind.MIME.Value)
 	}
 
 	dir := filepath.Join(fsys.basePath, fmt.Sprintf("%d", propertyID))
