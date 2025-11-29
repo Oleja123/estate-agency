@@ -1,6 +1,5 @@
 package propertytypehandler
 
-// Documentation-only DTOs for property type endpoints to simplify swagger parsing.
 type PropertyTypeDTODoc struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`

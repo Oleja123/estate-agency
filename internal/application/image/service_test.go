@@ -76,7 +76,7 @@ func TestCreate_Success(t *testing.T) {
 	}
 
 	svc := New(repo, logger(), t.TempDir())
-	// use minimal valid JPEG header bytes
+
 	jpeg := []byte{0xFF, 0xD8, 0xFF}
 	got, err := svc.Create(ctx, dto.CreateImageRequest{PropertyID: 5, File: dto.ImageFile{Filename: "x.jpg", Data: jpeg}})
 	require.NoError(t, err)

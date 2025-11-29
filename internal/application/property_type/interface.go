@@ -7,7 +7,6 @@ import (
 	domain "github.com/Oleja123/estate-agency/internal/domain/property_type"
 )
 
-// Service defines application-level business operations for property types.
 type Service interface {
 	Create(ctx context.Context, req dto.CreatePropertyTypeRequest) (domain.PropertyType, error)
 	GetByID(ctx context.Context, id int) (domain.PropertyType, error)

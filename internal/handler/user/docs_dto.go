@@ -1,6 +1,5 @@
 package userhandler
 
-// Documentation-only DTOs for user handlers.
 type RegisterRequestDoc struct {
 	Email       string `json:"email"`
 	Password    string `json:"password"`
@@ -37,9 +36,6 @@ type ListUsersResponseDoc struct {
 }
 
 type UpdateProfileRequestDoc struct {
-	// Optional fields: any of these may be omitted in the request. Using
-	// pointer-to-string with `omitempty` models optional semantics for the
-	// swagger generator.
 	FirstName   *string `json:"first_name,omitempty"`
 	LastName    *string `json:"last_name,omitempty"`
 	PhoneNumber *string `json:"phone_number,omitempty"`

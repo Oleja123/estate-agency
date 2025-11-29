@@ -38,8 +38,6 @@ func mapAppError(err error) (int, interface{}) {
 	}
 }
 
-// Exported wrappers so other packages (handler subpackages/tests) can use the
-// same helpers without duplicating code.
 func WriteJSON(w http.ResponseWriter, status int, v interface{}) { writeJSON(w, status, v) }
 func DecodeJSON(r *http.Request, v interface{}) error            { return decodeJSON(r, v) }
 func MapAppError(err error) (int, interface{})                   { return mapAppError(err) }

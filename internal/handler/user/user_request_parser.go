@@ -9,13 +9,9 @@ import (
 	domain "github.com/Oleja123/estate-agency/internal/domain/user"
 )
 
-// parseListUsersRequest parses query parameters from the request into
-// dto.ListUsersRequest. It is intentionally lenient: invalid values are
-// ignored and defaults are used.
 func parseListUsersRequest(r *http.Request) (dto.ListUsersRequest, error) {
 	q := r.URL.Query()
 
-	// pagination
 	limit := 20
 	if l := q.Get("limit"); l != "" {
 		if v, err := strconv.Atoi(l); err == nil && v > 0 {

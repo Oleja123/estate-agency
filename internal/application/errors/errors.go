@@ -46,8 +46,6 @@ func (e ErrNotFound) Error() string {
 	return fmt.Sprintf("%s не найдено", e.Entity)
 }
 
-// ErrInternal represents an internal server/service error. Use this to hide
-// implementation details from callers while providing a clear message.
 type ErrInternal struct {
 	Message string
 }
@@ -58,4 +56,16 @@ func NewErrInternal(message string) error {
 
 func (e ErrInternal) Error() string {
 	return fmt.Sprintf("internal error: %s", e.Message)
+}
+
+type ErrTimeout struct {
+	Message string
+}
+
+func NewErrTimeout(message string) error {
+	return ErrTimeout{Message: message}
+}
+
+func (e ErrTimeout) Error() string {
+	return fmt.Sprintf("timeout: %s", e.Message)
 }

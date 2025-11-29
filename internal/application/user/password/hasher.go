@@ -2,7 +2,6 @@ package password
 
 import "golang.org/x/crypto/bcrypt"
 
-// Hasher encapsulates password hashing and comparison.
 type Hasher interface {
 	Hash(password string) (string, error)
 	Compare(hash, password string) error

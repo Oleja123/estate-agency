@@ -83,12 +83,12 @@ func (r *BaseRepository) HandleError(op string, err error) error {
 	}
 
 	if errors.Is(err, context.DeadlineExceeded) {
-		r.Logger.WarnContext(context.Background(), "операция превысила лимит оиждания", "операция", op)
-		return dberrors.NewErrTimeout(op, "превышен либит ожидания")
+		r.Logger.WarnContext(context.Background(), "операция превысила лимит ожидания", "операция", op)
+		return dberrors.NewErrTimeout(op, "превышен лимит ожидания")
 	}
 	if errors.Is(err, context.Canceled) {
-		r.Logger.WarnContext(context.Background(), "операция отклонена", "операция", op)
-		return dberrors.NewErrTimeout(op, "отмена контекста")
+		r.Logger.WarnContext(context.Background(), "операция отменена", "операция", op)
+		return dberrors.NewErrTimeout(op, "контекст отменён")
 	}
 
 	if r.isConnectionError(err) {

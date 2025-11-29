@@ -1,17 +1,8 @@
-// @title Estate Agency API
-// @version 0.0.0
-// @description API for Estate Agency service
-// @host localhost:8080
-// @BasePath /
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
-// @description Enter the token as: "Bearer <token>" (include the word Bearer and a space)
 package main
 
 import (
 	"context"
-	"io"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -42,9 +33,11 @@ import (
 	propertytypedb "github.com/Oleja123/estate-agency/internal/infrastructure/property_type"
 	userdb "github.com/Oleja123/estate-agency/internal/infrastructure/user"
 
-	// swagger
-	docs "github.com/Oleja123/estate-agency/docs"
+	// swagger UI
+	"encoding/json"
+
 	httpSwagger "github.com/swaggo/http-swagger"
+	"gopkg.in/yaml.v3"
 )
 
 func main() {
@@ -118,12 +111,57 @@ func main() {
 	propertytypehandler.NewPropertyTypeHandler(propertyTypeService, logger).Register(router, "/property_types", authMw)
 	// image handler removed; image endpoints are served under properties as needed
 
-	// Serve swagger doc JSON and UI. The docs package is a stub initially; run
-	// `swag init -g cmd/app/main.go -o docs` to generate full OpenAPI docs into
-	// the `docs` package. The generated package will replace the stub.
+	// Serve swagger doc JSON (converted from the canonical YAML) and UI.
+	// The source of truth is docs/swagger.yaml.
 	router.Get("/swagger/doc.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, docs.ReadDoc())
+		data, err := os.ReadFile("docs/swagger.yaml")
+		if err != nil {
+			http.Error(w, "swagger spec not found", http.StatusInternalServerError)
+			return
+		}
+
+		var v interface{}
+		if err := yaml.Unmarshal(data, &v); err != nil {
+			http.Error(w, "failed to parse swagger yaml", http.StatusInternalServerError)
+			return
+		}
+
+		// Convert YAML-parsed structure to JSON-marshallable structure by
+		// converting map[interface{}] to map[string]interface{} recursively.
+		var convert func(interface{}) interface{}
+		convert = func(in interface{}) interface{} {
+			switch x := in.(type) {
+			case map[string]interface{}:
+				m := make(map[string]interface{}, len(x))
+				for k, v := range x {
+					m[k] = convert(v)
+				}
+				return m
+			case map[interface{}]interface{}:
+				m := make(map[string]interface{}, len(x))
+				for k, v := range x {
+					m[fmt.Sprint(k)] = convert(v)
+				}
+				return m
+			case []interface{}:
+				a := make([]interface{}, len(x))
+				for i, v := range x {
+					a[i] = convert(v)
+				}
+				return a
+			default:
+				return x
+			}
+		}
+
+		out := convert(v)
+		b, err := json.Marshal(out)
+		if err != nil {
+			http.Error(w, "failed to encode swagger json", http.StatusInternalServerError)
+			return
+		}
+		w.Write(b)
 	})
 	router.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))
 

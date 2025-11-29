@@ -4,7 +4,6 @@ import (
 	propertytype "github.com/Oleja123/estate-agency/internal/domain/property_type"
 )
 
-// DTOs for application-level property type operations.
 type CreatePropertyTypeRequest struct {
 	Name string `json:"name"`
 }

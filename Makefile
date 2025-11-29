@@ -39,5 +39,6 @@ migrate-down-test:
 
 .PHONY: docs
 docs:
-	@echo "Generate swagger docs (requires swag: go install github.com/swaggo/swag/cmd/swag@latest)"
-	@swag init -g cmd/app/main.go -o docs
+	@echo "API docs are authoritative in docs/swagger.yaml. Do not commit generated docs.go."
+	@echo "If you must generate docs from code annotations (not recommended), run:"
+	@echo "  swag init -g cmd/app/main.go -o docs"

@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// mockFavoriteService implements the favorites application service used by property service during tests.
 type mockFavoriteService struct{}
 
 func (m *mockFavoriteService) Create(ctx context.Context, req favdto.CreateFavoriteRequest) (favdomain.Favorite, error) {
@@ -192,7 +191,7 @@ func TestDelete_NotFound(t *testing.T) {
 func TestCreateProperty_TypeNotFound(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
-	// type not found
+
 	typeRepo := &mockTypeRepo{}
 	typeRepo.GetByIDFn = func(ctx context.Context, id int) (ptypedomain.PropertyType, error) {
 		return ptypedomain.PropertyType{}, dberrors.NewErrNotFound("property_type", id)
@@ -227,12 +226,12 @@ func TestUpdateProperty_TypeNotFound(t *testing.T) {
 func TestUpdateProperty_PartialPriceArea(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
-	// initial property has some values
+
 	repo.GetByIDFn = func(ctx context.Context, id int) (domain.Property, error) {
 		return domain.Property{ID: id, Title: "old", Price: 100.0, Area: 50.0, TypeID: 1}, nil
 	}
 	repo.UpdateFn = func(ctx context.Context, p domain.Property) error {
-		// only price and area should change
+
 		if p.Price != 200.5 {
 			return fmt.Errorf("price not updated: %v", p.Price)
 		}

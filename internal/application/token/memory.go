@@ -11,16 +11,12 @@ import (
 )
 
 type memoryTokenService struct {
-	// secret used to sign access tokens (HMAC). For the in-memory service we
-	// generate a random secret at startup. In production you'd use a stable
-	// secret or asymmetric keys.
 	secret  []byte
 	refresh *refreshStore
 }
 
-// NewMemoryService creates an in-memory token service. Not for production.
 func NewMemoryService() Service {
-	// generate random secret
+
 	b := make([]byte, 32)
 	_, _ = rand.Read(b)
 	return &memoryTokenService{secret: b, refresh: newRefreshStore()}
@@ -28,7 +24,7 @@ func NewMemoryService() Service {
 
 func (m *memoryTokenService) GenerateAccessToken(userID int, role string, ttl time.Duration) (string, time.Time, error) {
 	exp := time.Now().Add(ttl)
-	// Build JWT manually (header.payload.signature) using HMAC-SHA256.
+
 	header := map[string]string{"alg": "HS256", "typ": "JWT"}
 	headerJSON, _ := json.Marshal(header)
 	payload := map[string]interface{}{
@@ -78,7 +74,7 @@ func (m *memoryTokenService) ValidateAccessToken(tokenStr string) (int, string, 
 	if !hmac.Equal(sig, expected) {
 		return 0, "", ErrInvalidToken
 	}
-	// parse payload
+
 	payloadJSON, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
 		return 0, "", ErrInvalidToken
@@ -87,7 +83,7 @@ func (m *memoryTokenService) ValidateAccessToken(tokenStr string) (int, string, 
 	if err := json.Unmarshal(payloadJSON, &payload); err != nil {
 		return 0, "", ErrInvalidToken
 	}
-	// check exp
+
 	expf, ok := payload["exp"].(float64)
 	if !ok {
 		return 0, "", ErrInvalidToken
@@ -95,12 +91,12 @@ func (m *memoryTokenService) ValidateAccessToken(tokenStr string) (int, string, 
 	if time.Now().Unix() > int64(expf) {
 		return 0, "", ErrInvalidToken
 	}
-	// extract sub
+
 	subf, ok := payload["sub"].(float64)
 	if !ok {
 		return 0, "", ErrInvalidToken
 	}
-	// extract role
+
 	roleStr := ""
 	if rv, ok := payload["role"].(string); ok {
 		roleStr = rv

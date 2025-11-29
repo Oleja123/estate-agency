@@ -7,8 +7,6 @@ import (
 	optional "github.com/denpa16/optional-go-type"
 )
 
-// DTOs parsed from JSON at the application boundary. These live in the
-// application layer only.
 type RegisterRequest struct {
 	Email       string                  `json:"email"`
 	Password    string                  `json:"password"`
@@ -59,8 +57,6 @@ type ResetPasswordRequest struct {
 	NewPassword string `json:"new_password"`
 }
 
-// PublicUser is a sanitized view of user.User intended for JSON responses.
-// It intentionally omits sensitive fields such as PasswordHash.
 type PublicUser struct {
 	Id          int       `json:"id"`
 	Email       string    `json:"email"`
@@ -73,7 +69,6 @@ type PublicUser struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// PublicUserFromDomain maps domain user.User to DTO PublicUser.
 func PublicUserFromDomain(u user.User) PublicUser {
 	return PublicUser{
 		Id:          u.Id,
@@ -88,7 +83,6 @@ func PublicUserFromDomain(u user.User) PublicUser {
 	}
 }
 
-// PublicUsersFromDomain maps slice of domain users to slice of PublicUser.
 func PublicUsersFromDomain(us []user.User) []PublicUser {
 	out := make([]PublicUser, 0, len(us))
 	for _, u := range us {

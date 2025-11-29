@@ -20,11 +20,6 @@ type PropertyTypeHandler struct {
 	lg  *slog.Logger
 }
 
-// Documentation-only DTOs for property type endpoints to simplify swagger parsing.
-// Documentation-only DTOs for property type endpoints are defined in
-// docs_dto.go to keep the handler file small and to make swagger
-// generation more robust.
-
 func NewPropertyTypeHandler(s typesvc.Service, l *slog.Logger) *PropertyTypeHandler {
 	return &PropertyTypeHandler{svc: s, lg: l}
 }
@@ -33,9 +28,6 @@ func (h *PropertyTypeHandler) Register(r chi.Router, prefix string, authMw func(
 	if prefix == "" {
 		prefix = "/property_types"
 	}
-	// All property_type endpoints require authorization. If the caller did not
-	// provide an auth middleware we insert a denying middleware so requests
-	// will be rejected rather than accidentally exposed.
 	if authMw == nil {
 		authMw = func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -45,30 +37,17 @@ func (h *PropertyTypeHandler) Register(r chi.Router, prefix string, authMw func(
 	}
 
 	r.Route(prefix, func(r chi.Router) {
-		// apply auth middleware for all routes under this prefix
 		r.Use(authMw)
 
-		// reads available to any authenticated user
 		r.Get("/", h.handleList)
 		r.Get("/{id}", h.handleGet)
 
-		// only admins may create/update/delete property types
 		r.With(auth.RequireAdminMiddleware()).Post("/", h.handleCreate)
 		r.With(auth.RequireAdminMiddleware()).Put("/{id}", h.handleUpdate)
 		r.With(auth.RequireAdminMiddleware()).Delete("/{id}", h.handleDelete)
 	})
 }
 
-// @Security BearerAuth
-// @Summary Create property type
-// @Description Create a new property type
-// @Tags property_types
-// @Accept json
-// @Produce json
-// @Param body body CreatePropertyTypeDoc true "Property type body"
-// @Success 201 {object} PropertyTypeDTODoc
-// @Failure 400 {object} map[string]string
-// @Router /property_types [post]
 func (h *PropertyTypeHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreatePropertyTypeRequest
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
@@ -85,15 +64,6 @@ func (h *PropertyTypeHandler) handleCreate(w http.ResponseWriter, r *http.Reques
 	handlerutils.WriteJSON(w, http.StatusCreated, t)
 }
 
-// @Security BearerAuth
-// @Summary Get property type
-// @Description Get property type by ID
-// @Tags property_types
-// @Produce json
-// @Param id path int true "Property Type ID"
-// @Success 200 {object} PropertyTypeDTODoc
-// @Failure 400 {object} map[string]string
-// @Router /property_types/{id} [get]
 func (h *PropertyTypeHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -110,16 +80,6 @@ func (h *PropertyTypeHandler) handleGet(w http.ResponseWriter, r *http.Request) 
 	handlerutils.WriteJSON(w, http.StatusOK, t)
 }
 
-// @Security BearerAuth
-// @Summary List property types
-// @Description List property types with pagination
-// @Tags property_types
-// @Produce json
-// @Param limit query int false "Limit"
-// @Param offset query int false "Offset"
-// @Success 200 {object} ListPropertyTypesResponseDoc
-// @Failure 400 {object} map[string]string
-// @Router /property_types [get]
 func (h *PropertyTypeHandler) handleList(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	limit := 20
@@ -147,17 +107,6 @@ func (h *PropertyTypeHandler) handleList(w http.ResponseWriter, r *http.Request)
 	handlerutils.WriteJSON(w, http.StatusOK, res)
 }
 
-// @Security BearerAuth
-// @Summary Update property type
-// @Description Update property type by ID
-// @Tags property_types
-// @Accept json
-// @Produce json
-// @Param id path int true "Property Type ID"
-// @Param body body UpdatePropertyTypeDoc true "Property type body"
-// @Success 204
-// @Failure 400 {object} map[string]string
-// @Router /property_types/{id} [put]
 func (h *PropertyTypeHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -180,15 +129,6 @@ func (h *PropertyTypeHandler) handleUpdate(w http.ResponseWriter, r *http.Reques
 	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
-// @Security BearerAuth
-// @Summary Delete property type
-// @Description Delete property type by ID
-// @Tags property_types
-// @Produce json
-// @Param id path int true "Property Type ID"
-// @Success 200 {object} map[string]int
-// @Failure 400 {object} map[string]string
-// @Router /property_types/{id} [delete]
 func (h *PropertyTypeHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)

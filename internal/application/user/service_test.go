@@ -85,7 +85,7 @@ func TestUserService_Register(t *testing.T) {
 		repoFactory func() *mockRepo
 		req         dto.RegisterRequest
 		wantErr     bool
-		wantErrType string // "invalid" | "already"
+		wantErrType string
 		wantID      int
 	}{
 		{
@@ -96,7 +96,7 @@ func TestUserService_Register(t *testing.T) {
 						return domain.User{}, basedberrors.NewErrNotFound("user", email)
 					},
 					CreateFunc: func(ctx context.Context, u domain.User) (int, error) {
-						// ensure password is hashed and phone is set
+
 						if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte("secret")); err != nil {
 							return 0, err
 						}
@@ -181,7 +181,7 @@ func TestUserService_Login(t *testing.T) {
 		{
 			name: "success",
 			repoFactory: func() *mockRepo {
-				// prepare bcrypt hash
+
 				h, _ := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
 				return &mockRepo{
 					GetByEmailFn: func(ctx context.Context, email string) (domain.User, error) {
@@ -223,7 +223,6 @@ func TestUserService_ChangePassword(t *testing.T) {
 	ctx := context.Background()
 	logger := makeLogger()
 
-	// prepare a user with hashed current password
 	h, err := bcrypt.GenerateFromPassword([]byte("oldpass"), bcrypt.DefaultCost)
 	require.NoError(t, err)
 
@@ -232,7 +231,7 @@ func TestUserService_ChangePassword(t *testing.T) {
 			return domain.User{Id: id, PasswordHash: string(h)}, nil
 		},
 		UpdateFunc: func(ctx context.Context, u domain.User) error {
-			// ensure the password was updated to new hashed password
+
 			if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte("newpass")); err != nil {
 				return err
 			}
@@ -249,7 +248,6 @@ func TestUserService_LoginWithTokens(t *testing.T) {
 	ctx := context.Background()
 	logger := makeLogger()
 
-	// prepare bcrypt hash
 	h, err := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
 	require.NoError(t, err)
 
@@ -266,7 +264,6 @@ func TestUserService_LoginWithTokens(t *testing.T) {
 	require.NotEmpty(t, resp.AccessToken)
 	require.NotEmpty(t, resp.RefreshToken)
 
-	// validate access token via token service
 	uid, _, err := tokSvc.ValidateAccessToken(resp.AccessToken)
 	require.NoError(t, err)
 	assert.Equal(t, 42, uid)
@@ -276,7 +273,6 @@ func TestUserService_RefreshAndLogout(t *testing.T) {
 	ctx := context.Background()
 	logger := makeLogger()
 
-	// prepare bcrypt hash
 	h, err := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
 	require.NoError(t, err)
 
@@ -291,21 +287,17 @@ func TestUserService_RefreshAndLogout(t *testing.T) {
 	tokSvc := token.NewMemoryService()
 	svc := New(repo, logger, pwd.NewBcryptHasher(), tokSvc)
 
-	// Login to get refresh token
 	resp, err := svc.Login(ctx, dto.LoginRequest{Email: "x@x.com", Password: "secret"})
 	require.NoError(t, err)
 
-	// Refresh
 	newResp, err := svc.RefreshToken(ctx, resp.RefreshToken)
 	require.NoError(t, err)
 	require.NotEmpty(t, newResp.AccessToken)
 	require.NotEmpty(t, newResp.RefreshToken)
 
-	// old refresh should be invalidated
 	_, err = tokSvc.ValidateRefreshToken(resp.RefreshToken)
 	assert.Error(t, err)
 
-	// Logout with new refresh token
 	err = svc.Logout(ctx, newResp.RefreshToken)
 	require.NoError(t, err)
 	_, err = tokSvc.ValidateRefreshToken(newResp.RefreshToken)
@@ -342,7 +334,6 @@ func TestUserService_ChangePassword_WrongCurrent(t *testing.T) {
 	ctx := context.Background()
 	logger := makeLogger()
 
-	// user has hashed password for "oldpass"
 	h, err := bcrypt.GenerateFromPassword([]byte("oldpass"), bcrypt.DefaultCost)
 	require.NoError(t, err)
 
@@ -372,7 +363,7 @@ func TestUserService_DeactivateAccount_NotFound(t *testing.T) {
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
 
-	err := svc.SetActiveAccount(ctx, 99, false)
+	err := svc.ToggleActiveAccount(ctx, 99)
 	require.Error(t, err)
 	_, ok := err.(apperrors.ErrNotFound)
 	assert.True(t, ok)
@@ -400,7 +391,6 @@ func TestUserService_ListUsers_Pagination(t *testing.T) {
 	ctx := context.Background()
 	logger := makeLogger()
 
-	// prepare a page of 2 users but total is 5
 	repo := &mockRepo{
 		ListFunc: func(ctx context.Context, req domain.ListRequest) ([]domain.User, int, error) {
 			users := []domain.User{
@@ -446,7 +436,7 @@ func TestUserService_UpdateProfile_Success(t *testing.T) {
 			return domain.User{Id: id, Email: "a@b.com", FirstName: "", LastName: "", PhoneNumber: nil, UserRole: domain.RoleClient}, nil
 		},
 		UpdateFunc: func(ctx context.Context, u domain.User) error {
-			// verify updated fields applied
+
 			if u.FirstName != "John" {
 				return fmt.Errorf("first name not updated: %s", u.FirstName)
 			}
@@ -463,7 +453,7 @@ func TestUserService_UpdateProfile_Success(t *testing.T) {
 			if u.Email != "new@e.com" {
 				return fmt.Errorf("email not updated: %s", u.Email)
 			}
-			// role should not be changed via UpdateProfile
+
 			return nil
 		},
 	}
@@ -487,7 +477,6 @@ func TestUserService_UpdateProfile_Partial(t *testing.T) {
 	ctx := context.Background()
 	logger := makeLogger()
 
-	// repo returns a user with existing fields; UpdateFunc should only see FirstName changed
 	repo := &mockRepo{
 		GetByIDFunc: func(ctx context.Context, id int) (domain.User, error) {
 			p := "P"
@@ -497,7 +486,7 @@ func TestUserService_UpdateProfile_Partial(t *testing.T) {
 			if u.FirstName != "OnlyFirst" {
 				return fmt.Errorf("first name not updated: %s", u.FirstName)
 			}
-			// other fields should remain as provided by repo GetByID
+
 			if u.LastName != "L" {
 				return fmt.Errorf("last name was modified: %s", u.LastName)
 			}
@@ -513,7 +502,6 @@ func TestUserService_UpdateProfile_Partial(t *testing.T) {
 	req := dto.UpdateProfileRequest{
 		UserID:    1,
 		FirstName: optional.OptionalString{Defined: true, Valid: true, Value: func() *string { v := "OnlyFirst"; return &v }()},
-		// other fields omitted
 	}
 
 	err := svc.UpdateProfile(ctx, req)
@@ -559,7 +547,7 @@ func TestUserService_DeactivateAccount_Success(t *testing.T) {
 	}
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
-	err := svc.SetActiveAccount(ctx, 5, false)
+	err := svc.ToggleActiveAccount(ctx, 5)
 	require.NoError(t, err)
 }
 
@@ -579,7 +567,7 @@ func TestUserService_ChangePasswordAdmin_RepoAlreadyExists(t *testing.T) {
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
 	err := svc.ChangePasswordAdmin(ctx, 1, "newpass")
 	require.Error(t, err)
-	_, ok := err.(apperrors.ErrAlreadyExists)
+	_, ok := err.(apperrors.ErrInternal)
 	assert.True(t, ok)
 }
 
@@ -599,7 +587,7 @@ func TestUserService_SetUserRole_RepoAlreadyExists(t *testing.T) {
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
 	err := svc.SetUserRole(ctx, 1, "admin")
 	require.Error(t, err)
-	_, ok := err.(apperrors.ErrAlreadyExists)
+	_, ok := err.(apperrors.ErrInternal)
 	assert.True(t, ok)
 }
 
