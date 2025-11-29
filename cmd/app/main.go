@@ -29,6 +29,7 @@ import (
 	"github.com/Oleja123/estate-agency/internal/infrastructure/config"
 	favoritedb "github.com/Oleja123/estate-agency/internal/infrastructure/favorite"
 	geocoder "github.com/Oleja123/estate-agency/internal/infrastructure/geocoder"
+	imagedb "github.com/Oleja123/estate-agency/internal/infrastructure/image"
 	propertydb "github.com/Oleja123/estate-agency/internal/infrastructure/property"
 	propertytypedb "github.com/Oleja123/estate-agency/internal/infrastructure/property_type"
 	userdb "github.com/Oleja123/estate-agency/internal/infrastructure/user"
@@ -71,7 +72,7 @@ func main() {
 	userStorage := userdb.New(dbClient, logger)
 	propertyStorage := propertydb.New(dbClient, logger)
 	favoriteStorage := favoritedb.New(dbClient, logger)
-	imageStorage := propertydb.NewImageRepository(dbClient, logger)
+	imageStorage := imagedb.New(dbClient, logger)
 	propertyTypeStorage := propertytypedb.New(dbClient, logger)
 
 	// token service shared between handlers and user service

@@ -177,17 +177,19 @@ func TestPropertyTypeList(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		request  propertytype.ListRequest
-		wantLen  int
-		validate func(t *testing.T, types []propertytype.PropertyType)
+		name      string
+		request   propertytype.ListRequest
+		wantLen   int // expected page length
+		wantTotal int // expected total matching rows regardless of pagination
+		validate  func(t *testing.T, types []propertytype.PropertyType)
 	}{
 		{
 			name: "get_all_types",
 			request: propertytype.ListRequest{
 				Limit: 10,
 			},
-			wantLen: 4,
+			wantLen:   4,
+			wantTotal: 4,
 		},
 		{
 			name: "search_by_name",
@@ -197,7 +199,8 @@ func TestPropertyTypeList(t *testing.T) {
 				},
 				Limit: 10,
 			},
-			wantLen: 1,
+			wantLen:   1,
+			wantTotal: 1,
 			validate: func(t *testing.T, types []propertytype.PropertyType) {
 				assert.Equal(t, "apartment", types[0].Name)
 			},
@@ -208,7 +211,8 @@ func TestPropertyTypeList(t *testing.T) {
 				Limit:  2,
 				Offset: 0,
 			},
-			wantLen: 2,
+			wantLen:   2,
+			wantTotal: 4,
 		},
 	}
 
@@ -220,10 +224,8 @@ func TestPropertyTypeList(t *testing.T) {
 			result, total, err := testRepo.List(testCtx, tt.request)
 			require.NoError(t, err)
 			require.Len(t, result, tt.wantLen)
-			if tt.request.Limit > 0 && tt.wantLen < total {
-				assert.GreaterOrEqual(t, total, tt.wantLen)
-			} else {
-				assert.Equal(t, tt.wantLen, total)
+			if tt.wantTotal != 0 {
+				assert.Equal(t, tt.wantTotal, total)
 			}
 
 			if tt.validate != nil {

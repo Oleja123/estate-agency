@@ -64,10 +64,10 @@ func (r *Repository) Create(ctx context.Context, prop property.Property) (int, e
 		return 0, r.HandleError(op, err)
 	}
 
-	r.Logger.InfoContext(ctx, "property был успешно создан",
-		"операция", op,
-		"id собственности", prop.ID,
-		"название", prop.Title,
+	r.Logger.InfoContext(ctx, "property created successfully",
+		"operation", op,
+		"property_id", prop.ID,
+		"title", prop.Title,
 	)
 
 	return prop.ID, nil

@@ -629,10 +629,11 @@ func TestListUsersTableDriven(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		request  user.ListRequest
-		wantLen  int
-		validate func(t *testing.T, users []user.User)
+		name      string
+		request   user.ListRequest
+		wantLen   int // expected number of items in the returned slice
+		wantTotal int // expected total matching rows regardless of pagination
+		validate  func(t *testing.T, users []user.User)
 	}{
 		{
 			name: "list_all_users_with_pagination",
@@ -640,7 +641,8 @@ func TestListUsersTableDriven(t *testing.T) {
 				Limit:  3,
 				Offset: 0,
 			},
-			wantLen: 3,
+			wantLen:   3,
+			wantTotal: 5,
 			validate: func(t *testing.T, users []user.User) {
 				require.Len(t, users, 3)
 			},
@@ -651,7 +653,8 @@ func TestListUsersTableDriven(t *testing.T) {
 				Limit:  3,
 				Offset: 3,
 			},
-			wantLen: 2,
+			wantLen:   2,
+			wantTotal: 5,
 		},
 		{
 			name: "filter_by_client_role",
@@ -661,7 +664,8 @@ func TestListUsersTableDriven(t *testing.T) {
 				},
 				Limit: 10,
 			},
-			wantLen: 2,
+			wantLen:   2,
+			wantTotal: 2,
 			validate: func(t *testing.T, users []user.User) {
 				for _, u := range users {
 					assert.Equal(t, user.RoleClient, u.UserRole)
@@ -676,7 +680,8 @@ func TestListUsersTableDriven(t *testing.T) {
 				},
 				Limit: 10,
 			},
-			wantLen: 3,
+			wantLen:   3,
+			wantTotal: 3,
 			validate: func(t *testing.T, users []user.User) {
 				for _, u := range users {
 					assert.Equal(t, user.RoleAdmin, u.UserRole)
@@ -691,7 +696,8 @@ func TestListUsersTableDriven(t *testing.T) {
 				},
 				Limit: 10,
 			},
-			wantLen: 1,
+			wantLen:   1,
+			wantTotal: 1,
 			validate: func(t *testing.T, users []user.User) {
 				assert.Equal(t, "client1@example.com", users[0].Email)
 			},
@@ -704,7 +710,8 @@ func TestListUsersTableDriven(t *testing.T) {
 				},
 				Limit: 10,
 			},
-			wantLen: 1,
+			wantLen:   1,
+			wantTotal: 1,
 			validate: func(t *testing.T, users []user.User) {
 				assert.Equal(t, "client2@example.com", users[0].Email)
 			},
@@ -717,7 +724,8 @@ func TestListUsersTableDriven(t *testing.T) {
 				},
 				Limit: 10,
 			},
-			wantLen: 1,
+			wantLen:   1,
+			wantTotal: 1,
 			validate: func(t *testing.T, users []user.User) {
 				assert.Equal(t, "admin1@example.com", users[0].Email)
 			},
@@ -730,7 +738,8 @@ func TestListUsersTableDriven(t *testing.T) {
 				},
 				Limit: 10,
 			},
-			wantLen: 2,
+			wantLen:   2,
+			wantTotal: 2,
 		},
 		{
 			name: "empty_result_for_non_matching_search",
@@ -740,14 +749,16 @@ func TestListUsersTableDriven(t *testing.T) {
 				},
 				Limit: 10,
 			},
-			wantLen: 0,
+			wantLen:   0,
+			wantTotal: 0,
 		},
 		{
 			name: "large_limit_returns_all",
 			request: user.ListRequest{
 				Limit: 100,
 			},
-			wantLen: 5,
+			wantLen:   5,
+			wantTotal: 5,
 		},
 		{
 			name: "zero_limit_returns_all",
@@ -755,7 +766,8 @@ func TestListUsersTableDriven(t *testing.T) {
 				Limit: 0,
 			},
 			// treat limit==0 as "no limit" (return all matching rows)
-			wantLen: 5,
+			wantLen:   0,
+			wantTotal: 5,
 		},
 	}
 
@@ -767,12 +779,10 @@ func TestListUsersTableDriven(t *testing.T) {
 			users, total, err := testRepo.List(testCtx, tt.request)
 
 			require.NoError(t, err)
+			// page length must match expected
 			require.Len(t, users, tt.wantLen)
-			if tt.request.Limit > 0 && tt.wantLen < total {
-				assert.GreaterOrEqual(t, total, tt.wantLen)
-			} else {
-				assert.Equal(t, tt.wantLen, total)
-			}
+			// total must equal expected matching rows regardless of pagination
+			assert.Equal(t, tt.wantTotal, total)
 
 			if tt.validate != nil {
 				tt.validate(t, users)

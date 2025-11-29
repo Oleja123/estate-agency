@@ -301,17 +301,19 @@ func TestPropertyList(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		request  property.ListRequest
-		wantLen  int
-		validate func(t *testing.T, properties []property.Property)
+		name      string
+		request   property.ListRequest
+		wantLen   int // expected page length
+		wantTotal int // expected total matching rows regardless of pagination
+		validate  func(t *testing.T, properties []property.Property)
 	}{
 		{
 			name: "get_all_properties",
 			request: property.ListRequest{
 				Limit: 10,
 			},
-			wantLen: 3,
+			wantLen:   3,
+			wantTotal: 3,
 		},
 		{
 			name: "filter_by_transaction_type",
@@ -321,7 +323,8 @@ func TestPropertyList(t *testing.T) {
 				},
 				Limit: 10,
 			},
-			wantLen: 2,
+			wantLen:   2,
+			wantTotal: 2,
 			validate: func(t *testing.T, properties []property.Property) {
 				for _, prop := range properties {
 					assert.Equal(t, property.TransactionSale, prop.TransactionType)
@@ -336,7 +339,8 @@ func TestPropertyList(t *testing.T) {
 				},
 				Limit: 10,
 			},
-			wantLen: 2,
+			wantLen:   2,
+			wantTotal: 2,
 			validate: func(t *testing.T, properties []property.Property) {
 				for _, prop := range properties {
 					assert.Equal(t, "Moscow", prop.City)
@@ -351,7 +355,8 @@ func TestPropertyList(t *testing.T) {
 				},
 				Limit: 10,
 			},
-			wantLen: 2,
+			wantLen:   2,
+			wantTotal: 2,
 			validate: func(t *testing.T, properties []property.Property) {
 				for _, prop := range properties {
 					assert.Equal(t, property.StatusActive, prop.PropertyStatus)
@@ -367,7 +372,8 @@ func TestPropertyList(t *testing.T) {
 				},
 				Limit: 10,
 			},
-			wantLen: 2,
+			wantLen:   2,
+			wantTotal: 2,
 			validate: func(t *testing.T, properties []property.Property) {
 				for _, prop := range properties {
 					assert.True(t, prop.Price >= 1000 && prop.Price <= 100000)
@@ -382,7 +388,8 @@ func TestPropertyList(t *testing.T) {
 				},
 				Limit: 10,
 			},
-			wantLen: 1,
+			wantLen:   1,
+			wantTotal: 1,
 			validate: func(t *testing.T, properties []property.Property) {
 				assert.Equal(t, "Apartment for sale", properties[0].Title)
 			},
@@ -393,7 +400,8 @@ func TestPropertyList(t *testing.T) {
 				Limit:  2,
 				Offset: 0,
 			},
-			wantLen: 2,
+			wantLen:   2,
+			wantTotal: 3,
 		},
 		{
 			name: "pagination_second_page",
@@ -401,7 +409,8 @@ func TestPropertyList(t *testing.T) {
 				Limit:  2,
 				Offset: 2,
 			},
-			wantLen: 1,
+			wantLen:   1,
+			wantTotal: 3,
 		},
 		{
 			name: "filter_by_creator",
@@ -411,7 +420,8 @@ func TestPropertyList(t *testing.T) {
 				},
 				Limit: 10,
 			},
-			wantLen: 3,
+			wantLen:   3,
+			wantTotal: 3,
 		},
 	}
 
@@ -423,10 +433,8 @@ func TestPropertyList(t *testing.T) {
 			result, total, err := testRepo.List(testCtx, tt.request)
 			require.NoError(t, err)
 			require.Len(t, result, tt.wantLen)
-			if tt.request.Limit > 0 && tt.wantLen < total {
-				assert.GreaterOrEqual(t, total, tt.wantLen)
-			} else {
-				assert.Equal(t, tt.wantLen, total)
+			if tt.wantTotal != 0 {
+				assert.Equal(t, tt.wantTotal, total)
 			}
 
 			if tt.validate != nil {

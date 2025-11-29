@@ -229,17 +229,19 @@ func TestFavoriteList(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		request  favorite.ListRequest
-		wantLen  int
-		validate func(t *testing.T, favorites []favorite.Favorite)
+		name      string
+		request   favorite.ListRequest
+		wantLen   int // expected page length
+		wantTotal int // expected total matching rows regardless of pagination
+		validate  func(t *testing.T, favorites []favorite.Favorite)
 	}{
 		{
 			name: "get_all_favorites",
 			request: favorite.ListRequest{
 				Limit: 10,
 			},
-			wantLen: 2,
+			wantLen:   2,
+			wantTotal: 2,
 		},
 		{
 			name: "filter_by_user",
@@ -247,7 +249,8 @@ func TestFavoriteList(t *testing.T) {
 				Filter: favorite.Filter{UserID: testUserID},
 				Limit:  10,
 			},
-			wantLen: 2,
+			wantLen:   2,
+			wantTotal: 2,
 			validate: func(t *testing.T, favorites []favorite.Favorite) {
 				for _, fav := range favorites {
 					assert.Equal(t, testUserID, fav.UserID)
@@ -260,7 +263,8 @@ func TestFavoriteList(t *testing.T) {
 				Filter: favorite.Filter{PropertyID: testPropertyIDs[0]},
 				Limit:  10,
 			},
-			wantLen: 1,
+			wantLen:   1,
+			wantTotal: 1,
 			validate: func(t *testing.T, favorites []favorite.Favorite) {
 				assert.Equal(t, testPropertyIDs[0], favorites[0].PropertyID)
 			},
@@ -271,7 +275,8 @@ func TestFavoriteList(t *testing.T) {
 				Limit:  1,
 				Offset: 0,
 			},
-			wantLen: 1,
+			wantLen:   1,
+			wantTotal: 2,
 		},
 	}
 
@@ -283,11 +288,8 @@ func TestFavoriteList(t *testing.T) {
 			result, total, err := testRepo.List(testCtx, tt.request)
 			require.NoError(t, err)
 			require.Len(t, result, tt.wantLen)
-			// Total must reflect overall matching rows regardless of limit/offset
-			if tt.request.Limit > 0 && tt.wantLen < total {
-				assert.GreaterOrEqual(t, total, tt.wantLen)
-			} else {
-				assert.Equal(t, tt.wantLen, total)
+			if tt.wantTotal != 0 {
+				assert.Equal(t, tt.wantTotal, total)
 			}
 
 			if tt.validate != nil {

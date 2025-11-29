@@ -34,7 +34,7 @@ func (r *Repository) Create(ctx context.Context, propertyType propertytype.Prope
 		Insert("property_types").
 		Columns("property_name", "created_at").
 		Values(propertyType.Name, squirrel.Expr("NOW()")).
-		Suffix("RETURNING Id").
+		Suffix("RETURNING id").
 		ToSql()
 
 	if err != nil {
@@ -52,10 +52,10 @@ func (r *Repository) Create(ctx context.Context, propertyType propertytype.Prope
 		return 0, r.HandleError(op, err)
 	}
 
-	r.Logger.InfoContext(ctx, "тип недвижимости успешно создан",
-		"операция", op,
-		"id типа", Id,
-		"название", propertyType.Name,
+	r.Logger.InfoContext(ctx, "property type created successfully",
+		"operation", op,
+		"type_id", Id,
+		"name", propertyType.Name,
 	)
 
 	return Id, nil
@@ -65,9 +65,9 @@ func (r *Repository) GetByID(ctx context.Context, Id int) (propertytype.Property
 	const op = "propertytypedb.Repository.GetByID"
 
 	sql, args, err := r.sq.
-		Select("Id", "property_name", "created_at").
+		Select("id", "property_name", "created_at").
 		From("property_types").
-		Where(squirrel.Eq{"Id": Id}).
+		Where(squirrel.Eq{"id": Id}).
 		ToSql()
 
 	if err != nil {
@@ -106,7 +106,7 @@ func (r *Repository) GetByName(ctx context.Context, name string) (propertytype.P
 	const op = "propertytypedb.Repository.GetByName"
 
 	sql, args, err := r.sq.
-		Select("Id", "property_name", "created_at").
+		Select("id", "property_name", "created_at").
 		From("property_types").
 		Where(squirrel.Eq{"property_name": name}).
 		ToSql()
@@ -142,7 +142,7 @@ func (r *Repository) Update(ctx context.Context, propertyType propertytype.Prope
 	sql, args, err := r.sq.
 		Update("property_types").
 		Set("property_name", propertyType.Name).
-		Where(squirrel.Eq{"Id": propertyType.Id}).
+		Where(squirrel.Eq{"id": propertyType.Id}).
 		ToSql()
 
 	if err != nil {
@@ -181,7 +181,7 @@ func (r *Repository) Delete(ctx context.Context, Id int) (int, error) {
 
 	sql, args, err := r.sq.
 		Delete("property_types").
-		Where(squirrel.Eq{"Id": Id}).
+		Where(squirrel.Eq{"id": Id}).
 		ToSql()
 
 	if err != nil {
@@ -219,7 +219,7 @@ func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]
 	const op = "propertytypedb.Repository.List"
 
 	query := r.sq.
-		Select("Id", "property_name", "created_at").
+		Select("id", "property_name", "created_at").
 		From("property_types")
 
 	query = r.applyFilters(query, req.Filter)
@@ -229,7 +229,7 @@ func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]
 	countQ = r.applyFilters(countQ, req.Filter)
 	countSQL, countArgs, err := countQ.ToSql()
 	if err != nil {
-		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка построения count запроса: %s", err))
+		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error (count): %s", err))
 	}
 
 	var total int
@@ -244,7 +244,7 @@ func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]
 		ToSql()
 
 	if err != nil {
-		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка построения запроса: %s", err))
+		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
 	r.Logger.DebugContext(ctx, "listing property types",
@@ -292,7 +292,7 @@ func (r *Repository) scanPropertyType(sc basedb.RowScanner) (propertytype.Proper
 
 func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter propertytype.Filter) squirrel.SelectBuilder {
 	if len(filter.IDs) > 0 {
-		query = query.Where(squirrel.Eq{"Id": filter.IDs})
+		query = query.Where(squirrel.Eq{"id": filter.IDs})
 	}
 
 	if filter.Name != "" {

@@ -227,7 +227,7 @@ func (r *Repository) Exists(ctx context.Context, userID, propertyID int) (bool, 
 		ToSql()
 
 	if err != nil {
-		return false, basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка запроса: %s", err))
+		return false, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
 	var exists int

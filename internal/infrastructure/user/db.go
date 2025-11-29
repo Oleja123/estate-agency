@@ -58,9 +58,9 @@ func (r *Repository) Create(ctx context.Context, user user.User) (int, error) {
 		return 0, r.HandleError(op, err)
 	}
 
-	r.Logger.InfoContext(ctx, "пользователь был успешно создан",
-		"операция", op,
-		"id пользователя", user.Id,
+	r.Logger.InfoContext(ctx, "user created successfully",
+		"operation", op,
+		"user_id", user.Id,
 		"email", user.Email,
 	)
 
@@ -106,7 +106,7 @@ func (r *Repository) GetByID(ctx context.Context, id int) (user.User, error) {
 	return u, nil
 }
 
-func (r Repository) GetByEmail(ctx context.Context, email string) (user.User, error) {
+func (r *Repository) GetByEmail(ctx context.Context, email string) (user.User, error) {
 	const op = "userdb.Repository.GetByEmail"
 
 	sql, args, err := r.sq.
@@ -225,11 +225,11 @@ func (r *Repository) Update(ctx context.Context, user user.User) error {
 		ToSql()
 
 	if err != nil {
-		return basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка запроса: %s", err))
+		return basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "обновление пользователя",
-		"операция", op,
+	r.Logger.DebugContext(ctx, "updating user",
+		"operation", op,
 		"user_id", user.Id,
 	)
 
@@ -239,9 +239,9 @@ func (r *Repository) Update(ctx context.Context, user user.User) error {
 		return r.HandleError(op, err)
 	}
 
-	r.Logger.InfoContext(ctx, "пользователь успешно обновлен",
-		"операция", op,
-		"id пользователя", user.Id,
+	r.Logger.InfoContext(ctx, "user updated successfully",
+		"operation", op,
+		"user_id", user.Id,
 	)
 
 	return nil
@@ -256,12 +256,12 @@ func (r *Repository) Delete(ctx context.Context, id int) (int, error) {
 		ToSql()
 
 	if err != nil {
-		return 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка запроса: %s", err))
+		return 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "удаление пользователя",
-		"операция", op,
-		"id пользователя", id,
+	r.Logger.DebugContext(ctx, "deleting user",
+		"operation", op,
+		"user_id", id,
 	)
 
 	result, err := r.Client.Exec(ctx, sql, args...)
@@ -271,17 +271,17 @@ func (r *Repository) Delete(ctx context.Context, id int) (int, error) {
 
 	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
-		r.Logger.DebugContext(ctx, "пользователь ненайке",
-			"операция", op,
-			"id пользователя", id,
+		r.Logger.DebugContext(ctx, "user not found for deletion",
+			"operation", op,
+			"user_id", id,
 		)
 		return 0, basedberrors.NewErrNotFound("user", id)
 	}
 
-	r.Logger.InfoContext(ctx, "пользователь успешно удален",
-		"операция", op,
-		"id пользователя", id,
-		"строк удалено", rowsAffected,
+	r.Logger.InfoContext(ctx, "user deleted successfully",
+		"operation", op,
+		"user_id", id,
+		"rows_deleted", rowsAffected,
 	)
 
 	return id, nil

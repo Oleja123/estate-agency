@@ -55,7 +55,7 @@ func processFile(path string) error {
 }
 
 func main() {
-	root := "internal/application"
+	root := "internal/infrastructure"
 	var errs int
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
