@@ -105,8 +105,7 @@ func (r *ImageRepository) GetByID(ctx context.Context, id int) (image.PropertyIm
 		return image.PropertyImage{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
 	}
 
-	var img image.PropertyImage
-	err = r.Client.QueryRow(ctx, sql, args...).Scan(&img.ID, &img.PropertyID, &img.Path, &img.CreatedAt)
+	img, err := r.scanImage(r.Client.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return image.PropertyImage{}, basedberrors.NewErrNotFound("property_image", id)
@@ -139,8 +138,8 @@ func (r *ImageRepository) ListByProperty(ctx context.Context, propertyID int) ([
 
 	var imgs []image.PropertyImage
 	for rows.Next() {
-		var img image.PropertyImage
-		if err := rows.Scan(&img.ID, &img.PropertyID, &img.Path, &img.CreatedAt); err != nil {
+		img, err := r.scanImage(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan error: %w", err)
 		}
 		imgs = append(imgs, img)
@@ -229,4 +228,13 @@ func (r *ImageRepository) DeleteMany(ctx context.Context, propertyID int) ([]int
 
 	// deletion of zero rows is acceptable (no images existed) — return empty slice.
 	return ids, nil
+}
+
+// scanImage reads a single property_images row into the domain model
+func (r *ImageRepository) scanImage(sc rowScanner) (image.PropertyImage, error) {
+	var img image.PropertyImage
+	if err := sc.Scan(&img.ID, &img.PropertyID, &img.Path, &img.CreatedAt); err != nil {
+		return image.PropertyImage{}, err
+	}
+	return img, nil
 }
