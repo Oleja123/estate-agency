@@ -146,7 +146,6 @@ func (r *Repository) Delete(ctx context.Context, userID, propertyID int) (int, e
 		"rows_affected", rowsAffected,
 	)
 
-	// return propertyID as the logical deleted identifier
 	return propertyID, nil
 }
 
@@ -161,7 +160,6 @@ func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favo
 
 	query = r.applyFilters(query, req.Filter)
 
-	// build total count query with same filters
 	countQ := r.sq.Select("COUNT(1)").From("favorites")
 	countQ = r.applyFilters(countQ, req.Filter)
 	countSQL, countArgs, err := countQ.ToSql()
@@ -263,7 +261,6 @@ func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter favorite.
 	return query
 }
 
-// scanFavorite reads a single favorites row into the domain model
 func (r *Repository) scanFavorite(sc basedb.RowScanner) (favorite.Favorite, error) {
 	var fav favorite.Favorite
 	if err := sc.Scan(&fav.UserID, &fav.PropertyID, &fav.CreatedAt); err != nil {

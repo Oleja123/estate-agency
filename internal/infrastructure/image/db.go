@@ -15,7 +15,6 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// ImageRepository provides DB operations for property images.
 type ImageRepository struct {
 	*basedb.BaseRepository
 	sq squirrel.StatementBuilderType
@@ -52,7 +51,6 @@ func (r *ImageRepository) Create(ctx context.Context, img image.PropertyImage) (
 	return img.ID, nil
 }
 
-// CreateMany inserts multiple images in a single query and returns their generated IDs.
 func (r *ImageRepository) CreateMany(ctx context.Context, imgs []image.PropertyImage) ([]int, error) {
 	const op = "propertydb.ImageRepository.CreateMany"
 
@@ -176,14 +174,12 @@ func (r *ImageRepository) Delete(ctx context.Context, id int) (int, error) {
 	return id, nil
 }
 
-// DeleteMany removes multiple images by their IDs in a single query.
 func (r *ImageRepository) DeleteMany(ctx context.Context, propertyID int) ([]int, error) {
 	const op = "propertydb.ImageRepository.DeleteMany"
 	if propertyID == 0 {
 		return nil, basedberrors.NewErrInvalidInput("property_id", propertyID, "invalid or zero id")
 	}
 
-	// Ensure property exists — deleting images for a non-existent property should return NotFound.
 	var existsInt int
 	checkSql, checkArgs, err := r.sq.Select("1").From("properties").Where(squirrel.Eq{"id": propertyID}).Limit(1).ToSql()
 	if err != nil {
@@ -197,7 +193,6 @@ func (r *ImageRepository) DeleteMany(ctx context.Context, propertyID int) ([]int
 		return nil, r.HandleError(op, err)
 	}
 
-	// Delete rows and RETURNING id so we can return deleted ids to caller.
 	sql, args, err := r.sq.
 		Delete("property_images").
 		Where(squirrel.Eq{"property_id": propertyID}).
@@ -226,11 +221,9 @@ func (r *ImageRepository) DeleteMany(ctx context.Context, propertyID int) ([]int
 		return nil, fmt.Errorf("rows iteration error: %w", err)
 	}
 
-	// deletion of zero rows is acceptable (no images existed) — return empty slice.
 	return ids, nil
 }
 
-// scanImage reads a single property_images row into the domain model
 func (r *ImageRepository) scanImage(sc basedb.RowScanner) (image.PropertyImage, error) {
 	var img image.PropertyImage
 	if err := sc.Scan(&img.ID, &img.PropertyID, &img.Path, &img.CreatedAt); err != nil {

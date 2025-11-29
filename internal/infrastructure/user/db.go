@@ -192,7 +192,6 @@ func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.Use
 		"count", len(users),
 	)
 
-	// compute total matching rows for pagination
 	countQuery := r.sq.Select("COUNT(*)").From("users")
 	countQuery = r.applyFilters(countQuery, req.Filter)
 	countSQL, countArgs, err := countQuery.ToSql()
@@ -305,7 +304,7 @@ func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter user.Filt
 	}
 
 	if filter.Search != "" {
-		// TODO: upgrade to full-text/hypertext search (tsvector/tsquery or pg_trgm) for better relevance.
+
 		searchPattern := "%" + strings.ToLower(filter.Search) + "%"
 		query = query.Where(squirrel.Or{
 			squirrel.ILike{"first_name": searchPattern},
@@ -317,7 +316,6 @@ func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter user.Filt
 	return query
 }
 
-// scanUser populates a user.User from a row scanner (either QueryRow result or rows iterator).
 func (r *Repository) scanUser(sc basedb.RowScanner) (user.User, error) {
 	var u user.User
 	var phone sqlpkg.NullString

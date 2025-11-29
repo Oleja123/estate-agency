@@ -2,7 +2,6 @@ package filestore
 
 import "fmt"
 
-// ErrInvalidInput indicates a problem with the provided input (filename, data, id etc).
 type ErrInvalidInput struct {
 	Field  string
 	Value  interface{}
@@ -17,7 +16,6 @@ func (e ErrInvalidInput) Error() string {
 	return fmt.Sprintf("некорректное поле '%s': %s (значение: %v)", e.Field, e.Reason, e.Value)
 }
 
-// ErrUnsupportedFormat indicates the uploaded file has an unsupported image format.
 type ErrUnsupportedFormat struct {
 	Filename string
 	Detected string
@@ -31,7 +29,6 @@ func (e ErrUnsupportedFormat) Error() string {
 	return fmt.Sprintf("unsupported image format for file '%s': %s", e.Filename, e.Detected)
 }
 
-// ErrStorage indicates a low-level storage error (IO, permission, etc).
 type ErrStorage struct {
 	Operation string
 	Details   string

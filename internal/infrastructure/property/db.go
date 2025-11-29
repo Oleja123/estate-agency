@@ -215,7 +215,6 @@ func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]prop
 
 	query = r.applyFilters(query, req.Filter)
 
-	// build count query with same filters
 	countQ := r.sq.Select("COUNT(1)").From("properties")
 	countQ = r.applyFilters(countQ, req.Filter)
 	countSQL, countArgs, err := countQ.ToSql()
@@ -338,7 +337,7 @@ func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter property.
 	if filter.Latitude != 0 && filter.Longitude != 0 && filter.RadiusKm > 0 {
 		distanceCondition := fmt.Sprintf(
 			"ST_DWithin(ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography, ST_SetSRID(ST_MakePoint(%f, %f), 4326)::geography, %f)",
-			filter.Longitude, filter.Latitude, filter.RadiusKm*1000, // конвертируем км в метры
+			filter.Longitude, filter.Latitude, filter.RadiusKm*1000,
 		)
 
 		query = query.Where(distanceCondition)

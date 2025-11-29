@@ -56,7 +56,6 @@ func TestMain(m *testing.M) {
 	testClient, _ = postgresqlclient.NewClient(context.Background(), *testLogger, testConfig)
 	testRepo = New(testClient, testLogger)
 
-	// create a test user used by property creation helper
 	testUserID = createTestUserForImageTests()
 
 	code := m.Run()
@@ -157,7 +156,6 @@ func TestImageCRUD(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, list, len(imgs))
 
-		// cleanup
 		for _, id := range ids {
 			_, err := imageRepo.Delete(testCtx, id)
 			require.NoError(t, err)
@@ -181,17 +179,14 @@ func TestDeleteManyByProperty(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, ids, len(imgs))
 
-	// delete all images for property
 	deletedIDs, err := imageRepo.DeleteMany(testCtx, propID)
 	require.NoError(t, err)
 	require.Len(t, deletedIDs, len(imgs))
 
-	// list should be empty
 	list, err := imageRepo.ListByProperty(testCtx, propID)
 	require.NoError(t, err)
 	require.Len(t, list, 0)
 
-	// verify GetByID returns not found
 	for _, id := range ids {
 		_, err := imageRepo.GetByID(testCtx, id)
 		require.Error(t, err)
@@ -203,9 +198,8 @@ func TestDeleteMany_InvalidProperty(t *testing.T) {
 
 	imageRepo := testRepo
 
-	// use a non-existing property id (assuming 99999 doesn't exist in test fixtures)
 	_, err := imageRepo.DeleteMany(testCtx, 99999)
 	require.Error(t, err)
-	// should be NotFound for property
+
 	assert.True(t, basedb.IsNotFound(err))
 }

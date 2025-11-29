@@ -43,14 +43,13 @@ func TestMain(m *testing.M) {
 		GoosePath: "/home/oleg/go/bin/goose",
 	}
 
-	// try to ensure singleton test container and run migrations from code; if docker unavailable, fail fast
 	tdb, err := testdb.EnsureStarted(testCtx, testLogger)
 	if err != nil {
 		testLogger.Error("Failed to start test DB container", "error", err)
 		os.Exit(1)
 	}
 	defer tdb.Terminate()
-	// update config to point to the container
+
 	testConfig.DbConfig.Host = tdb.Host
 	testConfig.DbConfig.Port = tdb.Port
 
@@ -631,8 +630,8 @@ func TestListUsersTableDriven(t *testing.T) {
 	tests := []struct {
 		name      string
 		request   user.ListRequest
-		wantLen   int // expected number of items in the returned slice
-		wantTotal int // expected total matching rows regardless of pagination
+		wantLen   int
+		wantTotal int
 		validate  func(t *testing.T, users []user.User)
 	}{
 		{
@@ -765,7 +764,7 @@ func TestListUsersTableDriven(t *testing.T) {
 			request: user.ListRequest{
 				Limit: 0,
 			},
-			// treat limit==0 as "no limit" (return all matching rows)
+
 			wantLen:   0,
 			wantTotal: 5,
 		},
@@ -779,9 +778,9 @@ func TestListUsersTableDriven(t *testing.T) {
 			users, total, err := testRepo.List(testCtx, tt.request)
 
 			require.NoError(t, err)
-			// page length must match expected
+
 			require.Len(t, users, tt.wantLen)
-			// total must equal expected matching rows regardless of pagination
+
 			assert.Equal(t, tt.wantTotal, total)
 
 			if tt.validate != nil {

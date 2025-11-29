@@ -43,14 +43,13 @@ func TestMain(m *testing.M) {
 		GoosePath: "/home/oleg/go/bin/goose",
 	}
 
-	// Ensure a single test DB is started (or use TEST_DSN if provided).
 	tdb, err := testdb.EnsureStarted(testCtx, testLogger)
 	if err != nil {
 		testLogger.Error("Failed to start test DB container", "error", err)
 		os.Exit(1)
 	}
 	defer tdb.Terminate()
-	// update config to point to the container/DSN
+
 	testConfig.DbConfig.Host = tdb.Host
 	testConfig.DbConfig.Port = tdb.Port
 
@@ -179,8 +178,8 @@ func TestPropertyTypeList(t *testing.T) {
 	tests := []struct {
 		name      string
 		request   propertytype.ListRequest
-		wantLen   int // expected page length
-		wantTotal int // expected total matching rows regardless of pagination
+		wantLen   int
+		wantTotal int
 		validate  func(t *testing.T, types []propertytype.PropertyType)
 	}{
 		{

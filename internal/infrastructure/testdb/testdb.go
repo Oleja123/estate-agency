@@ -18,7 +18,6 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-// TestDB holds information about the running test database container.
 type TestDB struct {
 	DSN       string
 	Host      string
@@ -26,20 +25,16 @@ type TestDB struct {
 	terminate func()
 }
 
-// StartContainer starts a Postgres+PostGIS container, runs migrations using goose library and returns TestDB and error.
-// Caller must call the returned TestDB.Terminate() when done.
 func StartContainer(ctx context.Context, logger *slog.Logger) (*TestDB, error) {
 	logger.Info("starting test postgres container (postgis)")
 
-	// If TEST_DSN is provided (CI) prefer using it instead of starting a docker container.
 	if dsn := os.Getenv("TEST_DSN"); dsn != "" {
 		logger.Info("TEST_DSN detected, using provided DSN instead of starting container", "dsn", dsn)
-		// run migrations against provided DSN
+
 		if err := runGooseMigrations(logger, dsn); err != nil {
 			return nil, fmt.Errorf("failed to run migrations against TEST_DSN: %w", err)
 		}
 
-		// try to extract host and port for compatibility
 		host := ""
 		port := ""
 		if u, err := url.Parse(dsn); err == nil {
@@ -58,27 +53,27 @@ func StartContainer(ctx context.Context, logger *slog.Logger) (*TestDB, error) {
 
 	pool, err := dockertest.NewPool("")
 	if err != nil {
-		// Try Docker Desktop socket in user's home (common on Linux Docker Desktop)
+
 		if home, herr := os.UserHomeDir(); herr == nil {
 			desktopSock := filepath.Join(home, ".docker", "desktop", "docker-cli.sock")
 			if _, serr := os.Stat(desktopSock); serr == nil {
-				// set DOCKER_HOST and retry
+
 				_ = os.Setenv("DOCKER_HOST", "unix://"+desktopSock)
 				pool, err = dockertest.NewPool("")
 			}
 		}
 	}
 	if err != nil {
-		// As a last resort, try to use a local Postgres instance at 127.0.0.1:5432
+
 		logger.Info("docker unavailable, trying local postgres at 127.0.0.1:5432")
 		localDSN := "postgres://root:root@127.0.0.1:5432/test?sslmode=disable"
-		// quick check if local postgres is reachable
+
 		ctx2, cancel2 := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel2()
 		conn, cerr := pgx.Connect(ctx2, localDSN)
 		if cerr == nil {
 			_ = conn.Close(ctx2)
-			// run migrations against local DSN
+
 			if err := runGooseMigrations(logger, localDSN); err != nil {
 				return nil, fmt.Errorf("could not run migrations on local postgres: %w", err)
 			}
@@ -88,7 +83,6 @@ func StartContainer(ctx context.Context, logger *slog.Logger) (*TestDB, error) {
 		return nil, fmt.Errorf("could not connect to docker: %w", err)
 	}
 
-	// Pull and run container
 	opts := &dockertest.RunOptions{
 		Repository: "postgis/postgis",
 		Tag:        "15-3.3",
@@ -105,19 +99,17 @@ func StartContainer(ctx context.Context, logger *slog.Logger) (*TestDB, error) {
 		return nil, fmt.Errorf("could not start resource: %w", err)
 	}
 
-	// terminate function
 	terminate := func() {
 		_ = pool.Purge(resource)
 	}
 
-	// get host and port
-	hostPort := resource.GetHostPort("5432/tcp") // returns "localhost:32768"
+	hostPort := resource.GetHostPort("5432/tcp")
 	var host string
 	var port string
-	// try simple scan
+
 	_, err = fmt.Sscanf(hostPort, "%s:%s", &host, &port)
 	if err != nil {
-		// fallback: split
+
 		for i := len(hostPort) - 1; i >= 0; i-- {
 			if hostPort[i] == ':' {
 				host = hostPort[:i]
@@ -129,7 +121,6 @@ func StartContainer(ctx context.Context, logger *slog.Logger) (*TestDB, error) {
 
 	dsn := fmt.Sprintf("postgres://root:root@%s:%s/test?sslmode=disable", host, port)
 
-	// wait until db is ready
 	if err := pool.Retry(func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
@@ -144,7 +135,6 @@ func StartContainer(ctx context.Context, logger *slog.Logger) (*TestDB, error) {
 		return nil, fmt.Errorf("could not connect to docker database: %w", err)
 	}
 
-	// Run migrations using goose (library) against the container DSN
 	if err := runGooseMigrations(logger, dsn); err != nil {
 		terminate()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
@@ -170,8 +160,6 @@ var (
 	instErr  error
 )
 
-// EnsureStarted starts a singleton test container (only once) and returns the TestDB instance.
-// It's safe to call from multiple packages; the container will be started only once.
 func EnsureStarted(ctx context.Context, logger *slog.Logger) (*TestDB, error) {
 	once.Do(func() {
 		instance, instErr = StartContainer(ctx, logger)
@@ -187,7 +175,6 @@ func runGooseMigrations(logger *slog.Logger, dsn string) error {
 
 	logger.Info("running migrations (test container)", "path", migrationsPath, "dsn", dsn)
 
-	// open database/sql DB using pgx stdlib driver
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return fmt.Errorf("failed to open DB connection: %w", err)
@@ -195,7 +182,7 @@ func runGooseMigrations(logger *slog.Logger, dsn string) error {
 	defer db.Close()
 
 	if err := goose.SetDialect("postgres"); err != nil {
-		// SetDialect returns error only on invalid dialect, but handle defensively
+
 		logger.Error("failed to set goose dialect", "error", err)
 	}
 
@@ -208,7 +195,7 @@ func runGooseMigrations(logger *slog.Logger, dsn string) error {
 }
 
 func getMigrationsPath(logger *slog.Logger) (string, error) {
-	// Search for db/migrations in current directory and parent directories up to repository root.
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("failed to get current working directory: %w", err)
@@ -230,7 +217,6 @@ func getMigrationsPath(logger *slog.Logger) (string, error) {
 		dir = parent
 	}
 
-	// Fallback to legacy relative paths (for compatibility)
 	possiblePaths := []string{"./db/migrations", "db/migrations"}
 	for _, p := range possiblePaths {
 		absPath, _ := filepath.Abs(p)

@@ -79,7 +79,6 @@ func (r *Repository) GetByID(ctx context.Context, Id int) (propertytype.Property
 		"type_id", Id,
 	)
 
-	// use shared scanner
 	row := r.Client.QueryRow(ctx, sql, args...)
 	pt, err := r.scanPropertyType(row)
 	if err != nil {
@@ -224,7 +223,6 @@ func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]
 
 	query = r.applyFilters(query, req.Filter)
 
-	// build count query to get total for pagination
 	countQ := r.sq.Select("COUNT(1)").From("property_types")
 	countQ = r.applyFilters(countQ, req.Filter)
 	countSQL, countArgs, err := countQ.ToSql()
@@ -281,7 +279,6 @@ func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]
 	return propertyTypes, total, nil
 }
 
-// scanPropertyType reads a single property_type row into the domain model
 func (r *Repository) scanPropertyType(sc basedb.RowScanner) (propertytype.PropertyType, error) {
 	var pt propertytype.PropertyType
 	if err := sc.Scan(&pt.Id, &pt.Name, &pt.CreatedAt); err != nil {

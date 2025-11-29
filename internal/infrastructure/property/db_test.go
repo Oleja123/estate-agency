@@ -45,14 +45,13 @@ func TestMain(m *testing.M) {
 		GoosePath: "/home/oleg/go/bin/goose",
 	}
 
-	// Ensure a single test DB is started (or use TEST_DSN if provided).
 	tdb, err := testdb.EnsureStarted(testCtx, testLogger)
 	if err != nil {
 		testLogger.Error("Failed to start test DB container", "error", err)
 		os.Exit(1)
 	}
 	defer tdb.Terminate()
-	// update config to point to the container/DSN
+
 	testConfig.DbConfig.Host = tdb.Host
 	testConfig.DbConfig.Port = tdb.Port
 
@@ -61,7 +60,6 @@ func TestMain(m *testing.M) {
 
 	testUserID = createTestUser()
 
-	// Ensure there are default property types so properties with type_id = 1..n can be created in tests.
 	createDefaultPropertyTypes()
 
 	code := m.Run()
@@ -69,7 +67,7 @@ func TestMain(m *testing.M) {
 }
 
 func createTestUser() int {
-	// Try to create user idempotently. TRUNCATE first to get predictable id
+
 	_, _ = testClient.Exec(context.Background(), "TRUNCATE TABLE users RESTART IDENTITY CASCADE")
 
 	var userID int
@@ -81,7 +79,7 @@ func createTestUser() int {
     `, "test@example.com", "hash", "Test", "User", "+123456789", user.RoleClient, true).Scan(&userID)
 
 	if err != nil {
-		// if no rows returned due to conflict, select existing id
+
 		if err.Error() == "sql: no rows in result set" {
 			_ = testClient.QueryRow(context.Background(), "SELECT id FROM users WHERE email=$1", "test@example.com").Scan(&userID)
 			return userID
@@ -97,7 +95,7 @@ func truncateTables() error {
 }
 
 func createDefaultPropertyTypes() {
-	// truncate and add some default types so tests using type_id = 1,2,3 succeed
+
 	_, _ = testClient.Exec(context.Background(), "TRUNCATE TABLE property_types RESTART IDENTITY CASCADE")
 
 	types := []string{"apartment", "house", "commercial", "land"}
@@ -303,8 +301,8 @@ func TestPropertyList(t *testing.T) {
 	tests := []struct {
 		name      string
 		request   property.ListRequest
-		wantLen   int // expected page length
-		wantTotal int // expected total matching rows regardless of pagination
+		wantLen   int
+		wantTotal int
 		validate  func(t *testing.T, properties []property.Property)
 	}{
 		{
@@ -469,7 +467,7 @@ func TestPropertyListWithDistanceFilter(t *testing.T) {
 				Price:               80000,
 				Area:                80.0,
 				PropertyAddress:     "Far away",
-				Latitude:            55.8000, // Дальше от центра
+				Latitude:            55.8000,
 				Longitude:           37.8000,
 				City:                "Moscow",
 				PropertyStatus:      property.StatusActive,
