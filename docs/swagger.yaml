@@ -1,1828 +1,888 @@
+swagger: "2.0"
+info:
+  title: Estate Agency API
+  description: 'Enter the token as: "Bearer <token>" (include the word Bearer and a space)'
+  version: 0.0.0
+host: localhost:8080
 basePath: /
+schemes:
+  - http
+consumes:
+  - application/json
+produces:
+  - application/json
+
+security:
+  - BearerAuth: []
+
+paths:
+  # -------------------- Properties --------------------
+  /properties:
+    get:
+      summary: List properties
+      tags: [properties]
+      description: Returns paginated list of properties. Requires authentication.
+      parameters:
+        - name: limit
+          in: query
+          type: integer
+          example: 10
+        - name: offset
+          in: query
+          type: integer
+          example: 0
+        - name: ids
+          in: query
+          type: string
+          example: "1,2,3"
+        - name: type_ids
+          in: query
+          type: string
+          example: "2,3"
+        - name: type_id
+          in: query
+          type: integer
+          example: 2
+        - name: transaction_type
+          in: query
+          type: string
+          example: "sale"
+        - name: city
+          in: query
+          type: string
+          example: "New York"
+        - name: property_status
+          in: query
+          type: string
+          example: "available"
+        - name: created_by
+          in: query
+          type: integer
+          example: 1
+        - name: min_price
+          in: query
+          type: number
+          example: 100000
+        - name: max_price
+          in: query
+          type: number
+          example: 500000
+        - name: min_area
+          in: query
+          type: number
+          example: 50
+        - name: max_area
+          in: query
+          type: number
+          example: 200
+        - name: search
+          in: query
+          type: string
+          example: "spacious"
+        - name: latitude
+          in: query
+          type: number
+          example: 40.7128
+        - name: longitude
+          in: query
+          type: number
+          example: -74.006
+        - name: radius_km
+          in: query
+          type: number
+          example: 5
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/propertyhandler.ListPropertiesResponseDoc'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+    post:
+      summary: Create property
+      tags: [properties]
+      description: Create a new property. Requires admin role.
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/propertyhandler.PropertyCreateDoc'
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/propertyhandler.PropertyDTODoc'
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "409":
+          description: Conflict
+        "500":
+          description: Internal Server Error
+
+  /properties/{id}:
+    get:
+      summary: Get property
+      tags: [properties]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/propertyhandler.PropertyDTODoc'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+    put:
+      summary: Update property
+      tags: [properties]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/propertyhandler.UpdatePropertyDoc'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+    delete:
+      summary: Delete property
+      tags: [properties]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+            properties:
+              deleted_id:
+                type: integer
+                example: 1
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+
+  /properties/{id}/favorites:
+    post:
+      summary: Toggle favorite
+      tags: [properties]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/propertyhandler.FavoriteDTODoc'
+        "204":
+          description: Removed
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+
+  /properties/{id}/images:
+    get:
+      summary: List images
+      tags: [properties]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/propertyhandler.ImageDTODoc'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+        "501":
+          description: Not Implemented
+    post:
+      summary: Upload images
+      tags: [properties]
+      consumes:
+        - multipart/form-data
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+        - name: files
+          in: formData
+          description: Up to 10 image files
+          required: true
+          type: file
+          collectionFormat: multi
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/propertyhandler.ImageDTODoc'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+        "501":
+          description: Not Implemented
+    put:
+      summary: Replace images
+      tags: [properties]
+      consumes:
+        - multipart/form-data
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+        - name: files
+          in: formData
+          description: New images to replace existing ones
+          required: true
+          type: file
+          collectionFormat: multi
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+        "501":
+          description: Not Implemented
+
+  # -------------------- Property Types --------------------
+  /property_types:
+    get:
+      summary: List property types
+      tags: [property_types]
+      parameters:
+        - name: limit
+          in: query
+          type: integer
+          example: 10
+        - name: offset
+          in: query
+          type: integer
+          example: 0
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/propertytypehandler.ListPropertyTypesResponseDoc'
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+    post:
+      summary: Create property type
+      tags: [property_types]
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/propertytypehandler.CreatePropertyTypeDoc'
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/propertytypehandler.PropertyTypeDTODoc'
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "409":
+          description: Conflict
+        "500":
+          description: Internal Server Error
+
+  /property_types/{id}:
+    get:
+      summary: Get property type
+      tags: [property_types]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/propertytypehandler.PropertyTypeDTODoc'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+    put:
+      summary: Update property type
+      tags: [property_types]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/propertytypehandler.UpdatePropertyTypeDoc'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+    delete:
+      summary: Delete property type
+      tags: [property_types]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+
+# -------------------- Users --------------------
+  /users:
+    get:
+      summary: List users
+      tags: [users]
+      parameters:
+        - name: limit
+          in: query
+          type: integer
+          example: 10
+        - name: offset
+          in: query
+          type: integer
+          example: 0
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/userhandler.ListUsersResponseDoc'
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+
+  /users/register:
+    post:
+      summary: Register user
+      tags: [users]
+      security: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/userhandler.RegisterRequestDoc'
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/userhandler.PublicUserDoc'
+        "400":
+          description: Invalid request
+        "409":
+          description: Conflict
+        "500":
+          description: Internal Server Error
+
+  /users/login:
+    post:
+      summary: User login
+      tags: [users]
+      security: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/userhandler.LoginRequestDoc'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/userhandler.LoginResponseDoc'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+  /users/{id}:
+    get:
+      summary: Get user
+      tags: [users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/userhandler.PublicUserDoc'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+    delete:
+      summary: Delete user
+      tags: [users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+
+  /users/{id}/profile:
+    put:
+      summary: Update user profile
+      tags: [users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/userhandler.UpdateProfileRequestDoc'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+
+  /users/{id}/password:
+    post:
+      summary: Change user password
+      tags: [users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/userhandler.ChangePasswordRequestDoc'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+
+  /users/{id}/role:
+    post:
+      summary: Change user role
+      tags: [users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/userhandler.RoleRequestDoc'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+
+  /users/{id}/favorites:
+    get:
+      summary: List user favorites
+      tags: [users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/propertyhandler.FavoriteDTODoc'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+        "501":
+          description: Not Implemented
+
+  # -------------------- Tokens --------------------
+  /tokens/refresh:
+    post:
+      summary: Refresh token
+      tags: [tokens]
+      security: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/auth.RefreshRequestDoc'
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+            properties:
+              user_id:
+                type: integer
+                example: 1
+              access_token:
+                type: string
+                example: "eyJhbGciOiJIUzI1..."
+              refresh_token:
+                type: string
+                example: "dGhpc2lzYXJlZnJlc2h0b2tlbg=="
+        "400":
+          description: Bad Request
+        "401":
+          description: Invalid refresh token
+
+# -------------------- Definitions --------------------
 definitions:
-  propertyhandler.FavoriteDTODoc:
-    properties:
-      created_at:
-        type: string
-      property_id:
-        type: integer
-      user_id:
-        type: integer
+  propertyhandler.PropertyDTODoc:
     type: object
-  propertyhandler.ImageDTODoc:
     properties:
-      data:
-        type: string
-        format: byte
-      filename:
-        type: string
-      id:
-        type: integer
-      property_id:
-        type: integer
-    type: object
-  propertyhandler.ListPropertiesResponseDoc:
-    properties:
-      properties:
-        items:
-          $ref: '#/definitions/propertyhandler.PropertyDTODoc'
-        type: array
-      total:
-        type: integer
-    type: object
+      id: { type: integer, example: 1 }
+      title: { type: string, example: "Luxury Apartment" }
+      property_description: { type: string, example: "A spacious 3-bedroom apartment." }
+      type_id: { type: integer, example: 2 }
+      transaction_type: { type: string, example: "sale" }
+      price: { type: number, example: 350000 }
+      area: { type: number, example: 120 }
+      property_address: { type: string, example: "123 Main Street" }
+      latitude: { type: number, example: 40.7128 }
+      longitude: { type: number, example: -74.006 }
+      city: { type: string, example: "New York" }
+      property_status: { type: string, example: "available" }
+      created_at: { type: string, format: date-time, example: "2025-11-29T12:00:00Z" }
+      updated_at: { type: string, format: date-time, example: "2025-11-29T12:00:00Z" }
+
   propertyhandler.PropertyCreateDoc:
+    type: object
     required:
+      - title
+      - property_description
+      - price
       - area
       - city
-      - price
       - property_address
-      - property_description
-      - title
       - transaction_type
       - type_id
     properties:
-      area:
-        type: number
-      city:
-        type: string
-      price:
-        type: number
-      property_address:
-        type: string
-      property_description:
-        type: string
-      title:
-        type: string
-      transaction_type:
-        type: string
-      type_id:
-        type: integer
-    type: object
-  propertyhandler.PropertyDTODoc:
-    properties:
-      area:
-        type: number
-      city:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: integer
-      latitude:
-        type: number
-      longitude:
-        type: number
-      price:
-        type: number
-      property_address:
-        type: string
-      property_description:
-        type: string
-      property_status:
-        type: string
-      title:
-        type: string
-      transaction_type:
-        type: string
-      type_id:
-        type: integer
-      updated_at:
-        type: string
-    type: object
+      title: { type: string, example: "Luxury Apartment" }
+      property_description: { type: string, example: "A spacious 3-bedroom apartment." }
+      type_id: { type: integer, example: 2 }
+      transaction_type: { type: string, example: "sale" }
+      price: { type: number, example: 350000 }
+      area: { type: number, example: 120 }
+      property_address: { type: string, example: "123 Main Street" }
+      city: { type: string, example: "New York" }
+
   propertyhandler.UpdatePropertyDoc:
-    properties:
-      area:
-        type: number
-      city:
-        type: string
-      latitude:
-        type: number
-      longitude:
-        type: number
-      price:
-        type: number
-      property_address:
-        type: string
-      property_description:
-        type: string
-      property_status:
-        type: string
-      title:
-        type: string
-      transaction_type:
-        type: string
-      type_id:
-        type: integer
     type: object
-  propertytypehandler.CreatePropertyTypeDoc:
-    required:
-      - name
     properties:
-      name:
-        type: string
+      title: { type: string, example: "Luxury Apartment" }
+      property_description: { type: string, example: "A spacious 3-bedroom apartment." }
+      type_id: { type: integer, example: 2 }
+      transaction_type: { type: string, example: "sale" }
+      price: { type: number, example: 350000 }
+      area: { type: number, example: 120 }
+      property_address: { type: string, example: "123 Main Street" }
+      city: { type: string, example: "New York" }
+      property_status: { type: string, example: "available" }
+
+  propertyhandler.ListPropertiesResponseDoc:
     type: object
+    properties:
+      properties:
+        type: array
+        items:
+          $ref: '#/definitions/propertyhandler.PropertyDTODoc'
+      total: { type: integer, example: 42 }
+
+  propertyhandler.ImageFileDoc:
+    type: object
+    properties:
+      filename: { type: string, example: "photo1.jpg" }
+      data: { type: string, format: byte, example: "base64encodedstring==" }
+
+  propertyhandler.ImageDTODoc:
+    type: object
+    properties:
+      property_id: { type: integer, example: 1 }
+      files:
+        type: array
+        items:
+          $ref: '#/definitions/propertyhandler.ImageFileDoc'
+
+  propertyhandler.FavoriteDTODoc:
+    type: object
+    properties:
+      user_id: { type: integer, example: 1 }
+      property_id: { type: integer, example: 1 }
+      created_at: { type: string, format: date-time, example: "2025-11-29T12:00:00Z" }
+
+  propertytypehandler.PropertyTypeDTODoc:
+    type: object
+    properties:
+      id: { type: integer, example: 1 }
+      name: { type: string, example: "Apartment" }
+      created_at: { type: string, format: date-time, example: "2025-11-29T12:00:00Z" }
+
   propertytypehandler.ListPropertyTypesResponseDoc:
+    type: object
     properties:
-      total:
-        type: integer
       types:
+        type: array
         items:
           $ref: '#/definitions/propertytypehandler.PropertyTypeDTODoc'
-        type: array
+      total: { type: integer, example: 3 }
+
+  propertytypehandler.CreatePropertyTypeDoc:
     type: object
-  propertytypehandler.PropertyTypeDTODoc:
-    properties:
-      id:
-        type: integer
-      name:
-        type: string
-    type: object
-  propertytypehandler.UpdatePropertyTypeDoc:
     required:
       - name
     properties:
-      name:
-        type: string
+      name: { type: string, example: "Apartment" }
+
+  propertytypehandler.UpdatePropertyTypeDoc:
     type: object
-  userhandler.ChangePasswordRequestDoc:
     properties:
-      current_password:
-        type: string
-      new_password:
-        type: string
+      name: { type: string, example: "Apartment" }
+
+  userhandler.RegisterRequestDoc:
     type: object
     required:
-      - new_password
-  userhandler.ListUsersResponseDoc:
+      - email
+      - password
+      - first_name
+      - last_name
     properties:
-      total:
-        type: integer
+      email: { type: string, example: "user@example.com" }
+      password: { type: string, example: "secretpassword" }
+      first_name: { type: string, example: "John" }
+      last_name: { type: string, example: "Doe" }
+      phone_number: { type: string, example: "+1234567890", nullable: true }
+
+  userhandler.PublicUserDoc:
+    type: object
+    properties:
+      id: { type: integer, example: 1 }
+      email: { type: string, example: "user@example.com" }
+      first_name: { type: string, example: "John" }
+      last_name: { type: string, example: "Doe" }
+      phone_number: { type: string, example: "+1234567890", nullable: true }
+      role: { type: string, example: "user" }
+      is_active: { type: boolean, example: true }
+      created_at: { type: string, format: date-time, example: "2025-11-29T12:00:00Z" }
+      updated_at: { type: string, format: date-time, example: "2025-11-29T12:00:00Z" }
+
+  userhandler.UpdateProfileRequestDoc:
+    type: object
+    properties:
+      email: { type: string, example: "user@example.com" }
+      first_name: { type: string, example: "John" }
+      last_name: { type: string, example: "Doe" }
+      phone_number: { type: string, example: "+1234567890", nullable: true }
+      
+
+  userhandler.ChangePasswordRequestDoc:
+    type: object
+    properties:
+      current_password: { type: string, example: "oldpass123" }
+      new_password: { type: string, example: "newpass456" }
+
+  userhandler.RoleRequestDoc:
+    type: object
+    properties:
+      role: { type: string, example: "admin" }
+
+  userhandler.LoginRequestDoc:
+    type: object
+    properties:
+      email: { type: string, example: "user@example.com" }
+      password: { type: string, example: "secretpassword" }
+
+  userhandler.LoginResponseDoc:
+    type: object
+    properties:
+      user:
+        $ref: '#/definitions/userhandler.PublicUserDoc'
+      access_token: { type: string, example: "eyJhbGciOiJIUzI1..." }
+      refresh_token: { type: string, example: "dGhpc2lzYXJlZnJlc2h0b2tlbg==" }
+      expires_at: { type: string, format: date-time, example: "2025-11-29T14:00:00Z" }
+
+  userhandler.ListUsersResponseDoc:
+    type: object
+    properties:
       users:
+        type: array
         items:
           $ref: '#/definitions/userhandler.PublicUserDoc'
-        type: array
+      total: { type: integer, example: 5 }
+
+  auth.RefreshRequestDoc:
     type: object
-  userhandler.LoginRequestDoc:
     properties:
-      email:
-        type: string
-      password:
-        type: string
-    type: object
-  userhandler.LoginResponseDoc:
-    properties:
-      access_token:
-        type: string
-      refresh_token:
-        type: string
-    type: object
-  userhandler.PublicUserDoc:
-    properties:
-      created_at:
-        type: string
-      email:
-        type: string
-      first_name:
-        type: string
-      id:
-        type: integer
-      is_active:
-        type: boolean
-      last_name:
-        type: string
-      phone_number:
-        type: string
-        x-nullable: true
-        nullable: true
-      role:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  userhandler.RegisterRequestDoc:
-    properties:
-      email:
-        type: string
-      first_name:
-        type: string
-      last_name:
-        type: string
-      password:
-        type: string
-      phone_number:
-        type: string
-        x-nullable: true
-        nullable: true
-    type: object
-  userhandler.RoleRequestDoc:
-    properties:
-      role:
-        type: string
-    type: object
-  userhandler.UpdateProfileRequestDoc:
-    properties:
-      email:
-        type: string
-      first_name:
-        description: |-
-          Optional fields: any of these may be omitted in the request. Using
-          pointer-to-string with `omitempty` models optional semantics for the
-          swagger generator.
-        type: string
-      last_name:
-        type: string
-      phone_number:
-        type: string
-        x-nullable: true
-        nullable: true
-    type: object
-host: localhost:8080
-info:
-  contact: {}
-  description: 'Enter the token as: "Bearer <token>" (include the word Bearer and
-    a space)'
-  title: Estate Agency API
-  version: 0.0.0
-paths:
-  /properties:
-    get:
-      consumes:
-      - application/json
-      description: List properties with pagination
-      parameters:
-      - description: Limit
-        in: query
-        name: limit
-        type: integer
-      - description: Offset
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/propertyhandler.ListPropertiesResponseDoc'
-      summary: List properties
-      tags:
-      - properties
-    post:
-      consumes:
-      - application/json
-      description: Create a new property
-      parameters:
-      - description: Property
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/propertyhandler.PropertyCreateDoc'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/propertyhandler.PropertyDTODoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "409":
-          description: Conflict
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Create property
-      tags:
-      - properties
-  /properties/{id}:
-    delete:
-      consumes:
-      - application/json
-      description: Delete property by ID
-      parameters:
-      - description: Property ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: integer
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Delete property
-      tags:
-      - properties
-    get:
-      consumes:
-      - application/json
-      description: Get property by ID
-      parameters:
-      - description: Property ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/propertyhandler.PropertyDTODoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Get property
-      tags:
-      - properties
-    put:
-      consumes:
-      - application/json
-      description: Update an existing property
-      parameters:
-      - description: Property ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Property
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/propertyhandler.UpdatePropertyDoc'
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Update property
-      tags:
-      - properties
-  /properties/{id}/favorites:
-    post:
-      consumes:
-      - application/json
-      description: Toggle favorite for the authenticated user and given property ID.
-        Returns 201 with created favorite or 204 when removed.
-      parameters:
-      - description: Property ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/propertyhandler.FavoriteDTODoc'
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Toggle favorite for property
-      tags:
-      - properties
-  /properties/{id}/images:
-    post:
-      consumes:
-      - multipart/form-data
-      description: 'Upload up to 10 image files for the given property. Field name:
-        files (multipart/form-data).'
-      parameters:
-      - description: Property ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - name: files
-        in: formData
-        description: Files
-        required: true
-        type: array
-        items:
-          type: file
-        collectionFormat: multi
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            items:
-              $ref: '#/definitions/propertyhandler.ImageDTODoc'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "415":
-          description: Unsupported Media Type
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Upload images for a property
-      tags:
-      - properties
-    put:
-      consumes:
-      - multipart/form-data
-      description: 'Replace existing images for the given property with provided files
-        (up to 10). Field name: files (multipart/form-data).'
-      parameters:
-      - description: Property ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - name: files
-        in: formData
-        description: Files
-        required: true
-        type: array
-        items:
-          type: file
-        collectionFormat: multi
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "415":
-          description: Unsupported Media Type
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Replace images for a property
-      tags:
-      - properties
-  /property_types:
-    get:
-      description: List property types with pagination
-      parameters:
-      - description: Limit
-        in: query
-        name: limit
-        type: integer
-      - description: Offset
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/propertytypehandler.ListPropertyTypesResponseDoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: List property types
-      tags:
-      - property_types
-    post:
-      consumes:
-      - application/json
-      description: Create a new property type
-      parameters:
-      - description: Property type body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/propertytypehandler.CreatePropertyTypeDoc'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/propertytypehandler.PropertyTypeDTODoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Create property type
-      tags:
-      - property_types
-  /property_types/{id}:
-    delete:
-      description: Delete property type by ID
-      parameters:
-      - description: Property Type ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: integer
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Delete property type
-      tags:
-      - property_types
-    get:
-      description: Get property type by ID
-      parameters:
-      - description: Property Type ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/propertytypehandler.PropertyTypeDTODoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get property type
-      tags:
-      - property_types
-    put:
-      consumes:
-      - application/json
-      description: Update property type by ID
-      parameters:
-      - description: Property Type ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Property type body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/propertytypehandler.UpdatePropertyTypeDoc'
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Update property type
-      tags:
-      - property_types
-  /users:
-    get:
-      description: List users with pagination and optional filters
-      parameters:
-      - description: Limit
-        in: query
-        name: limit
-        type: integer
-      - description: Offset
-        in: query
-        name: offset
-        type: integer
-      - description: Filter by exact email
-        in: query
-        name: email
-        type: string
-      - description: Filter by role (admin/user)
-        in: query
-        name: role
-        type: string
-      - description: Search in name and email
-        in: query
-        name: search
-        type: string
-      - description: Filter by active state (true/false)
-        in: query
-        name: is_active
-        type: boolean
-      - description: Comma-separated list of user IDs to include
-        in: query
-        name: ids
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/userhandler.ListUsersResponseDoc'
-      security:
-      - BearerAuth: []
-      summary: List users
-      tags:
-      - users
-  /users/{id}:
-    delete:
-      description: Delete user by ID
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: integer
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Delete user
-      tags:
-      - users
-    get:
-      description: Get user by ID
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/userhandler.PublicUserDoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get user
-      tags:
-      - users
-  /users/{id}/active:
-    post:
-      description: Toggle user's active state (owner or admin)
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      responses:
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Toggle active state
-      tags:
-      - users
-  /users/{id}/favorites:
-    get:
-      consumes:
-      - application/json
-      description: List favorites for the specified user. Only the owner may view
-        their favorites.
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Get favorites for a user
-      tags:
-      - users
-  /users/{id}/password:
-    post:
-      consumes:
-      - application/json
-      description: Change password for a user (owner or admin)
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Password request
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/userhandler.ChangePasswordRequestDoc'
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Change user password
-      tags:
-      - users
-  /users/{id}/profile:
-    put:
-      consumes:
-      - application/json
-      description: Update profile for a user (owner or admin)
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Profile
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/userhandler.UpdateProfileRequestDoc'
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Update user profile
-      tags:
-      - users
-  /users/{id}/role:
-    post:
-      consumes:
-      - application/json
-      description: Change role for a user (admin only)
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Role body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/userhandler.RoleRequestDoc'
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Change user role
-      tags:
-      - users
-  /users/login:
-    post:
-      consumes:
-      - application/json
-      description: Authenticate user and return tokens
-      parameters:
-      - description: Login credentials
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/userhandler.LoginRequestDoc'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/userhandler.LoginResponseDoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Login
-      tags:
-      - users
-  /users/register:
-    post:
-      consumes:
-      - application/json
-      description: Register a new user
-      parameters:
-      - description: Register
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/userhandler.RegisterRequestDoc'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/userhandler.PublicUserDoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Register user
-      tags:
-      - users
+      refresh_token: { type: string, example: "dGhpc2lzYXJlZnJlc2h0b2tlbg==" }
+
 securityDefinitions:
   BearerAuth:
-    in: header
-    name: Authorization
     type: apiKey
-swagger: "2.0"
-host: localhost:8080
-info:
-  contact: {}
-  description: 'Enter the token as: "Bearer <token>" (include the word Bearer and
-    a space)'
-  title: Estate Agency API
-  version: 0.0.0
-paths:
-  /properties:
-    get:
-      consumes:
-      - application/json
-      description: List properties with pagination
-      parameters:
-      - description: Limit
-        in: query
-        name: limit
-        type: integer
-      - description: Offset
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/propertyhandler.ListPropertiesResponseDoc'
-      summary: List properties
-      tags:
-      - properties
-    post:
-      consumes:
-      - application/json
-      description: Create a new property
-      parameters:
-      - description: Property
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/propertyhandler.PropertyCreateDoc'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/propertyhandler.PropertyDTODoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "409":
-          description: Conflict
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Create property
-      tags:
-      - properties
-  /properties/{id}:
-    delete:
-      consumes:
-      - application/json
-      description: Delete property by ID
-      parameters:
-      - description: Property ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: integer
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Delete property
-      tags:
-      - properties
-    get:
-      consumes:
-      - application/json
-      description: Get property by ID
-      parameters:
-      - description: Property ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/propertyhandler.PropertyDTODoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Get property
-      tags:
-      - properties
-    put:
-      consumes:
-      - application/json
-      description: Update an existing property
-      parameters:
-      - description: Property ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Property
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/propertyhandler.UpdatePropertyDoc'
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Update property
-      tags:
-      - properties
-  /properties/{id}/favorites:
-    post:
-      consumes:
-      - application/json
-      description: Toggle favorite for the authenticated user and given property ID.
-        Returns 201 with created favorite or 204 when removed.
-      parameters:
-      - description: Property ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/propertyhandler.FavoriteDTODoc'
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Toggle favorite for property
-      tags:
-      - properties
-  /properties/{id}/images:
-    post:
-      consumes:
-      - multipart/form-data
-      description: 'Upload up to 10 image files for the given property. Field name:
-        files (multipart/form-data).'
-      parameters:
-      - description: Property ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Files
-        in: formData
-        name: files
-        required: true
-        type: file
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            items:
-              $ref: '#/definitions/propertyhandler.ImageDTODoc'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "415":
-          description: Unsupported Media Type
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Upload images for a property
-      tags:
-      - properties
-    put:
-      consumes:
-      - multipart/form-data
-      description: 'Replace existing images for the given property with provided files
-        (up to 10). Field name: files (multipart/form-data).'
-      parameters:
-      - description: Property ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Files
-        in: formData
-        name: files
-        required: true
-        type: file
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "415":
-          description: Unsupported Media Type
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Replace images for a property
-      tags:
-      - properties
-  /property_types:
-    get:
-      description: List property types with pagination
-      parameters:
-      - description: Limit
-        in: query
-        name: limit
-        type: integer
-      - description: Offset
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/propertytypehandler.ListPropertyTypesResponseDoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: List property types
-      tags:
-      - property_types
-    post:
-      consumes:
-      - application/json
-      description: Create a new property type
-      parameters:
-      - description: Property type body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/propertytypehandler.CreatePropertyTypeDoc'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/propertytypehandler.PropertyTypeDTODoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Create property type
-      tags:
-      - property_types
-  /property_types/{id}:
-    delete:
-      description: Delete property type by ID
-      parameters:
-      - description: Property Type ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: integer
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Delete property type
-      tags:
-      - property_types
-    get:
-      description: Get property type by ID
-      parameters:
-      - description: Property Type ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/propertytypehandler.PropertyTypeDTODoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get property type
-      tags:
-      - property_types
-    put:
-      consumes:
-      - application/json
-      description: Update property type by ID
-      parameters:
-      - description: Property Type ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Property type body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/propertytypehandler.UpdatePropertyTypeDoc'
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Update property type
-      tags:
-      - property_types
-  /users:
-    get:
-      description: List users with pagination and optional filters
-      parameters:
-      - description: Limit
-        in: query
-        name: limit
-        type: integer
-      - description: Offset
-        in: query
-        name: offset
-        type: integer
-      - description: Filter by exact email
-        in: query
-        name: email
-        type: string
-      - description: Filter by role (admin/user)
-        in: query
-        name: role
-        type: string
-      - description: Search in name and email
-        in: query
-        name: search
-        type: string
-      - description: Filter by active state (true/false)
-        in: query
-        name: is_active
-        type: boolean
-      - description: Comma-separated list of user IDs to include
-        in: query
-        name: ids
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/userhandler.ListUsersResponseDoc'
-        security:
-        - BearerAuth: []
-      summary: List users
-      tags:
-      - users
-  /users/{id}:
-    delete:
-      description: Delete user by ID
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: integer
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Delete user
-      tags:
-      - users
-    get:
-      description: Get user by ID
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/userhandler.PublicUserDoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get user
-      tags:
-      - users
-  /users/{id}/active:
-    post:
-      description: Toggle user's active state (owner or admin)
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      responses:
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Toggle active state
-      tags:
-      - users
-  /users/{id}/favorites:
-    get:
-      consumes:
-      - application/json
-      description: List favorites for the specified user. Only the owner may view
-        their favorites.
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Get favorites for a user
-      tags:
-      - users
-  /users/{id}/password:
-    post:
-      consumes:
-      - application/json
-      description: Change password for a user (owner or admin)
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Password request
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/userhandler.ChangePasswordRequestDoc'
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Change user password
-      tags:
-      - users
-  /users/{id}/profile:
-    put:
-      consumes:
-      - application/json
-      description: Update profile for a user (owner or admin)
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Profile
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/userhandler.UpdateProfileRequestDoc'
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Update user profile
-      tags:
-      - users
-  /users/{id}/role:
-    post:
-      consumes:
-      - application/json
-      description: Change role for a user (admin only)
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Role body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/userhandler.RoleRequestDoc'
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: ""
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Change user role
-      tags:
-      - users
-  /users/login:
-    post:
-      consumes:
-      - application/json
-      description: Authenticate user and return tokens
-      parameters:
-      - description: Login credentials
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/userhandler.LoginRequestDoc'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/userhandler.LoginResponseDoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Login
-      tags:
-      - users
-  /users/register:
-    post:
-      consumes:
-      - application/json
-      description: Register a new user
-      parameters:
-      - description: Register
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/userhandler.RegisterRequestDoc'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/userhandler.PublicUserDoc'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Register user
-      tags:
-      - users
-securityDefinitions:
-  BearerAuth:
-    in: header
     name: Authorization
-    type: apiKey
-swagger: "2.0"
+    in: header

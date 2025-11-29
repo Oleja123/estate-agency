@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -15,6 +16,7 @@ import (
 	imagedto "github.com/Oleja123/estate-agency/internal/application/image/dto"
 	propertysvc "github.com/Oleja123/estate-agency/internal/application/property"
 	dto "github.com/Oleja123/estate-agency/internal/application/property/dto"
+	propdomain "github.com/Oleja123/estate-agency/internal/domain/property"
 	"github.com/Oleja123/estate-agency/internal/handler/auth"
 	handlerutils "github.com/Oleja123/estate-agency/internal/handler/utils"
 )
@@ -190,12 +192,26 @@ func (h *PropertyHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 
 // @Security BearerAuth
 // @Summary List properties
-// @Description List properties with pagination
+// @Description List properties with pagination and filters
 // @Tags properties
 // @Accept json
 // @Produce json
 // @Param limit query int false "Limit"
 // @Param offset query int false "Offset"
+// @Param ids query string false "Comma-separated property IDs"
+// @Param type_ids query string false "Comma-separated property type IDs"
+// @Param transaction_type query string false "transaction type (sale|rent)"
+// @Param city query string false "City name"
+// @Param property_status query string false "Property status (active|sold|rented|inactive)"
+// @Param created_by query int false "Creator user ID"
+// @Param min_price query number false "Minimum price"
+// @Param max_price query number false "Maximum price"
+// @Param min_area query number false "Minimum area"
+// @Param max_area query number false "Maximum area"
+// @Param search query string false "Full-text search query"
+// @Param latitude query number false "Latitude for geo filter"
+// @Param longitude query number false "Longitude for geo filter"
+// @Param radius_km query number false "Radius in kilometers for geo filter"
 // @Success 200 {object} ListPropertiesResponseDoc
 // @Router /properties [get]
 func (h *PropertyHandler) handleList(w http.ResponseWriter, r *http.Request) {
@@ -215,7 +231,89 @@ func (h *PropertyHandler) handleList(w http.ResponseWriter, r *http.Request) {
 			offset = v
 		}
 	}
-	req := dto.ListPropertiesRequest{Limit: limit, Offset: offset}
+	// build filter from query params
+	var f propdomain.Filter
+
+	// helper to parse comma-separated ints
+	parseInts := func(s string) []int {
+		if s == "" {
+			return nil
+		}
+		var out []int
+		for _, part := range strings.Split(s, ",") {
+			p := strings.TrimSpace(part)
+			if p == "" {
+				continue
+			}
+			if v, err := strconv.Atoi(p); err == nil {
+				out = append(out, v)
+			}
+		}
+		return out
+	}
+
+	if ids := q.Get("ids"); ids != "" {
+		f.IDs = parseInts(ids)
+	}
+	if tids := q.Get("type_ids"); tids != "" {
+		f.TypeIDs = parseInts(tids)
+	} else if tid := q.Get("type_id"); tid != "" {
+		f.TypeIDs = parseInts(tid)
+	}
+	if tt := q.Get("transaction_type"); tt != "" {
+		f.TransactionType = propdomain.TransactionType(tt)
+	}
+	if city := q.Get("city"); city != "" {
+		f.City = city
+	}
+	if ps := q.Get("property_status"); ps != "" {
+		f.PropertyStatus = propdomain.PropertyStatus(ps)
+	}
+	if cb := q.Get("created_by"); cb != "" {
+		if v, err := strconv.Atoi(cb); err == nil {
+			f.CreatedBy = v
+		}
+	}
+	if mp := q.Get("min_price"); mp != "" {
+		if v, err := strconv.ParseFloat(mp, 64); err == nil {
+			f.MinPrice = v
+		}
+	}
+	if xp := q.Get("max_price"); xp != "" {
+		if v, err := strconv.ParseFloat(xp, 64); err == nil {
+			f.MaxPrice = v
+		}
+	}
+	if ma := q.Get("min_area"); ma != "" {
+		if v, err := strconv.ParseFloat(ma, 64); err == nil {
+			f.MinArea = v
+		}
+	}
+	if xa := q.Get("max_area"); xa != "" {
+		if v, err := strconv.ParseFloat(xa, 64); err == nil {
+			f.MaxArea = v
+		}
+	}
+	if s := q.Get("search"); s != "" {
+		f.Search = s
+	}
+	if lat := q.Get("latitude"); lat != "" {
+		if v, err := strconv.ParseFloat(lat, 64); err == nil {
+			f.Latitude = v
+		}
+	}
+	if lon := q.Get("longitude"); lon != "" {
+		if v, err := strconv.ParseFloat(lon, 64); err == nil {
+			f.Longitude = v
+		}
+	}
+	if rk := q.Get("radius_km"); rk != "" {
+		if v, err := strconv.ParseFloat(rk, 64); err == nil {
+			f.RadiusKm = v
+		}
+	}
+
+	req := dto.ListPropertiesRequest{Filter: f, Limit: limit, Offset: offset}
 	res, err := h.svc.List(r.Context(), req)
 	if err != nil {
 		code, body := handlerutils.MapAppError(err)
@@ -298,7 +396,6 @@ func (h *PropertyHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 // @Success 201 {array} ImageDTODoc
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
-// @Failure 415 {object} map[string]string
 // @Router /properties/{id}/images [post]
 func (h *PropertyHandler) handleCreateImages(w http.ResponseWriter, r *http.Request) {
 	pidStr := chi.URLParam(r, "id")
@@ -354,7 +451,6 @@ func (h *PropertyHandler) handleCreateImages(w http.ResponseWriter, r *http.Requ
 // @Success 201 {array} ImageDTODoc
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
-// @Failure 415 {object} map[string]string
 // @Router /properties/{id}/images [post]
 
 // handleUpdateImages replaces existing images for the property with provided files.
@@ -369,7 +465,6 @@ func (h *PropertyHandler) handleCreateImages(w http.ResponseWriter, r *http.Requ
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
-// @Failure 415 {object} map[string]string
 // @Router /properties/{id}/images [put]
 func (h *PropertyHandler) handleUpdateImages(w http.ResponseWriter, r *http.Request) {
 	pidStr := chi.URLParam(r, "id")
