@@ -35,9 +35,7 @@ func TestRead_Delete_DeletePropertyDir(t *testing.T) {
 	fsys := New(tmp)
 
 	propDir := filepath.Join(tmp, "555")
-	if err := os.MkdirAll(propDir, 0o755); err != nil {
-		t.Fatalf("mkdir failed: %v", err)
-	}
+	require.NoError(t, os.MkdirAll(propDir, 0o755))
 	fpath := filepath.Join(propDir, "1.png")
 	require.NoError(t, os.WriteFile(fpath, pngSig, 0o644))
 

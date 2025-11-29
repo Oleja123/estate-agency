@@ -84,6 +84,7 @@ func createTestUserForImageTests() int {
 }
 
 func createTestProperty(t *testing.T) int {
+	t.Helper()
 	_, _ = testClient.Exec(context.Background(), "TRUNCATE TABLE properties RESTART IDENTITY CASCADE")
 
 	var id int
