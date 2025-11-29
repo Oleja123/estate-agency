@@ -77,7 +77,6 @@ func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next
 		if h.imgSvc != nil {
 			// allow authenticated users to list images for a property
 			r.Get("/{id}/images", h.handleListImages)
-			r.With(auth.RequireAdminMiddleware()).Post("/{id}/images", h.handleCreateImages)
 			r.With(auth.RequireAdminMiddleware()).Put("/{id}/images", h.handleUpdateImages)
 		}
 	})
@@ -382,68 +381,6 @@ func (h *PropertyHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	handlerutils.WriteJSON(w, http.StatusOK, map[string]int{"deleted_id": deletedID})
-}
-
-// handleCreateImages handles multipart file upload (field name "files") and creates property images.
-// @Security BearerAuth
-// @Summary Upload images for a property
-// @Description Upload up to 10 image files for the given property. Field name: files (multipart/form-data).
-// @Tags properties
-// @Accept multipart/form-data
-// @Produce json
-// @Param id path int true "Property ID"
-// @Param files formData []file true "Files"
-// @Success 201 {array} ImageDTODoc
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Router /properties/{id}/images [post]
-func (h *PropertyHandler) handleCreateImages(w http.ResponseWriter, r *http.Request) {
-	pidStr := chi.URLParam(r, "id")
-	pid, err := strconv.Atoi(pidStr)
-	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
-		return
-	}
-	if h.imgSvc == nil {
-		handlerutils.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "images not supported"})
-		return
-	}
-	if err := r.ParseMultipartForm(multipartMaxMemory); err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid multipart form"})
-		return
-	}
-	files := r.MultipartForm.File["files"]
-	if len(files) == 0 {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "no files provided"})
-		return
-	}
-	if len(files) > maxImagesPerRequest {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "too many files; maximum 10 allowed"})
-		return
-	}
-	var req imagedto.CreateImagesRequest
-	req.PropertyID = pid
-	for _, fh := range files {
-		f, err := fh.Open()
-		if err != nil {
-			handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "cannot read file"})
-			return
-		}
-		data, err := io.ReadAll(f)
-		_ = f.Close()
-		if err != nil {
-			handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "cannot read file"})
-			return
-		}
-		req.Files = append(req.Files, imagedto.ImageFile{Filename: fh.Filename, Data: data})
-	}
-	imgs, err := h.imgSvc.CreateMany(r.Context(), req)
-	if err != nil {
-		code, body := handlerutils.MapAppError(err)
-		handlerutils.WriteJSON(w, code, body)
-		return
-	}
-	handlerutils.WriteJSON(w, http.StatusCreated, imgs)
 }
 
 // @Param id path int true "Property ID"

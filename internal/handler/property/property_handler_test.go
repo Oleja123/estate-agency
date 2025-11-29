@@ -165,62 +165,6 @@ func TestHandleCreate_CallsServiceAndReturnsCreated(t *testing.T) {
 	}
 }
 
-func TestHandleCreateImages_CallsServiceAndReturnsCreated(t *testing.T) {
-	m := &mockService{}
-	logger := newLogger()
-	imgMock := &mockImageService{}
-	h := NewPropertyHandler(m, logger, &mockFavorite{}, imgMock)
-
-	// build multipart body with one file
-	var buf bytes.Buffer
-	mw := multipart.NewWriter(&buf)
-	fw, _ := mw.CreateFormFile("files", "a.jpg")
-	fw.Write([]byte("hello"))
-	mw.Close()
-
-	req := httptest.NewRequest(http.MethodPost, "/properties/3/images", &buf)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
-	rc := chi.NewRouteContext()
-	rc.URLParams.Add("id", "3")
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
-	rr := httptest.NewRecorder()
-
-	h.handleCreateImages(rr, req)
-	if !imgMock.CreateManyCalled {
-		t.Fatalf("expected CreateMany to be called on image service")
-	}
-	if rr.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d body=%s", rr.Code, rr.Body.String())
-	}
-}
-
-func TestHandleCreateImages_TooManyFiles_Returns400(t *testing.T) {
-	m := &mockService{}
-	logger := newLogger()
-	imgMock := &mockImageService{}
-	h := NewPropertyHandler(m, logger, &mockFavorite{}, imgMock)
-
-	var buf bytes.Buffer
-	mw := multipart.NewWriter(&buf)
-	for i := 0; i < 11; i++ {
-		fw, _ := mw.CreateFormFile("files", fmt.Sprintf("file%d.jpg", i))
-		fw.Write([]byte("x"))
-	}
-	mw.Close()
-
-	req := httptest.NewRequest(http.MethodPost, "/properties/3/images", &buf)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
-	rc := chi.NewRouteContext()
-	rc.URLParams.Add("id", "3")
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
-	rr := httptest.NewRecorder()
-
-	h.handleCreateImages(rr, req)
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400 for too many files, got %d body=%s", rr.Code, rr.Body.String())
-	}
-}
-
 func TestHandleUpdateImages_CallsServiceAndReturnsNoContent(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()

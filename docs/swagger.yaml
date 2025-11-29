@@ -96,12 +96,36 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/propertyhandler.ListPropertiesResponseDoc'
+          examples:
+            application/json:
+              properties:
+                - id: 1
+                  title: "Luxury Apartment"
+                  property_description: "A spacious 3-bedroom apartment."
+                  type_id: 2
+                  transaction_type: "sale"
+                  price: 350000
+                  area: 120
+                  property_address: "123 Main Street"
+                  latitude: 40.7128
+                  longitude: -74.006
+                  city: "New York"
+                  property_status: "available"
+                  created_at: "2025-11-29T12:00:00Z"
+                  updated_at: "2025-11-29T12:00:00Z"
+              total: 1
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
         "500":
           description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
     post:
       summary: Create property
       tags: [properties]
@@ -256,40 +280,6 @@ paths:
           description: Unauthorized
         "404":
           description: Not Found
-        "500":
-          description: Internal Server Error
-        "501":
-          description: Not Implemented
-    post:
-      summary: Upload images
-      tags: [properties]
-      consumes:
-        - multipart/form-data
-      parameters:
-        - name: id
-          in: path
-          required: true
-          type: integer
-          example: 1
-        - name: files
-          in: formData
-          description: Up to 10 image files
-          required: true
-          type: file
-          collectionFormat: multi
-      responses:
-        "201":
-          description: Created
-          schema:
-            type: array
-            items:
-              $ref: '#/definitions/propertyhandler.ImageDTODoc'
-        "400":
-          description: Bad Request
-        "401":
-          description: Unauthorized
-        "403":
-          description: Forbidden
         "500":
           description: Internal Server Error
         "501":
@@ -456,6 +446,26 @@ paths:
           in: query
           type: integer
           example: 0
+        - name: ids
+          in: query
+          type: string
+          example: "1,2,3"
+        - name: email
+          in: query
+          type: string
+          example: "user@example.com"
+        - name: role
+          in: query
+          type: string
+          example: "client"
+        - name: is_active
+          in: query
+          type: boolean
+          example: true
+        - name: search
+          in: query
+          type: string
+          example: "john"
       responses:
         "200":
           description: OK
@@ -505,12 +515,32 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/userhandler.LoginResponseDoc'
+          examples:
+            application/json:
+              user:
+                id: 1
+                email: "user@example.com"
+                first_name: "John"
+                last_name: "Doe"
+                role: "user"
+                is_active: true
+                created_at: "2025-11-29T12:00:00Z"
+                updated_at: "2025-11-29T12:00:00Z"
+              access_token: "eyJhbGciOiJIUzI1..."
+              refresh_token: "dGhpc2lzYXJlZnJlc2h0b2tlbg=="
+              expires_at: "2025-11-29T14:00:00Z"
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
         "500":
           description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
   /users/{id}:
     get:
       summary: Get user
@@ -627,6 +657,28 @@ paths:
           description: No Content
         "400":
           description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+
+  /users/{id}/active:
+    post:
+      summary: Set user active status (toggle)
+      tags: [users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: integer
+          example: 1
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
         "401":
           description: Unauthorized
         "403":
@@ -880,6 +932,16 @@ definitions:
     type: object
     properties:
       refresh_token: { type: string, example: "dGhpc2lzYXJlZnJlc2h0b2tlbg==" }
+
+  ErrorResponse:
+    type: object
+    properties:
+      code: { type: integer, example: 400 }
+      message: { type: string, example: "Invalid request parameters" }
+      details:
+        type: object
+        additionalProperties:
+          type: string
 
 securityDefinitions:
   BearerAuth:
