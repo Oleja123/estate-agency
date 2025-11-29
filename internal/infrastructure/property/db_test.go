@@ -482,7 +482,7 @@ func TestPropertyListWithDistanceFilter(t *testing.T) {
 	}
 
 	t.Run("filter_by_distance", func(t *testing.T) {
-	require.NoError(t, TruncateTables())
+		require.NoError(t, TruncateTables())
 		setupTestData()
 
 		request := property.ListRequest{

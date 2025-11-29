@@ -47,11 +47,13 @@ func (s *service) Create(ctx context.Context, userID int, req dto.CreateProperty
 	}
 	if _, err := s.typeRepo.GetByID(ctx, req.TypeID); err != nil {
 		var nf dberrors.ErrNotFound
-		if errors.As(err, &nf) {
+		switch {
+		case errors.As(err, &nf):
 			return domain.Property{}, apperrors.NewErrNotFound("property_type", req.TypeID)
+		default:
+			s.logger.Error("create property: type repo error", "err", err)
+			return domain.Property{}, apperrors.NewErrInternal("failed to validate property type")
 		}
-		s.logger.Error("create property: type repo error", "err", err)
-		return domain.Property{}, apperrors.NewErrInternal("failed to validate property type")
 	}
 
 	p := domain.Property{
@@ -80,11 +82,13 @@ func (s *service) Create(ctx context.Context, userID int, req dto.CreateProperty
 	id, err := s.repo.Create(ctx, p)
 	if err != nil {
 		var ae dberrors.ErrAlreadyExists
-		if errors.As(err, &ae) {
+		switch {
+		case errors.As(err, &ae):
 			return domain.Property{}, apperrors.NewErrAlreadyExists("property", "title", title)
+		default:
+			s.logger.Error("create property: repo create error", "err", err)
+			return domain.Property{}, apperrors.NewErrInternal("failed to create property")
 		}
-		s.logger.Error("create property: repo create error", "err", err)
-		return domain.Property{}, apperrors.NewErrInternal("failed to create property")
 	}
 
 	created, err := s.repo.GetByID(ctx, id)
@@ -100,11 +104,13 @@ func (s *service) GetByID(ctx context.Context, id int) (domain.Property, error) 
 	p, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		var nf dberrors.ErrNotFound
-		if errors.As(err, &nf) {
+		switch {
+		case errors.As(err, &nf):
 			return domain.Property{}, apperrors.NewErrNotFound("property", id)
+		default:
+			s.logger.Error("get property: repo error", "err", err)
+			return domain.Property{}, apperrors.NewErrInternal("failed to fetch property")
 		}
-		s.logger.Error("get property: repo error", "err", err)
-		return domain.Property{}, apperrors.NewErrInternal("failed to fetch property")
 	}
 	return p, nil
 }
@@ -113,11 +119,13 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 	p, err := s.repo.GetByID(ctx, req.ID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
-		if errors.As(err, &nf) {
+		switch {
+		case errors.As(err, &nf):
 			return apperrors.NewErrNotFound("property", req.ID)
+		default:
+			s.logger.Error("update property: failed to fetch", "err", err)
+			return apperrors.NewErrInternal("failed to fetch property")
 		}
-		s.logger.Error("update property: failed to fetch", "err", err)
-		return apperrors.NewErrInternal("failed to fetch property")
 	}
 
 	// if type changed (provided, valid and non-zero), validate existence
@@ -126,11 +134,13 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 		if val != 0 && val != p.TypeID {
 			if _, err := s.typeRepo.GetByID(ctx, val); err != nil {
 				var nf dberrors.ErrNotFound
-				if errors.As(err, &nf) {
+				switch {
+				case errors.As(err, &nf):
 					return apperrors.NewErrNotFound("property_type", val)
+				default:
+					s.logger.Error("update property: type repo error", "err", err)
+					return apperrors.NewErrInternal("failed to validate property type")
 				}
-				s.logger.Error("update property: type repo error", "err", err)
-				return apperrors.NewErrInternal("failed to validate property type")
 			}
 			p.TypeID = val
 		}
@@ -175,14 +185,15 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 	if err := s.repo.Update(ctx, p); err != nil {
 		var ae dberrors.ErrAlreadyExists
 		var di dberrors.ErrInvalidInput
-		if errors.As(err, &ae) {
+		switch {
+		case errors.As(err, &ae):
 			return apperrors.NewErrAlreadyExists("property", ae.Field, ae.Value)
-		}
-		if errors.As(err, &di) {
+		case errors.As(err, &di):
 			return apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
+		default:
+			s.logger.Error("update property: repo update failed", "err", err)
+			return apperrors.NewErrInternal("failed to update property")
 		}
-		s.logger.Error("update property: repo update failed", "err", err)
-		return apperrors.NewErrInternal("failed to update property")
 	}
 	s.logger.Info("update property: updated", "id", p.ID)
 	return nil
@@ -203,11 +214,13 @@ func (s *service) Delete(ctx context.Context, id int) (int, error) {
 	deletedID, err := s.repo.Delete(ctx, id)
 	if err != nil {
 		var nf dberrors.ErrNotFound
-		if errors.As(err, &nf) {
+		switch {
+		case errors.As(err, &nf):
 			return 0, apperrors.NewErrNotFound("property", id)
+		default:
+			s.logger.Error("delete property: repo delete failed", "err", err)
+			return 0, apperrors.NewErrInternal("failed to delete property")
 		}
-		s.logger.Error("delete property: repo delete failed", "err", err)
-		return 0, apperrors.NewErrInternal("failed to delete property")
 	}
 	s.logger.Info("delete property: deleted", "id", deletedID)
 	return deletedID, nil

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -21,7 +20,6 @@ import (
 	"github.com/Oleja123/estate-agency/internal/application/user/password"
 	"github.com/Oleja123/estate-agency/internal/handler/auth"
 
-	// imagehandler "github.com/Oleja123/estate-agency/internal/handler/image"
 	propertyhandler "github.com/Oleja123/estate-agency/internal/handler/property"
 	propertytypehandler "github.com/Oleja123/estate-agency/internal/handler/property_type"
 	userhandler "github.com/Oleja123/estate-agency/internal/handler/user"
@@ -34,11 +32,7 @@ import (
 	propertytypedb "github.com/Oleja123/estate-agency/internal/infrastructure/property_type"
 	userdb "github.com/Oleja123/estate-agency/internal/infrastructure/user"
 
-	// swagger UI
-	"encoding/json"
-
-	httpSwagger "github.com/swaggo/http-swagger"
-	"gopkg.in/yaml.v3"
+	swagger "github.com/Oleja123/estate-agency/internal/handler/swagger"
 )
 
 func main() {
@@ -55,7 +49,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Log non-sensitive config parts for visibility
 	logger.Info("config loaded",
 		"db_host", cfg.DbConfig.Host,
 		"db_name", cfg.DbConfig.Database,
@@ -75,7 +68,6 @@ func main() {
 	imageStorage := imagedb.New(dbClient, logger)
 	propertyTypeStorage := propertytypedb.New(dbClient, logger)
 
-	// token service shared between handlers and user service
 	tokSvc := token.NewMemoryService()
 	userService := userservice.New(userStorage, logger, password.NewBcryptHasher(), tokSvc)
 	propertyTypeService := propertytypeservice.New(propertyTypeStorage, logger)
@@ -83,88 +75,23 @@ func main() {
 	propertyService := propertyservice.New(propertyStorage, propertyTypeStorage, logger, geocoder.NewNoop(), favoriteService)
 	imageService := imageservice.New(imageStorage, logger, "images/")
 
-	// HTTP handlers and server
 	router := chi.NewRouter()
 
-	// set package logger for handler helpers/middlewares
 	auth.SetLogger(logger)
 
-	// create auth middleware (chi-style). We'll apply it per-route; public
-	// endpoints (register/login/refresh) should be mounted without this
-	// middleware.
 	authMw := auth.AuthMiddleware(tokSvc)
 
-	// register handlers under sensible prefixes; pass auth middleware so handlers
-	// can apply it to protected routes using chi groups
 	uh := userhandler.NewUserHandler(userService, logger, favoriteService)
 	uh.Register(router, "/users", authMw)
 
-	// Protect token endpoints by passing auth middleware. Per requirement,
-	// all endpoints except /users/register and /users/login must require authorization.
 	auth.NewTokenHandler(tokSvc, userService).Register(router, "/tokens", authMw)
 
-	// Register property handler and wire favorites toggle endpoint
 	ph := propertyhandler.NewPropertyHandler(propertyService, logger, favoriteService, imageService)
 	ph.Register(router, "/properties", authMw)
 
-	// Do not register the standalone favorite handler: favorites endpoints are
-	// now available under /users/{id}/favorites and /properties/{id}/favorites
 	propertytypehandler.NewPropertyTypeHandler(propertyTypeService, logger).Register(router, "/property_types", authMw)
-	// image handler removed; image endpoints are served under properties as needed
 
-	// Serve swagger doc JSON (converted from the canonical YAML) and UI.
-	// The source of truth is docs/swagger.yaml.
-	router.Get("/swagger/doc.json", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		data, err := os.ReadFile("docs/swagger.yaml")
-		if err != nil {
-			http.Error(w, "swagger spec not found", http.StatusInternalServerError)
-			return
-		}
-
-		var v interface{}
-		if err := yaml.Unmarshal(data, &v); err != nil {
-			http.Error(w, "failed to parse swagger yaml", http.StatusInternalServerError)
-			return
-		}
-
-		// Convert YAML-parsed structure to JSON-marshallable structure by
-		// converting map[interface{}] to map[string]interface{} recursively.
-		var convert func(interface{}) interface{}
-		convert = func(in interface{}) interface{} {
-			switch x := in.(type) {
-			case map[string]interface{}:
-				m := make(map[string]interface{}, len(x))
-				for k, v := range x {
-					m[k] = convert(v)
-				}
-				return m
-			case map[interface{}]interface{}:
-				m := make(map[string]interface{}, len(x))
-				for k, v := range x {
-					m[fmt.Sprint(k)] = convert(v)
-				}
-				return m
-			case []interface{}:
-				a := make([]interface{}, len(x))
-				for i, v := range x {
-					a[i] = convert(v)
-				}
-				return a
-			default:
-				return x
-			}
-		}
-
-		out := convert(v)
-		b, err := json.Marshal(out)
-		if err != nil {
-			http.Error(w, "failed to encode swagger json", http.StatusInternalServerError)
-			return
-		}
-		w.Write(b)
-	})
-	router.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))
+	swagger.RegisterSwagger(router, logger)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -173,7 +100,6 @@ func main() {
 
 	srv := &http.Server{Addr: ":" + port, Handler: router}
 
-	// start server
 	go func() {
 		logger.Info("starting server", "addr", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -182,7 +108,6 @@ func main() {
 		}
 	}()
 
-	// graceful shutdown on SIGINT/SIGTERM
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop

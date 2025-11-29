@@ -104,9 +104,9 @@ func TruncateImages() error {
 
 func TestImageCRUD(t *testing.T) {
 	t.Run("create_get_list_delete", func(t *testing.T) {
-	require.NoError(t, TruncateImages())
+		require.NoError(t, TruncateImages())
 
-	propID := CreateTestProperty(t)
+		propID := CreateTestProperty(t)
 
 		img := image.PropertyImage{
 			PropertyID: propID,
@@ -137,9 +137,9 @@ func TestImageCRUD(t *testing.T) {
 	})
 
 	t.Run("create_many", func(t *testing.T) {
-	require.NoError(t, TruncateImages())
+		require.NoError(t, TruncateImages())
 
-	propID := CreateTestProperty(t)
+		propID := CreateTestProperty(t)
 
 		imgs := []image.PropertyImage{
 			{PropertyID: propID, Path: "/tmp/image_a.jpg"},

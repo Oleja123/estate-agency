@@ -176,7 +176,7 @@ func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.Use
 	defer rows.Close()
 
 	for rows.Next() {
-	u, err := r.ScanUser(rows)
+		u, err := r.ScanUser(rows)
 		if err != nil {
 			return nil, 0, fmt.Errorf("row scan error: %w", err)
 		}
