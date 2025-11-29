@@ -85,22 +85,7 @@ func (r *Repository) GetByID(ctx context.Context, id int) (user.User, error) {
 		"user_id", id,
 	)
 
-	var u user.User
-	var phone sqlpkg.NullString
-
-	err = r.Client.QueryRow(ctx, sql, args...).Scan(
-		&u.Id, &u.Email, &u.PasswordHash, &u.FirstName,
-		&u.LastName, &phone, &u.UserRole, &u.IsActive,
-		&u.CreatedAt, &u.UpdatedAt,
-	)
-	if err == nil {
-		if phone.Valid {
-			u.PhoneNumber = &phone.String
-		} else {
-			u.PhoneNumber = nil
-		}
-	}
-
+	u, err := r.scanUser(r.Client.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.Logger.DebugContext(ctx, "user not found by id",
@@ -139,21 +124,7 @@ func (r Repository) GetByEmail(ctx context.Context, email string) (user.User, er
 		"email", email,
 	)
 
-	var u user.User
-	var phone sqlpkg.NullString
-	err = r.Client.QueryRow(ctx, sql, args...).Scan(
-		&u.Id, &u.Email, &u.PasswordHash, &u.FirstName,
-		&u.LastName, &phone, &u.UserRole, &u.IsActive,
-		&u.CreatedAt, &u.UpdatedAt,
-	)
-	if err == nil {
-		if phone.Valid {
-			u.PhoneNumber = &phone.String
-		} else {
-			u.PhoneNumber = nil
-		}
-	}
-
+	u, err := r.scanUser(r.Client.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.Logger.DebugContext(ctx, "user not found by email",
@@ -205,24 +176,11 @@ func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.Use
 	defer rows.Close()
 
 	for rows.Next() {
-		var user user.User
-		var phone sqlpkg.NullString
-		err := rows.Scan(
-			&user.Id, &user.Email, &user.PasswordHash, &user.FirstName,
-			&user.LastName, &phone, &user.UserRole, &user.IsActive,
-			&user.CreatedAt, &user.UpdatedAt,
-		)
-		if err == nil {
-			if phone.Valid {
-				user.PhoneNumber = &phone.String
-			} else {
-				user.PhoneNumber = nil
-			}
-		}
+		u, err := r.scanUser(rows)
 		if err != nil {
 			return nil, 0, fmt.Errorf("row scan error: %w", err)
 		}
-		users = append(users, user)
+		users = append(users, u)
 	}
 
 	if err = rows.Err(); err != nil {
@@ -347,6 +305,7 @@ func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter user.Filt
 	}
 
 	if filter.Search != "" {
+		// TODO: upgrade to full-text/hypertext search (tsvector/tsquery or pg_trgm) for better relevance.
 		searchPattern := "%" + strings.ToLower(filter.Search) + "%"
 		query = query.Where(squirrel.Or{
 			squirrel.ILike{"first_name": searchPattern},
@@ -356,4 +315,28 @@ func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter user.Filt
 	}
 
 	return query
+}
+
+// rowScanner abstracts types that support Scan(...interface{}) error
+type rowScanner interface {
+	Scan(dest ...interface{}) error
+}
+
+// scanUser populates a user.User from a row scanner (either QueryRow result or rows iterator).
+func (r *Repository) scanUser(sc rowScanner) (user.User, error) {
+	var u user.User
+	var phone sqlpkg.NullString
+	if err := sc.Scan(
+		&u.Id, &u.Email, &u.PasswordHash, &u.FirstName,
+		&u.LastName, &phone, &u.UserRole, &u.IsActive,
+		&u.CreatedAt, &u.UpdatedAt,
+	); err != nil {
+		return user.User{}, err
+	}
+	if phone.Valid {
+		u.PhoneNumber = &phone.String
+	} else {
+		u.PhoneNumber = nil
+	}
+	return u, nil
 }
