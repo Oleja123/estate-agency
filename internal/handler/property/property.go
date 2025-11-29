@@ -64,7 +64,7 @@ func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next
 
 		// create/update/delete require admin role
 		r.With(auth.RequireAdminMiddleware()).Post("/", h.handleCreate)
-		r.With(auth.RequireAdminMiddleware()).Put("/{id}", h.handleUpdate)
+		r.With(auth.RequireAdminMiddleware()).Patch("/{id}", h.handleUpdate)
 		r.With(auth.RequireAdminMiddleware()).Delete("/{id}", h.handleDelete)
 
 		// allow authenticated users to toggle favorite for a property
@@ -324,7 +324,7 @@ func (h *PropertyHandler) handleList(w http.ResponseWriter, r *http.Request) {
 
 // @Security BearerAuth
 // @Summary Update property
-// @Description Update an existing property
+// @Description Partially update an existing property
 // @Tags properties
 // @Accept json
 // @Produce json
@@ -333,7 +333,7 @@ func (h *PropertyHandler) handleList(w http.ResponseWriter, r *http.Request) {
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
-// @Router /properties/{id} [put]
+// @Router /properties/{id} [patch]
 func (h *PropertyHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)

@@ -45,19 +45,19 @@ func (h *UserHandler) Register(r chi.Router, prefix string, authMw func(next htt
 					r.With(auth.RequireOwnerMiddleware()).Get("/{id}/favorites", h.handleGetFavorites)
 				}
 
-				r.With(auth.RequireOwnerMiddleware()).Put("/{id}/profile", h.handleProfile)
+				r.With(auth.RequireOwnerMiddleware()).Patch("/{id}/profile", h.handleProfile)
 				r.With(auth.RequireOwnerOrAdminMiddleware()).Delete("/{id}", h.handleDeleteUser)
-				r.With(auth.RequireOwnerOrAdminMiddleware()).Post("/{id}/password", h.handleChangePassword)
-				r.With(auth.RequireOwnerOrAdminMiddleware()).Post("/{id}/active", h.handleSetActive)
-				r.With(auth.RequireAdminMiddleware()).Post("/{id}/role", h.handleChangeRole)
+				r.With(auth.RequireOwnerOrAdminMiddleware()).Patch("/{id}/password", h.handleChangePassword)
+				r.With(auth.RequireOwnerOrAdminMiddleware()).Patch("/{id}/active", h.handleSetActive)
+				r.With(auth.RequireAdminMiddleware()).Patch("/{id}/role", h.handleChangeRole)
 			})
 		} else {
 			r.Get("/", h.handleListUsers)
 			r.Get("/{id}", h.handleGetUser)
-			r.Put("/{id}/profile", h.handleProfile)
+			r.Patch("/{id}/profile", h.handleProfile)
 			r.Delete("/{id}", h.handleDeleteUser)
-			r.Post("/{id}/password", h.handleChangePassword)
-			r.Post("/{id}/active", h.handleSetActive)
+			r.Patch("/{id}/password", h.handleChangePassword)
+			r.Patch("/{id}/active", h.handleSetActive)
 		}
 	})
 }

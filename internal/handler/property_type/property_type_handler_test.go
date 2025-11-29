@@ -187,9 +187,9 @@ func TestHandleUpdate_Middleware_AdminAllowed(t *testing.T) {
 	h := NewPropertyTypeHandler(m, logger)
 
 	r := chi.NewRouter()
-	r.With(auth.RequireAdminMiddleware()).Put("/{id}", http.HandlerFunc(h.handleUpdate))
+	r.With(auth.RequireAdminMiddleware()).Patch("/{id}", http.HandlerFunc(h.handleUpdate))
 
-	req := httptest.NewRequest(http.MethodPut, "/3", bytes.NewReader([]byte(`{"name":"x"}`)))
+	req := httptest.NewRequest(http.MethodPatch, "/3", bytes.NewReader([]byte(`{"name":"x"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(auth.ContextWithUser(req.Context(), 2, "admin"))
 	rr := httptest.NewRecorder()
@@ -224,9 +224,9 @@ func TestHandleUpdate_Middleware_NonAdminForbidden(t *testing.T) {
 	h := NewPropertyTypeHandler(m, logger)
 
 	r := chi.NewRouter()
-	r.With(auth.RequireAdminMiddleware()).Put("/{id}", http.HandlerFunc(h.handleUpdate))
+	r.With(auth.RequireAdminMiddleware()).Patch("/{id}", http.HandlerFunc(h.handleUpdate))
 
-	req := httptest.NewRequest(http.MethodPut, "/3", bytes.NewReader([]byte(`{"name":"x"}`)))
+	req := httptest.NewRequest(http.MethodPatch, "/3", bytes.NewReader([]byte(`{"name":"x"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(auth.ContextWithUser(req.Context(), 2, "client"))
 	rr := httptest.NewRecorder()
@@ -324,7 +324,7 @@ func TestHandleUpdate_NotFound_Returns404(t *testing.T) {
 	logger := newLogger()
 	h := NewPropertyTypeHandler(m, logger)
 
-	req := httptest.NewRequest(http.MethodPut, "/3", bytes.NewReader([]byte(`{"name":"x"}`)))
+	req := httptest.NewRequest(http.MethodPatch, "/3", bytes.NewReader([]byte(`{"name":"x"}`)))
 	rc := chi.NewRouteContext()
 	rc.URLParams.Add("id", "3")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))

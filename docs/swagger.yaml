@@ -175,9 +175,19 @@ paths:
           description: Not Found
         "500":
           description: Internal Server Error
-    put:
-      summary: Update property
+    patch:
+      summary: Partially update property
       tags: [properties]
+      description: |
+        Partially update an existing property. Only provided fields will be changed. Requires admin role.
+
+        Example request (partial body):
+
+        {
+          "title": "Cozy studio near park",
+          "price": 120000,
+          "property_description": "Renovated studio, new windows."
+        }
       parameters:
         - name: id
           in: path
@@ -386,9 +396,17 @@ paths:
           description: Not Found
         "500":
           description: Internal Server Error
-    put:
-      summary: Update property type
+    patch:
+      summary: Partially update property type
       tags: [property_types]
+      description: |
+        Partially update an existing property type. Only provided fields will be changed. Requires admin role.
+
+        Example request (partial body):
+
+        {
+          "name": "NewType"
+        }
       parameters:
         - name: id
           in: path
@@ -586,8 +604,9 @@ paths:
           description: Internal Server Error
 
   /users/{id}/profile:
-    put:
+    patch:
       summary: Update user profile
+      description: "Partially update user profile. Only provided fields will be changed. Requires owner or admin privileges."
       tags: [users]
       parameters:
         - name: id
@@ -613,7 +632,7 @@ paths:
           description: Internal Server Error
 
   /users/{id}/password:
-    post:
+    patch:
       summary: Change user password
       tags: [users]
       parameters:
@@ -638,7 +657,7 @@ paths:
           description: Internal Server Error
 
   /users/{id}/role:
-    post:
+    patch:
       summary: Change user role
       tags: [users]
       parameters:
@@ -665,7 +684,7 @@ paths:
           description: Internal Server Error
 
   /users/{id}/active:
-    post:
+    patch:
       summary: Set user active status (toggle)
       tags: [users]
       parameters:
@@ -728,17 +747,21 @@ paths:
         "200":
           description: OK
           schema:
-            type: object
-            properties:
-              user_id:
-                type: integer
-                example: 1
-              access_token:
-                type: string
-                example: "eyJhbGciOiJIUzI1..."
-              refresh_token:
-                type: string
-                example: "dGhpc2lzYXJlZnJlc2h0b2tlbg=="
+            $ref: '#/definitions/userhandler.LoginResponseDoc'
+          examples:
+            application/json:
+              user:
+                id: 1
+                email: "user@example.com"
+                first_name: "John"
+                last_name: "Doe"
+                role: "user"
+                is_active: true
+                created_at: "2025-11-29T12:00:00Z"
+                updated_at: "2025-11-29T12:00:00Z"
+              access_token: "eyJhbGciOiJIUzI1..."
+              refresh_token: "dGhpc2lzYXJlZnJlc2h0b2tlbg=="
+              expires_at: "2025-11-29T14:00:00Z"
         "400":
           description: Bad Request
         "401":

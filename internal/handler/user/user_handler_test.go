@@ -130,7 +130,7 @@ func TestHandleChangePassword_AdminPath(t *testing.T) {
 
 	body := map[string]string{"new_password": "adminnew"}
 	b, _ := json.Marshal(body)
-	req := httptest.NewRequest(http.MethodPost, "/users/5/password", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPatch, "/users/5/password", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	// set chi route param id=5
 	rc := chi.NewRouteContext()
@@ -160,7 +160,7 @@ func TestHandleChangePassword_OwnerPath(t *testing.T) {
 
 	body := map[string]string{"current_password": "old", "new_password": "new"}
 	b, _ := json.Marshal(body)
-	req := httptest.NewRequest(http.MethodPost, "/users/7/password", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPatch, "/users/7/password", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	rc := chi.NewRouteContext()
 	rc.URLParams.Add("id", "7")
@@ -320,12 +320,12 @@ func TestHandleChangePassword_RequiresOwnerOrAdmin_Middleware_Forbidden(t *testi
 	h := NewUserHandler(m, logger, &mockFavorite{})
 
 	r := chi.NewRouter()
-	r.With(auth.RequireOwnerOrAdminMiddleware()).Post("/{id}/password", h.handleChangePassword)
+	r.With(auth.RequireOwnerOrAdminMiddleware()).Patch("/{id}/password", h.handleChangePassword)
 
 	body := map[string]string{"current_password": "old", "new_password": "new"}
 	b, _ := json.Marshal(body)
 	// request target id 7, but context user is 6 -> should be forbidden
-	req := httptest.NewRequest(http.MethodPost, "/7/password", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPatch, "/7/password", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(auth.ContextWithUser(req.Context(), 6, "client"))
 	rr := httptest.NewRecorder()
@@ -405,7 +405,7 @@ func TestHandleChangePassword_Owner_BadRequest_Returns400(t *testing.T) {
 
 	body := map[string]string{"current_password": "wrong", "new_password": "new"}
 	b, _ := json.Marshal(body)
-	req := httptest.NewRequest(http.MethodPost, "/users/7/password", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPatch, "/users/7/password", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	rc := chi.NewRouteContext()
 	rc.URLParams.Add("id", "7")
@@ -433,7 +433,7 @@ func TestHandleSetActive_TogglesToInactive(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 	h := NewUserHandler(m, logger, &mockFavorite{})
 
-	req := httptest.NewRequest(http.MethodPost, "/users/5/active", nil)
+	req := httptest.NewRequest(http.MethodPatch, "/users/5/active", nil)
 	rc := chi.NewRouteContext()
 	rc.URLParams.Add("id", "5")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
@@ -461,7 +461,7 @@ func TestHandleSetActive_TogglesToActive(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 	h := NewUserHandler(m, logger, &mockFavorite{})
 
-	req := httptest.NewRequest(http.MethodPost, "/users/8/active", nil)
+	req := httptest.NewRequest(http.MethodPatch, "/users/8/active", nil)
 	rc := chi.NewRouteContext()
 	rc.URLParams.Add("id", "8")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))

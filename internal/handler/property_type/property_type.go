@@ -43,7 +43,7 @@ func (h *PropertyTypeHandler) Register(r chi.Router, prefix string, authMw func(
 		r.Get("/{id}", h.handleGet)
 
 		r.With(auth.RequireAdminMiddleware()).Post("/", h.handleCreate)
-		r.With(auth.RequireAdminMiddleware()).Put("/{id}", h.handleUpdate)
+		r.With(auth.RequireAdminMiddleware()).Patch("/{id}", h.handleUpdate)
 		r.With(auth.RequireAdminMiddleware()).Delete("/{id}", h.handleDelete)
 	})
 }
