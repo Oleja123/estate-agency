@@ -36,6 +36,6 @@ type ListPropertiesRequest struct {
 }
 
 type ListPropertiesResponse struct {
-	Properties []property.Property `json:"properties"`
+	Properties []PropertyDTO `json:"properties"`
 	Total      int           `json:"total"`
 }
