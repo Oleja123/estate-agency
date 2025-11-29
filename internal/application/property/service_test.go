@@ -55,7 +55,7 @@ type mockTypeRepo struct {
 	GetByNameFn func(ctx context.Context, name string) (ptypedomain.PropertyType, error)
 	UpdateFn    func(ctx context.Context, pt ptypedomain.PropertyType) error
 	DeleteFn    func(ctx context.Context, id int) (int, error)
-	ListFn      func(ctx context.Context, req ptypedomain.ListRequest) ([]ptypedomain.PropertyType, error)
+	ListFn      func(ctx context.Context, req ptypedomain.ListRequest) ([]ptypedomain.PropertyType, int, error)
 }
 
 func (m *mockTypeRepo) Create(ctx context.Context, pt ptypedomain.PropertyType) (int, error) {
@@ -93,11 +93,11 @@ func (m *mockTypeRepo) Delete(ctx context.Context, id int) (int, error) {
 	return 0, nil
 }
 
-func (m *mockTypeRepo) List(ctx context.Context, req ptypedomain.ListRequest) ([]ptypedomain.PropertyType, error) {
+func (m *mockTypeRepo) List(ctx context.Context, req ptypedomain.ListRequest) ([]ptypedomain.PropertyType, int, error) {
 	if m.ListFn != nil {
 		return m.ListFn(ctx, req)
 	}
-	return nil, nil
+	return nil, 0, nil
 }
 
 func (m *mockRepo) Create(ctx context.Context, p domain.Property) (int, error) {

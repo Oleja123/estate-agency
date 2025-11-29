@@ -22,7 +22,7 @@ type mockRepo struct {
 	GetByNameFn func(ctx context.Context, name string) (domain.PropertyType, error)
 	UpdateFn    func(ctx context.Context, pt domain.PropertyType) error
 	DeleteFn    func(ctx context.Context, id int) (int, error)
-	ListFn      func(ctx context.Context, req domain.ListRequest) ([]domain.PropertyType, error)
+	ListFn      func(ctx context.Context, req domain.ListRequest) ([]domain.PropertyType, int, error)
 }
 
 func (m *mockRepo) Create(ctx context.Context, pt domain.PropertyType) (int, error) {
@@ -38,7 +38,7 @@ func (m *mockRepo) Update(ctx context.Context, pt domain.PropertyType) error {
 	return m.UpdateFn(ctx, pt)
 }
 func (m *mockRepo) Delete(ctx context.Context, id int) (int, error) { return m.DeleteFn(ctx, id) }
-func (m *mockRepo) List(ctx context.Context, req domain.ListRequest) ([]domain.PropertyType, error) {
+func (m *mockRepo) List(ctx context.Context, req domain.ListRequest) ([]domain.PropertyType, int, error) {
 	return m.ListFn(ctx, req)
 }
 
@@ -116,8 +116,8 @@ func TestUpdate_NotFound(t *testing.T) {
 func TestList_Success(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
-	repo.ListFn = func(ctx context.Context, req domain.ListRequest) ([]domain.PropertyType, error) {
-		return []domain.PropertyType{{Id: 1, Name: "a"}, {Id: 2, Name: "b"}}, nil
+	repo.ListFn = func(ctx context.Context, req domain.ListRequest) ([]domain.PropertyType, int, error) {
+		return []domain.PropertyType{{Id: 1, Name: "a"}, {Id: 2, Name: "b"}}, 2, nil
 	}
 	svc := New(repo, logger())
 	res, err := svc.List(ctx, dto.ListPropertyTypesRequest{Limit: 10})

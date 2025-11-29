@@ -124,7 +124,7 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyTypeRequest)
 
 func (s *service) List(ctx context.Context, req dto.ListPropertyTypesRequest) (dto.ListPropertyTypesResponse, error) {
 	dr := domain.ListRequest{Filter: req.Filter, Limit: req.Limit, Offset: req.Offset}
-	list, err := s.repo.List(ctx, dr)
+	list, total, err := s.repo.List(ctx, dr)
 	if err != nil {
 		var te dberrors.ErrTimeout
 		switch {
@@ -136,7 +136,6 @@ func (s *service) List(ctx context.Context, req dto.ListPropertyTypesRequest) (d
 			return dto.ListPropertyTypesResponse{}, apperrors.NewErrInternal("failed to list property types")
 		}
 	}
-	total := len(list)
 	return dto.ListPropertyTypesResponse{Types: list, Total: total}, nil
 }
 

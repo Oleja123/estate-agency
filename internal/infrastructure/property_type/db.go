@@ -79,13 +79,9 @@ func (r *Repository) GetByID(ctx context.Context, Id int) (propertytype.Property
 		"type_id", Id,
 	)
 
-	var propertyType propertytype.PropertyType
-	err = r.Client.QueryRow(ctx, sql, args...).Scan(
-		&propertyType.Id,
-		&propertyType.Name,
-		&propertyType.CreatedAt,
-	)
-
+	// use shared scanner
+	row := r.Client.QueryRow(ctx, sql, args...)
+	pt, err := r.scanPropertyType(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.Logger.DebugContext(ctx, "property type not found by id",
@@ -100,10 +96,10 @@ func (r *Repository) GetByID(ctx context.Context, Id int) (propertytype.Property
 	r.Logger.DebugContext(ctx, "property type retrieved by id",
 		"operation", op,
 		"type_id", Id,
-		"name", propertyType.Name,
+		"name", pt.Name,
 	)
 
-	return propertyType, nil
+	return pt, nil
 }
 
 func (r *Repository) GetByName(ctx context.Context, name string) (propertytype.PropertyType, error) {
@@ -112,7 +108,7 @@ func (r *Repository) GetByName(ctx context.Context, name string) (propertytype.P
 	sql, args, err := r.sq.
 		Select("Id", "property_name", "created_at").
 		From("property_types").
-		Where(squirrel.Eq{"name": name}).
+		Where(squirrel.Eq{"property_name": name}).
 		ToSql()
 
 	if err != nil {
@@ -124,13 +120,8 @@ func (r *Repository) GetByName(ctx context.Context, name string) (propertytype.P
 		"name", name,
 	)
 
-	var propertyType propertytype.PropertyType
-	err = r.Client.QueryRow(ctx, sql, args...).Scan(
-		&propertyType.Id,
-		&propertyType.Name,
-		&propertyType.CreatedAt,
-	)
-
+	row := r.Client.QueryRow(ctx, sql, args...)
+	pt, err := r.scanPropertyType(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.Logger.DebugContext(ctx, "property type not found by name",
@@ -142,7 +133,7 @@ func (r *Repository) GetByName(ctx context.Context, name string) (propertytype.P
 		return propertytype.PropertyType{}, r.HandleError(op, err)
 	}
 
-	return propertyType, nil
+	return pt, nil
 }
 
 func (r *Repository) Update(ctx context.Context, propertyType propertytype.PropertyType) error {
@@ -224,7 +215,7 @@ func (r *Repository) Delete(ctx context.Context, Id int) (int, error) {
 	return Id, nil
 }
 
-func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]propertytype.PropertyType, error) {
+func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]propertytype.PropertyType, int, error) {
 	const op = "propertytypedb.Repository.List"
 
 	query := r.sq.
@@ -233,6 +224,19 @@ func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]
 
 	query = r.applyFilters(query, req.Filter)
 
+	// build count query to get total for pagination
+	countQ := r.sq.Select("COUNT(1)").From("property_types")
+	countQ = r.applyFilters(countQ, req.Filter)
+	countSQL, countArgs, err := countQ.ToSql()
+	if err != nil {
+		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка построения count запроса: %s", err))
+	}
+
+	var total int
+	if err := r.Client.QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
+		return nil, 0, r.HandleError(op, err)
+	}
+
 	sql, args, err := query.
 		OrderBy("created_at DESC").
 		Limit(uint64(req.Limit)).
@@ -240,7 +244,7 @@ func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]
 		ToSql()
 
 	if err != nil {
-		return nil, basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка построения запроса: %s", err))
+		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("ошибка построения запроса: %s", err))
 	}
 
 	r.Logger.DebugContext(ctx, "listing property types",
@@ -252,26 +256,21 @@ func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]
 
 	rows, err := r.Client.Query(ctx, sql, args...)
 	if err != nil {
-		return nil, r.HandleError(op, err)
+		return nil, 0, r.HandleError(op, err)
 	}
 	defer rows.Close()
 
 	var propertyTypes []propertytype.PropertyType
 	for rows.Next() {
-		var pt propertytype.PropertyType
-		err := rows.Scan(
-			&pt.Id,
-			&pt.Name,
-			&pt.CreatedAt,
-		)
+		pt, err := r.scanPropertyType(rows)
 		if err != nil {
-			return nil, fmt.Errorf("row scan error: %w", err)
+			return nil, 0, fmt.Errorf("row scan error: %w", err)
 		}
 		propertyTypes = append(propertyTypes, pt)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration error: %w", err)
+		return nil, 0, fmt.Errorf("rows iteration error: %w", err)
 	}
 
 	r.Logger.DebugContext(ctx, "property types list retrieved",
@@ -279,7 +278,21 @@ func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]
 		"count", len(propertyTypes),
 	)
 
-	return propertyTypes, nil
+	return propertyTypes, total, nil
+}
+
+// rowScanner abstracts types that support Scan(...interface{}) error
+type rowScanner interface {
+	Scan(dest ...interface{}) error
+}
+
+// scanPropertyType reads a single property_type row into the domain model
+func (r *Repository) scanPropertyType(sc rowScanner) (propertytype.PropertyType, error) {
+	var pt propertytype.PropertyType
+	if err := sc.Scan(&pt.Id, &pt.Name, &pt.CreatedAt); err != nil {
+		return propertytype.PropertyType{}, err
+	}
+	return pt, nil
 }
 
 func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter propertytype.Filter) squirrel.SelectBuilder {
@@ -288,7 +301,7 @@ func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter propertyt
 	}
 
 	if filter.Name != "" {
-		query = query.Where(squirrel.Eq{"name": filter.Name})
+		query = query.Where(squirrel.Eq{"property_name": filter.Name})
 	}
 
 	if filter.Search != "" {
