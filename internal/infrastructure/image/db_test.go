@@ -56,13 +56,13 @@ func TestMain(m *testing.M) {
 	testClient, _ = postgresqlclient.NewClient(context.Background(), *testLogger, testConfig)
 	testRepo = New(testClient, testLogger)
 
-	testUserID = createTestUserForImageTests()
+	testUserID = CreateTestUserForImageTests()
 
 	code := m.Run()
 	os.Exit(code)
 }
 
-func createTestUserForImageTests() int {
+func CreateTestUserForImageTests() int {
 	_, _ = testClient.Exec(context.Background(), "TRUNCATE TABLE users RESTART IDENTITY CASCADE")
 
 	var userID int
@@ -83,7 +83,7 @@ func createTestUserForImageTests() int {
 	return userID
 }
 
-func createTestProperty(t *testing.T) int {
+func CreateTestProperty(t *testing.T) int {
 	t.Helper()
 	_, _ = testClient.Exec(context.Background(), "TRUNCATE TABLE properties RESTART IDENTITY CASCADE")
 
@@ -97,16 +97,16 @@ func createTestProperty(t *testing.T) int {
 	return id
 }
 
-func truncateImages() error {
+func TruncateImages() error {
 	_, err := testClient.Exec(context.Background(), "TRUNCATE TABLE property_images RESTART IDENTITY CASCADE")
 	return err
 }
 
 func TestImageCRUD(t *testing.T) {
 	t.Run("create_get_list_delete", func(t *testing.T) {
-		require.NoError(t, truncateImages())
+	require.NoError(t, TruncateImages())
 
-		propID := createTestProperty(t)
+	propID := CreateTestProperty(t)
 
 		img := image.PropertyImage{
 			PropertyID: propID,
@@ -137,9 +137,9 @@ func TestImageCRUD(t *testing.T) {
 	})
 
 	t.Run("create_many", func(t *testing.T) {
-		require.NoError(t, truncateImages())
+	require.NoError(t, TruncateImages())
 
-		propID := createTestProperty(t)
+	propID := CreateTestProperty(t)
 
 		imgs := []image.PropertyImage{
 			{PropertyID: propID, Path: "/tmp/image_a.jpg"},
@@ -165,9 +165,9 @@ func TestImageCRUD(t *testing.T) {
 }
 
 func TestDeleteManyByProperty(t *testing.T) {
-	require.NoError(t, truncateImages())
+	require.NoError(t, TruncateImages())
 
-	propID := createTestProperty(t)
+	propID := CreateTestProperty(t)
 
 	imgs := []image.PropertyImage{
 		{PropertyID: propID, Path: "/tmp/image_a.jpg"},
@@ -195,7 +195,7 @@ func TestDeleteManyByProperty(t *testing.T) {
 }
 
 func TestDeleteMany_InvalidProperty(t *testing.T) {
-	require.NoError(t, truncateImages())
+	require.NoError(t, TruncateImages())
 
 	imageRepo := testRepo
 

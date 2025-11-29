@@ -103,7 +103,7 @@ func (r *ImageRepository) GetByID(ctx context.Context, id int) (image.PropertyIm
 		return image.PropertyImage{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query: %s", err))
 	}
 
-	img, err := r.scanImage(r.Client.QueryRow(ctx, sql, args...))
+	img, err := r.ScanImage(r.Client.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return image.PropertyImage{}, basedberrors.NewErrNotFound("property_image", id)
@@ -136,7 +136,7 @@ func (r *ImageRepository) ListByProperty(ctx context.Context, propertyID int) ([
 
 	var imgs []image.PropertyImage
 	for rows.Next() {
-		img, err := r.scanImage(rows)
+		img, err := r.ScanImage(rows)
 		if err != nil {
 			return nil, fmt.Errorf("scan error: %w", err)
 		}
@@ -224,7 +224,7 @@ func (r *ImageRepository) DeleteMany(ctx context.Context, propertyID int) ([]int
 	return ids, nil
 }
 
-func (r *ImageRepository) scanImage(sc basedb.RowScanner) (image.PropertyImage, error) {
+func (r *ImageRepository) ScanImage(sc basedb.RowScanner) (image.PropertyImage, error) {
 	var img image.PropertyImage
 	if err := sc.Scan(&img.ID, &img.PropertyID, &img.Path, &img.CreatedAt); err != nil {
 		return image.PropertyImage{}, err

@@ -80,7 +80,7 @@ func (r *Repository) GetByID(ctx context.Context, Id int) (propertytype.Property
 	)
 
 	row := r.Client.QueryRow(ctx, sql, args...)
-	pt, err := r.scanPropertyType(row)
+	pt, err := r.ScanPropertyType(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.Logger.DebugContext(ctx, "property type not found by id",
@@ -120,7 +120,7 @@ func (r *Repository) GetByName(ctx context.Context, name string) (propertytype.P
 	)
 
 	row := r.Client.QueryRow(ctx, sql, args...)
-	pt, err := r.scanPropertyType(row)
+	pt, err := r.ScanPropertyType(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.Logger.DebugContext(ctx, "property type not found by name",
@@ -221,10 +221,10 @@ func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]
 		Select("id", "property_name", "created_at").
 		From("property_types")
 
-	query = r.applyFilters(query, req.Filter)
+	query = r.ApplyFilters(query, req.Filter)
 
 	countQ := r.sq.Select("COUNT(1)").From("property_types")
-	countQ = r.applyFilters(countQ, req.Filter)
+	countQ = r.ApplyFilters(countQ, req.Filter)
 	countSQL, countArgs, err := countQ.ToSql()
 	if err != nil {
 		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error (count): %s", err))
@@ -260,7 +260,7 @@ func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]
 
 	var propertyTypes []propertytype.PropertyType
 	for rows.Next() {
-		pt, err := r.scanPropertyType(rows)
+		pt, err := r.ScanPropertyType(rows)
 		if err != nil {
 			return nil, 0, fmt.Errorf("row scan error: %w", err)
 		}
@@ -279,7 +279,7 @@ func (r *Repository) List(ctx context.Context, req propertytype.ListRequest) ([]
 	return propertyTypes, total, nil
 }
 
-func (r *Repository) scanPropertyType(sc basedb.RowScanner) (propertytype.PropertyType, error) {
+func (r *Repository) ScanPropertyType(sc basedb.RowScanner) (propertytype.PropertyType, error) {
 	var pt propertytype.PropertyType
 	if err := sc.Scan(&pt.Id, &pt.Name, &pt.CreatedAt); err != nil {
 		return propertytype.PropertyType{}, err
@@ -287,7 +287,7 @@ func (r *Repository) scanPropertyType(sc basedb.RowScanner) (propertytype.Proper
 	return pt, nil
 }
 
-func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter propertytype.Filter) squirrel.SelectBuilder {
+func (r *Repository) ApplyFilters(query squirrel.SelectBuilder, filter propertytype.Filter) squirrel.SelectBuilder {
 	if len(filter.IDs) > 0 {
 		query = query.Where(squirrel.Eq{"id": filter.IDs})
 	}

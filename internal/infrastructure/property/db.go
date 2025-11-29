@@ -213,10 +213,10 @@ func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]prop
 		Select("*").
 		From("properties")
 
-	query = r.applyFilters(query, req.Filter)
+	query = r.ApplyFilters(query, req.Filter)
 
 	countQ := r.sq.Select("COUNT(1)").From("properties")
-	countQ = r.applyFilters(countQ, req.Filter)
+	countQ = r.ApplyFilters(countQ, req.Filter)
 	countSQL, countArgs, err := countQ.ToSql()
 	if err != nil {
 		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("build count query: %s", err))
@@ -251,7 +251,7 @@ func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]prop
 	defer rows.Close()
 
 	for rows.Next() {
-		prop, err := r.scanProperty(rows)
+		prop, err := r.ScanProperty(rows)
 		if err != nil {
 			return nil, 0, fmt.Errorf("row scan error: %w", err)
 		}
@@ -270,7 +270,7 @@ func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]prop
 	return properties, total, nil
 }
 
-func (r *Repository) scanProperty(sc basedb.RowScanner) (property.Property, error) {
+func (r *Repository) ScanProperty(sc basedb.RowScanner) (property.Property, error) {
 	var prop property.Property
 	if err := sc.Scan(
 		&prop.ID, &prop.Title, &prop.PropertyDescription, &prop.TypeID,
@@ -283,7 +283,7 @@ func (r *Repository) scanProperty(sc basedb.RowScanner) (property.Property, erro
 	return prop, nil
 }
 
-func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter property.Filter) squirrel.SelectBuilder {
+func (r *Repository) ApplyFilters(query squirrel.SelectBuilder, filter property.Filter) squirrel.SelectBuilder {
 	if len(filter.IDs) > 0 {
 		query = query.Where(squirrel.Eq{"id": filter.IDs})
 	}

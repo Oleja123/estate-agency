@@ -53,7 +53,7 @@ func (r *BaseRepository) HandleError(op string, err error) error {
 
 		switch pgErr.Code {
 		case "23505":
-			entity, field := r.parseConstraintName(pgErr.ConstraintName)
+			entity, field := r.ParseConstraintName(pgErr.ConstraintName)
 			return dberrors.NewErrAlreadyExists(entity, field, "unknown")
 
 		case "23503":
@@ -91,7 +91,7 @@ func (r *BaseRepository) HandleError(op string, err error) error {
 		return dberrors.NewErrTimeout(op, "контекст отменён")
 	}
 
-	if r.isConnectionError(err) {
+	if r.IsConnectionError(err) {
 		r.Logger.ErrorContext(context.Background(), "ошибка подключения",
 			"операция", op,
 			"оштбка", err.Error(),
@@ -102,7 +102,7 @@ func (r *BaseRepository) HandleError(op string, err error) error {
 	return dberrors.NewErrDatabase(op, err.Error())
 }
 
-func (r *BaseRepository) parseConstraintName(constraintName string) (string, string) {
+func (r *BaseRepository) ParseConstraintName(constraintName string) (string, string) {
 	parts := strings.Split(constraintName, "_")
 	if len(parts) >= 2 {
 		entity := parts[0]
@@ -112,7 +112,7 @@ func (r *BaseRepository) parseConstraintName(constraintName string) (string, str
 	return "entity", "field"
 }
 
-func (r *BaseRepository) isConnectionError(err error) bool {
+func (r *BaseRepository) IsConnectionError(err error) bool {
 	if err == nil {
 		return false
 	}

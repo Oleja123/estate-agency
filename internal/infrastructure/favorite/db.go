@@ -158,10 +158,10 @@ func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favo
 		Select("*").
 		From("favorites")
 
-	query = r.applyFilters(query, req.Filter)
+	query = r.ApplyFilters(query, req.Filter)
 
 	countQ := r.sq.Select("COUNT(1)").From("favorites")
-	countQ = r.applyFilters(countQ, req.Filter)
+	countQ = r.ApplyFilters(countQ, req.Filter)
 	countSQL, countArgs, err := countQ.ToSql()
 	if err != nil {
 		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("build count query: %s", err))
@@ -196,7 +196,7 @@ func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favo
 	defer rows.Close()
 
 	for rows.Next() {
-		fav, err := r.scanFavorite(rows)
+		fav, err := r.ScanFavorite(rows)
 		if err != nil {
 			return nil, 0, fmt.Errorf("row scan error: %w", err)
 		}
@@ -241,7 +241,7 @@ func (r *Repository) Exists(ctx context.Context, userID, propertyID int) (bool, 
 	return true, nil
 }
 
-func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter favorite.Filter) squirrel.SelectBuilder {
+func (r *Repository) ApplyFilters(query squirrel.SelectBuilder, filter favorite.Filter) squirrel.SelectBuilder {
 	if filter.UserID > 0 {
 		query = query.Where(squirrel.Eq{"user_id": filter.UserID})
 	}
@@ -261,7 +261,7 @@ func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter favorite.
 	return query
 }
 
-func (r *Repository) scanFavorite(sc basedb.RowScanner) (favorite.Favorite, error) {
+func (r *Repository) ScanFavorite(sc basedb.RowScanner) (favorite.Favorite, error) {
 	var fav favorite.Favorite
 	if err := sc.Scan(&fav.UserID, &fav.PropertyID, &fav.CreatedAt); err != nil {
 		return favorite.Favorite{}, err

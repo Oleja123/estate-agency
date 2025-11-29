@@ -85,7 +85,7 @@ func (r *Repository) GetByID(ctx context.Context, id int) (user.User, error) {
 		"user_id", id,
 	)
 
-	u, err := r.scanUser(r.Client.QueryRow(ctx, sql, args...))
+	u, err := r.ScanUser(r.Client.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.Logger.DebugContext(ctx, "user not found by id",
@@ -124,7 +124,7 @@ func (r *Repository) GetByEmail(ctx context.Context, email string) (user.User, e
 		"email", email,
 	)
 
-	u, err := r.scanUser(r.Client.QueryRow(ctx, sql, args...))
+	u, err := r.ScanUser(r.Client.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.Logger.DebugContext(ctx, "user not found by email",
@@ -150,7 +150,7 @@ func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.Use
 		Select("*").
 		From("users")
 
-	query = r.applyFilters(query, req.Filter)
+	query = r.ApplyFilters(query, req.Filter)
 
 	sql, args, err := query.
 		OrderBy("created_at DESC").
@@ -176,7 +176,7 @@ func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.Use
 	defer rows.Close()
 
 	for rows.Next() {
-		u, err := r.scanUser(rows)
+	u, err := r.ScanUser(rows)
 		if err != nil {
 			return nil, 0, fmt.Errorf("row scan error: %w", err)
 		}
@@ -193,7 +193,7 @@ func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.Use
 	)
 
 	countQuery := r.sq.Select("COUNT(*)").From("users")
-	countQuery = r.applyFilters(countQuery, req.Filter)
+	countQuery = r.ApplyFilters(countQuery, req.Filter)
 	countSQL, countArgs, err := countQuery.ToSql()
 	if err != nil {
 		return nil, 0, basedberrors.NewErrDatabase(op, fmt.Sprintf("build count query: %s", err))
@@ -286,7 +286,7 @@ func (r *Repository) Delete(ctx context.Context, id int) (int, error) {
 	return id, nil
 }
 
-func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter user.Filter) squirrel.SelectBuilder {
+func (r *Repository) ApplyFilters(query squirrel.SelectBuilder, filter user.Filter) squirrel.SelectBuilder {
 	if len(filter.IDs) > 0 {
 		query = query.Where(squirrel.Eq{"id": filter.IDs})
 	}
@@ -316,7 +316,7 @@ func (r *Repository) applyFilters(query squirrel.SelectBuilder, filter user.Filt
 	return query
 }
 
-func (r *Repository) scanUser(sc basedb.RowScanner) (user.User, error) {
+func (r *Repository) ScanUser(sc basedb.RowScanner) (user.User, error) {
 	var u user.User
 	var phone sqlpkg.NullString
 	if err := sc.Scan(

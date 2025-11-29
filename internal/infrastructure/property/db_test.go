@@ -58,15 +58,15 @@ func TestMain(m *testing.M) {
 	testClient, _ = postgresqlclient.NewClient(context.Background(), *testLogger, testConfig)
 	testRepo = New(testClient, testLogger)
 
-	testUserID = createTestUser()
+	testUserID = CreateTestUser()
 
-	createDefaultPropertyTypes()
+	CreateDefaultPropertyTypes()
 
 	code := m.Run()
 	os.Exit(code)
 }
 
-func createTestUser() int {
+func CreateTestUser() int {
 
 	_, _ = testClient.Exec(context.Background(), "TRUNCATE TABLE users RESTART IDENTITY CASCADE")
 
@@ -89,12 +89,12 @@ func createTestUser() int {
 	return userID
 }
 
-func truncateTables() error {
+func TruncateTables() error {
 	_, err := testClient.Exec(context.Background(), "TRUNCATE TABLE properties RESTART IDENTITY CASCADE")
 	return err
 }
 
-func createDefaultPropertyTypes() {
+func CreateDefaultPropertyTypes() {
 
 	_, _ = testClient.Exec(context.Background(), "TRUNCATE TABLE property_types RESTART IDENTITY CASCADE")
 
@@ -233,7 +233,7 @@ func TestPropertyCRUD(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, truncateTables())
+			require.NoError(t, TruncateTables())
 
 			property := tt.setup()
 			result, err := tt.action(t, property)
@@ -425,7 +425,7 @@ func TestPropertyList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, truncateTables())
+			require.NoError(t, TruncateTables())
 			setupTestData()
 
 			result, total, err := testRepo.List(testCtx, tt.request)
@@ -482,7 +482,7 @@ func TestPropertyListWithDistanceFilter(t *testing.T) {
 	}
 
 	t.Run("filter_by_distance", func(t *testing.T) {
-		require.NoError(t, truncateTables())
+	require.NoError(t, TruncateTables())
 		setupTestData()
 
 		request := property.ListRequest{

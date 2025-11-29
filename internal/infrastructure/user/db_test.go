@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func truncateTables() error {
+func TruncateTables() error {
 	_, err := testClient.Exec(context.Background(), "TRUNCATE TABLE users RESTART IDENTITY CASCADE")
 	return err
 }
@@ -164,8 +164,8 @@ func TestCreateUser(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, truncateTables())
+			t.Run(tt.name, func(t *testing.T) {
+			require.NoError(t, TruncateTables())
 			if tt.setup != nil {
 				tt.setup()
 			}
@@ -450,7 +450,7 @@ func TestUpdateUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, truncateTables())
+			require.NoError(t, TruncateTables())
 			userID := tt.setup()
 
 			tt.updateUser.Id = userID
@@ -555,7 +555,7 @@ func TestDeleteUserTableDriven(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, truncateTables())
+			require.NoError(t, TruncateTables())
 			userID := tt.setup()
 
 			deleteID := tt.deleteID
@@ -772,7 +772,7 @@ func TestListUsersTableDriven(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, truncateTables())
+			require.NoError(t, TruncateTables())
 			setupTestUsers()
 
 			users, total, err := testRepo.List(testCtx, tt.request)
@@ -828,7 +828,7 @@ func TestListUsersEmptyDatabase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, truncateTables())
+			require.NoError(t, TruncateTables())
 
 			users, total, err := testRepo.List(testCtx, tt.request)
 

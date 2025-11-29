@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func truncateTables() error {
+func TruncateTables() error {
 	_, err := testClient.Exec(context.Background(), "TRUNCATE TABLE property_types RESTART IDENTITY CASCADE")
 	return err
 }
@@ -148,7 +148,7 @@ func TestPropertyTypeCRUD(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, truncateTables())
+			require.NoError(t, TruncateTables())
 
 			propertyType := tt.setup()
 			result, err := tt.action(t, propertyType)
@@ -217,7 +217,7 @@ func TestPropertyTypeList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, truncateTables())
+			require.NoError(t, TruncateTables())
 			setupTestData()
 
 			result, total, err := testRepo.List(testCtx, tt.request)

@@ -60,14 +60,14 @@ func TestMain(m *testing.M) {
 	testClient, _ = postgresqlclient.NewClient(context.Background(), *testLogger, testConfig)
 	testRepo = New(testClient, testLogger)
 
-	testUserID = createTestUser()
-	testPropertyIDs = createTestProperties()
+	testUserID = CreateTestUser()
+	testPropertyIDs = CreateTestProperties()
 
 	code := m.Run()
 	os.Exit(code)
 }
 
-func createTestUser() int {
+func CreateTestUser() int {
 
 	_, _ = testClient.Exec(context.Background(), "TRUNCATE TABLE users RESTART IDENTITY CASCADE")
 
@@ -89,7 +89,7 @@ func createTestUser() int {
 	return userID
 }
 
-func createTestProperties() []int {
+func CreateTestProperties() []int {
 
 	_, _ = testClient.Exec(context.Background(), "TRUNCATE TABLE properties RESTART IDENTITY CASCADE")
 
@@ -143,7 +143,7 @@ func createTestProperties() []int {
 	return ids
 }
 
-func truncateTables() error {
+func TruncateTables() error {
 	_, err := testClient.Exec(context.Background(), "TRUNCATE TABLE favorites RESTART IDENTITY CASCADE")
 	return err
 }
@@ -204,7 +204,7 @@ func TestFavoriteCRUD(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, truncateTables())
+			require.NoError(t, TruncateTables())
 
 			favorite := tt.setup()
 			result, err := tt.action(t, favorite)
@@ -280,7 +280,7 @@ func TestFavoriteList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, truncateTables())
+			require.NoError(t, TruncateTables())
 			setupTestData()
 
 			result, total, err := testRepo.List(testCtx, tt.request)
@@ -299,7 +299,7 @@ func TestFavoriteList(t *testing.T) {
 
 func TestFavoriteExists(t *testing.T) {
 	t.Run("check_favorite_exists", func(t *testing.T) {
-		require.NoError(t, truncateTables())
+		require.NoError(t, TruncateTables())
 
 		fav := favorite.Favorite{
 			UserID:     testUserID,
@@ -321,7 +321,7 @@ func TestFavoriteExists(t *testing.T) {
 
 func TestGetByUser(t *testing.T) {
 	t.Run("get_favorites_by_user_via_list", func(t *testing.T) {
-		require.NoError(t, truncateTables())
+		require.NoError(t, TruncateTables())
 
 		favorites := []favorite.Favorite{
 			{UserID: testUserID, PropertyID: testPropertyIDs[0]},
@@ -349,7 +349,7 @@ func TestGetByUser(t *testing.T) {
 
 func TestGetByProperty(t *testing.T) {
 	t.Run("get_favorites_by_property_via_list", func(t *testing.T) {
-		require.NoError(t, truncateTables())
+		require.NoError(t, TruncateTables())
 
 		fav := favorite.Favorite{
 			UserID:     testUserID,
