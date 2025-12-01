@@ -183,7 +183,6 @@ func (h *UserHandler) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// prevent a user from deleting themself
 	if uid, ok := auth.UserIDFromContext(r.Context()); ok && uid == id {
 		handlerutils.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "нельзя удалить самого себя"})
 		return
@@ -254,6 +253,11 @@ func (h *UserHandler) handleChangeRole(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
+		return
+	}
+
+	if uid, ok := auth.UserIDFromContext(r.Context()); ok && uid == id {
+		handlerutils.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "нельзя изменить свою роль"})
 		return
 	}
 	var req struct {

@@ -27,7 +27,7 @@ func mapAppError(err error) (int, interface{}) {
 	}
 	switch e := err.(type) {
 	case apperrors.ErrInvalidInput:
-		// Return a concise Russian message for invalid input (do not expose English reason)
+
 		return http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("некорректное поле '%s'", e.Field)}
 	case apperrors.ErrAlreadyExists:
 		return http.StatusConflict, map[string]string{"error": e.Error()}
