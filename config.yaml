@@ -12,7 +12,7 @@ db_config:
 
 geo_config:
   # Geoapify API key. If empty, the application will use a noop geocoder.
-  api_key: ""
+  api_key: "c17c56e605a74bd7a79496bb4cb7dcb2"
   # Optional: override base URL (default is Geoapify search endpoint)
   base_url: "https://api.geoapify.com/v1/geocode/search"
 

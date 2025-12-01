@@ -81,6 +81,8 @@ func main() {
 		geoSvc = geocoder.NewNoop()
 	}
 
+	userService.SetUserRole(context.Background(), 1, "admin")
+
 	propertyService := propertyservice.New(propertyStorage, propertyTypeStorage, logger, geoSvc, favoriteService)
 	imageService := imageservice.New(imageStorage, logger, "images/")
 

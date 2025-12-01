@@ -129,7 +129,10 @@ paths:
     post:
       summary: Create property
       tags: [properties]
-      description: Create a new property. Requires admin role.
+      description: |
+        Create a new property. Requires admin role.
+
+        Адрес (`property_address`) должен быть корректным и непустым — при создании сервиса будут получены координаты (``latitude``, ``longitude``) с помощью Geoapify Geocoding API.
       parameters:
         - in: body
           name: body
@@ -779,7 +782,7 @@ definitions:
       transaction_type: { type: string, example: "sale" }
       price: { type: number, example: 350000 }
       area: { type: number, example: 120 }
-      property_address: { type: string, example: "123 Main Street" }
+      property_address: { type: string, example: "123 Main Street", description: "Должен быть корректным, непустым адрес. Координаты (latitude, longitude) вычисляются с помощью Geoapify Geocoding API при создании/обновлении." }
       latitude: { type: number, example: 40.7128 }
       longitude: { type: number, example: -74.006 }
       city: { type: string, example: "New York" }
@@ -805,7 +808,7 @@ definitions:
       transaction_type: { type: string, example: "sale" }
       price: { type: number, example: 350000 }
       area: { type: number, example: 120 }
-      property_address: { type: string, example: "123 Main Street" }
+      property_address: { type: string, example: "123 Main Street", description: "Должен быть корректным, непустым адрес. Координаты (latitude, longitude) вычисляются с помощью Geoapify Geocoding API при создании/обновлении." }
       city: { type: string, example: "New York" }
 
   propertyhandler.UpdatePropertyDoc:
@@ -817,7 +820,7 @@ definitions:
       transaction_type: { type: string, example: "sale" }
       price: { type: number, example: 350000 }
       area: { type: number, example: 120 }
-      property_address: { type: string, example: "123 Main Street" }
+      property_address: { type: string, example: "123 Main Street", description: "Должен быть корректным, непустым адрес. Координаты (latitude, longitude) вычисляются с помощью Geoapify Geocoding API при создании/обновлении." }
       city: { type: string, example: "New York" }
       property_status: { type: string, example: "available" }
 
