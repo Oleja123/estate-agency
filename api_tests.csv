@@ -1,0 +1,36 @@
+№,Метод,Эндпоинт,Входные данные,Действие после,Ожидаемый результат,Статус,Приоритет,Тип сценария
+1,POST,/properties,"{title:'Luxury Apartment', property_description:'Spacious 3-bedroom', type_id:2, transaction_type:'sale', price:350000, area:120, property_address:'123 Main Street', city:'New York'}",GET /properties/{id},Объект создан, возвращается с id и координатами,201,Высокий,Позитивный
+2,POST,/properties,"{title:'', property_description:'Desc', type_id:2, transaction_type:'sale', price:100000, area:50, property_address:'', city:'NY'}",-,Ошибка валидации (пустое название и адрес),400,Высокий,Негативный
+3,GET,/properties/{id},id=созданный,-,Возвращается объект с указанным id,200,Высокий,Позитивный
+4,GET,/properties/{id},id=9999,-,Объект не найден,404,Средний,Негативный
+5,GET,/properties,limit=10, offset=0,-,Список объектов, total ≥ 1,200,Средний,Позитивный
+6,GET,/properties,без токена,-,Ошибка авторизации,401,Высокий,Негативный
+7,PATCH,/properties/{id},{title:'Updated Apartment', price:360000},GET /properties/{id},title и price обновлены,204,Средний,Позитивный
+8,PATCH,/properties/{id},{price:-100},-,Ошибка валидации (некорректная цена),400,Высокий,Негативный
+9,DELETE,/properties/{id},id=созданный,GET /properties/{id},Объект удалён, GET возвращает 404,200/404,Средний,Позитивный
+10,POST,/properties/{id}/favorites,id=созданный,GET /users/{user_id}/favorites,Добавлен в избранное,201,Средний,Позитивный
+11,POST,/properties/{id}/favorites,id=созданный (повторно),GET /users/{user_id}/favorites,Удалён из избранного,204,Средний,Позитивный
+12,GET,/properties/{id}/images,id=созданный,-,Возвращается список изображений,200,Средний,Позитивный
+13,PUT,/properties/{id}/images,файлы=[image1.jpg, image2.jpg],GET /properties/{id}/images,Изображения заменены, список новых файлов,204/200,Средний,Позитивный
+14,GET,/properties,limit=-1,-,Ошибка валидации,400,Высокий,Негативный
+15,POST,/property_types,{name:'Apartment'},GET /property_types/{id},Новый тип создан, возвращается id и name,201,Высокий,Позитивный
+16,POST,/property_types,{},-,Ошибка валидации (обязательное поле name),400,Высокий,Негативный
+17,GET,/property_types/{id},id=созданный,-,Возвращается объект типа,200,Средний,Позитивный
+18,GET,/property_types/{id},id=999,-,Объект не найден,404,Средний,Негативный
+19,PATCH,/property_types/{id},{name:'NewType'},GET /property_types/{id},Имя типа обновлено,204,Средний,Позитивный
+20,DELETE,/property_types/{id},id=созданный,GET /property_types/{id},Объект удалён, GET возвращает 404,200/404,Средний,Позитивный
+21,GET,/property_types,limit=10,-,Список типов, total ≥ 1,200,Средний,Позитивный
+22,POST,/users/register,"{email:'[user@example.com](mailto:user@example.com)', password:'secret', first_name:'John', last_name:'Doe'}",GET /users/{id},Пользователь создан, возвращается id,201,Высокий,Позитивный
+23,POST,/users/register,"{email:'[user@example.com](mailto:user@example.com)', password:'', first_name:'', last_name:''}",-,Ошибка валидации,400,Высокий,Негативный
+24,POST,/users/login,"{email:'[user@example.com](mailto:user@example.com)', password:'secret'}",-,Возврат access_token и refresh_token,200,Высокий,Позитивный
+25,POST,/users/login,"{email:'[user@example.com](mailto:user@example.com)', password:'wrong'}",-,Ошибка авторизации,401,Высокий,Негативный
+26,GET,/users/{id},id=созданный,-,Возвращается пользователь,200,Средний,Позитивный
+27,PATCH,/users/{id}/profile,{first_name:'Jane'},GET /users/{id},Поле first_name обновлено,204,Средний,Позитивный
+28,PATCH,/users/{id}/profile,{email:'invalid-email'},-,Ошибка валидации,400,Высокий,Негативный
+29,PATCH,/users/{id}/password,{current_password:'secret', new_password:'newpass'},POST /users/login с новым паролем,Пароль изменён, авторизация успешна,204/200,Высокий,Позитивный
+30,PATCH,/users/{id}/role,{role:'admin'},GET /users/{id},Роль изменена,204,Средний,Позитивный
+31,PATCH,/users/{id}/active,-,GET /users/{id},Статус активности изменён,204,Средний,Позитивный
+32,GET,/users/{id}/favorites,id=созданный,-,Возвращается список избранного,200,Средний,Позитивный
+33,DELETE,/users/{id},id=созданный,GET /users/{id},Пользователь удалён, GET возвращает 404,200/404,Средний,Позитивный
+34,POST,/tokens/refresh,{refresh_token:'...'},-,Возврат нового access_token и refresh_token,200,Высокий,Позитивный
+35,POST,/tokens/refresh,{refresh_token:'invalid'},-,Ошибка авторизации,401,Высокий,Негативный

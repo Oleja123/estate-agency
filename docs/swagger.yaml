@@ -310,10 +310,16 @@ paths:
           example: 1
         - name: files
           in: formData
-          description: New images to replace existing ones
+          description: |
+            New images to replace existing ones. Передавайте несколько файлов с полем `files` (multipart/form-data).
+            Для лучшей совместимости используем массив файлов: `type: array` с `items: { type: file }` и `collectionFormat: multi`.
+            Если ваш клиент/генератор не поддерживает массив файлов - используйте несколько полей `files`.
           required: true
-          type: file
+          type: array
+          items:
+            type: file
           collectionFormat: multi
+          x-files-multiple: true
       responses:
         "204":
           description: No Content
