@@ -2,6 +2,7 @@ package handlerutils
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
@@ -26,15 +27,16 @@ func mapAppError(err error) (int, interface{}) {
 	}
 	switch e := err.(type) {
 	case apperrors.ErrInvalidInput:
-		return http.StatusBadRequest, map[string]string{"error": e.Error()}
+		// Return a concise Russian message for invalid input (do not expose English reason)
+		return http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("некорректное поле '%s'", e.Field)}
 	case apperrors.ErrAlreadyExists:
 		return http.StatusConflict, map[string]string{"error": e.Error()}
 	case apperrors.ErrNotFound:
 		return http.StatusNotFound, map[string]string{"error": e.Error()}
 	case apperrors.ErrInternal:
-		return http.StatusInternalServerError, map[string]string{"error": "internal error"}
+		return http.StatusInternalServerError, map[string]string{"error": "внутренняя ошибка"}
 	default:
-		return http.StatusInternalServerError, map[string]string{"error": "internal error"}
+		return http.StatusInternalServerError, map[string]string{"error": "внутренняя ошибка"}
 	}
 }
 

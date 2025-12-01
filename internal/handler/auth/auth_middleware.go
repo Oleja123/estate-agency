@@ -39,7 +39,7 @@ func AuthMiddleware(tokSvc token.Service) func(next http.Handler) http.Handler {
 				if lg != nil {
 					lg.Info("auth middleware: missing Authorization header", "method", r.Method, "path", r.URL.Path)
 				}
-				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authorization"})
+				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "требуется авторизация"})
 				return
 			}
 			var tokenStr string
@@ -60,7 +60,7 @@ func AuthMiddleware(tokSvc token.Service) func(next http.Handler) http.Handler {
 				if lg != nil {
 					lg.Info("auth middleware: token validation failed", "err", err)
 				}
-				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
+				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "недействительный токен"})
 				return
 			}
 			if lg != nil {
@@ -105,7 +105,7 @@ func RequireOwnerMiddleware() func(next http.Handler) http.Handler {
 				if lg != nil {
 					lg.Info("require-owner: missing user id in context", "path", r.URL.Path)
 				}
-				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authorization"})
+				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "требуется авторизация"})
 				return
 			}
 			idStr := chi.URLParam(r, "id")
@@ -113,7 +113,7 @@ func RequireOwnerMiddleware() func(next http.Handler) http.Handler {
 				if lg != nil {
 					lg.Info("require-owner: missing id param", "path", r.URL.Path)
 				}
-				handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "missing id"})
+				handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "отсутствует id"})
 				return
 			}
 			id, err := strconv.Atoi(idStr)
@@ -121,14 +121,14 @@ func RequireOwnerMiddleware() func(next http.Handler) http.Handler {
 				if lg != nil {
 					lg.Info("require-owner: invalid id param", "id", idStr, "err", err)
 				}
-				handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+				handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 				return
 			}
 			if id != uid {
 				if lg != nil {
 					lg.Info("require-owner: forbidden - user mismatch", "path", r.URL.Path, "user_id", uid, "target_id", id)
 				}
-				handlerutils.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "forbidden"})
+				handlerutils.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "доступ запрещён"})
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -145,7 +145,7 @@ func RequireOwnerOrAdminMiddleware() func(next http.Handler) http.Handler {
 				if lg != nil {
 					lg.Info("require-owner-or-admin: missing user id in context", "path", r.URL.Path)
 				}
-				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authorization"})
+				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "требуется авторизация"})
 				return
 			}
 			role, _ := RoleFromContext(r.Context())
@@ -161,7 +161,7 @@ func RequireOwnerOrAdminMiddleware() func(next http.Handler) http.Handler {
 				if lg != nil {
 					lg.Info("require-owner-or-admin: missing id param", "path", r.URL.Path)
 				}
-				handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "missing id"})
+				handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "отсутствует id"})
 				return
 			}
 			id, err := strconv.Atoi(idStr)
@@ -169,14 +169,14 @@ func RequireOwnerOrAdminMiddleware() func(next http.Handler) http.Handler {
 				if lg != nil {
 					lg.Info("require-owner-or-admin: invalid id param", "id", idStr, "err", err)
 				}
-				handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+				handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 				return
 			}
 			if id != uid {
 				if lg != nil {
 					lg.Info("require-owner-or-admin: forbidden - user mismatch", "path", r.URL.Path, "user_id", uid, "target_id", id)
 				}
-				handlerutils.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "forbidden"})
+				handlerutils.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "доступ запрещён"})
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -193,7 +193,7 @@ func RequireAdminMiddleware() func(next http.Handler) http.Handler {
 				if lg != nil {
 					lg.Info("require-admin: missing user id in context", "path", r.URL.Path)
 				}
-				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authorization"})
+				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "требуется авторизация"})
 				return
 			}
 			role, _ := RoleFromContext(r.Context())
@@ -201,7 +201,7 @@ func RequireAdminMiddleware() func(next http.Handler) http.Handler {
 				if lg != nil {
 					lg.Info("require-admin: forbidden - not admin", "user_id", uid, "role", role)
 				}
-				handlerutils.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "forbidden"})
+				handlerutils.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "доступ запрещён"})
 				return
 			}
 			next.ServeHTTP(w, r)

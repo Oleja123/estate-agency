@@ -31,7 +31,7 @@ func (h *PropertyTypeHandler) Register(r chi.Router, prefix string, authMw func(
 	if authMw == nil {
 		authMw = func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authorization"})
+				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "требуется авторизация"})
 			})
 		}
 	}
@@ -51,7 +51,7 @@ func (h *PropertyTypeHandler) Register(r chi.Router, prefix string, authMw func(
 func (h *PropertyTypeHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreatePropertyTypeRequest
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
-		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
+		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "некорректный JSON"))
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
@@ -68,7 +68,7 @@ func (h *PropertyTypeHandler) handleGet(w http.ResponseWriter, r *http.Request) 
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 	t, err := h.svc.GetByID(r.Context(), id)
@@ -111,12 +111,12 @@ func (h *PropertyTypeHandler) handleUpdate(w http.ResponseWriter, r *http.Reques
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 	var req dto.UpdatePropertyTypeRequest
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
-		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
+		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "некорректный JSON"))
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
@@ -133,7 +133,7 @@ func (h *PropertyTypeHandler) handleDelete(w http.ResponseWriter, r *http.Reques
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 	deletedID, err := h.svc.Delete(r.Context(), id)

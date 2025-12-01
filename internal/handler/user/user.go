@@ -64,13 +64,13 @@ func (h *UserHandler) Register(r chi.Router, prefix string, authMw func(next htt
 
 func (h *UserHandler) handleGetFavorites(w http.ResponseWriter, r *http.Request) {
 	if h.favSvc == nil {
-		handlerutils.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "favorites not enabled"})
+		handlerutils.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "избранное не включено"})
 		return
 	}
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 	req := favdto.ListFavoritesRequest{Limit: 500, Offset: 0}
@@ -88,13 +88,13 @@ func (h *UserHandler) handleProfile(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 
 	var req dto.UpdateProfileRequest
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
-		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
+		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "некорректный JSON"))
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
@@ -109,12 +109,12 @@ func (h *UserHandler) handleProfile(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		handlerutils.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		handlerutils.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "метод не разрешён"})
 		return
 	}
 	var req dto.RegisterRequest
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
-		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
+		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "некорректный JSON"))
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
@@ -130,7 +130,7 @@ func (h *UserHandler) handleRegister(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var req dto.LoginRequest
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
-		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
+		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "некорректный JSON"))
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
@@ -138,7 +138,7 @@ func (h *UserHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		var inv apperrors.ErrInvalidInput
 		if errors.As(err, &inv) {
-			handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
+			handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "неверные учётные данные"})
 			return
 		}
 		code, body := handlerutils.MapAppError(err)
@@ -152,7 +152,7 @@ func (h *UserHandler) handleGetUser(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 	u, err := h.svc.GetUserByID(r.Context(), id)
@@ -179,7 +179,13 @@ func (h *UserHandler) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
+		return
+	}
+
+	// prevent a user from deleting themself
+	if uid, ok := auth.UserIDFromContext(r.Context()); ok && uid == id {
+		handlerutils.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "нельзя удалить самого себя"})
 		return
 	}
 
@@ -196,18 +202,18 @@ func (h *UserHandler) handleChangePassword(w http.ResponseWriter, r *http.Reques
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 	var req dto.ChangePasswordRequest
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
-		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
+		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "некорректный JSON"))
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
 	if role, ok := auth.RoleFromContext(r.Context()); ok && role == "admin" {
 		if req.NewPassword == "" {
-			code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("new_password", nil, "must not be empty"))
+			code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("new_password", nil, "не может быть пустым"))
 			handlerutils.WriteJSON(w, code, body)
 			return
 		}
@@ -231,7 +237,7 @@ func (h *UserHandler) handleSetActive(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 	if err := h.svc.ToggleActiveAccount(r.Context(), id); err != nil {
@@ -247,19 +253,19 @@ func (h *UserHandler) handleChangeRole(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 	var req struct {
 		Role string `json:"role"`
 	}
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
-		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
+		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "некорректный JSON"))
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
 	if req.Role == "" {
-		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("role", req.Role, "must not be empty"))
+		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("role", req.Role, "не может быть пустым"))
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}

@@ -37,13 +37,13 @@ func (h *TokenHandler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		RefreshToken string `json:"refresh_token"`
 	}
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный JSON"})
 		return
 	}
 
 	resp, err := h.userSvc.RefreshToken(r.Context(), req.RefreshToken)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid refresh token"})
+		handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "недействительный refresh-токен"})
 		return
 	}
 	handlerutils.WriteJSON(w, http.StatusOK, resp)

@@ -46,7 +46,7 @@ func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next
 	if authMw == nil {
 		authMw = func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authorization"})
+				handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "требуется авторизация"})
 			})
 		}
 	}
@@ -79,12 +79,12 @@ func (h *PropertyHandler) handleToggleFavorite(w http.ResponseWriter, r *http.Re
 	pidStr := chi.URLParam(r, "id")
 	pid, err := strconv.Atoi(pidStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 	uid, ok := auth.UserIDFromContext(r.Context())
 	if !ok {
-		handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authorization"})
+		handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "требуется авторизация"})
 		return
 	}
 
@@ -104,13 +104,13 @@ func (h *PropertyHandler) handleToggleFavorite(w http.ResponseWriter, r *http.Re
 func (h *PropertyHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreatePropertyRequest
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
-		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
+		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "некорректный JSON"))
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
 	uid, ok := auth.UserIDFromContext(r.Context())
 	if !ok {
-		handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authorization"})
+		handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "требуется авторизация"})
 		return
 	}
 	p, err := h.svc.Create(r.Context(), uid, req)
@@ -127,7 +127,7 @@ func (h *PropertyHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 	p, err := h.svc.GetByID(r.Context(), id)
@@ -252,12 +252,12 @@ func (h *PropertyHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 	var req dto.UpdatePropertyRequest
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
-		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "invalid json"))
+		code, body := handlerutils.MapAppError(apperrors.NewErrInvalidInput("body", nil, "некорректный JSON"))
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
@@ -274,7 +274,7 @@ func (h *PropertyHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 	deletedID, err := h.svc.Delete(r.Context(), id)
@@ -290,24 +290,24 @@ func (h *PropertyHandler) handleUpdateImages(w http.ResponseWriter, r *http.Requ
 	pidStr := chi.URLParam(r, "id")
 	pid, err := strconv.Atoi(pidStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 	if h.imgSvc == nil {
-		handlerutils.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "images not supported"})
+		handlerutils.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "загрузка изображений не поддерживается"})
 		return
 	}
 	if err := r.ParseMultipartForm(multipartMaxMemory); err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid multipart form"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректная multipart форма"})
 		return
 	}
 	files := r.MultipartForm.File["files"]
 	if len(files) == 0 {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "no files provided"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "файлы не предоставлены"})
 		return
 	}
 	if len(files) > maxImagesPerRequest {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "too many files; maximum 10 allowed"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "слишком много файлов; допускается максимум 10"})
 		return
 	}
 	var req imagedto.CreateImagesRequest
@@ -315,13 +315,13 @@ func (h *PropertyHandler) handleUpdateImages(w http.ResponseWriter, r *http.Requ
 	for _, fh := range files {
 		f, err := fh.Open()
 		if err != nil {
-			handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "cannot read file"})
+			handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "не удалось прочитать файл"})
 			return
 		}
 		data, err := io.ReadAll(f)
 		_ = f.Close()
 		if err != nil {
-			handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "cannot read file"})
+			handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "не удалось прочитать файл"})
 			return
 		}
 		req.Files = append(req.Files, imagedto.ImageFile{Filename: fh.Filename, Data: data})
@@ -339,11 +339,11 @@ func (h *PropertyHandler) handleListImages(w http.ResponseWriter, r *http.Reques
 	pidStr := chi.URLParam(r, "id")
 	pid, err := strconv.Atoi(pidStr)
 	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
 	if h.imgSvc == nil {
-		handlerutils.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "images not supported"})
+		handlerutils.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "загрузка изображений не поддерживается"})
 		return
 	}
 	imgs, err := h.imgSvc.ListByProperty(r.Context(), pid)
