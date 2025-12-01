@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"io"
 	"log/slog"
 
 	geocoder "github.com/Oleja123/estate-agency/internal/infrastructure/geocoder"
@@ -113,7 +114,7 @@ func (m *mockRepo) List(ctx context.Context, req domain.ListRequest) ([]domain.P
 }
 
 func logger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(nil, &slog.HandlerOptions{Level: slog.LevelError}))
+	return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 }
 
 func TestCreateProperty_Success(t *testing.T) {
@@ -129,7 +130,7 @@ func TestCreateProperty_Success(t *testing.T) {
 		return ptypedomain.PropertyType{Id: id, Name: "apartment"}, nil
 	}
 	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
-	got, err := svc.Create(ctx, 1, dto.CreatePropertyRequest{Title: "x", TypeID: 1})
+	got, err := svc.Create(ctx, 1, dto.CreatePropertyRequest{Title: "x", TypeID: 1, PropertyAddress: "addr"})
 	require.NoError(t, err)
 	assert.Equal(t, 10, got.ID)
 }
@@ -152,7 +153,7 @@ func TestUpdateProperty_Success(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
 	repo.GetByIDFn = func(ctx context.Context, id int) (domain.Property, error) {
-		return domain.Property{ID: id, Title: "old"}, nil
+		return domain.Property{ID: id, Title: "old", PropertyAddress: "addr"}, nil
 	}
 	repo.UpdateFn = func(ctx context.Context, p domain.Property) error { return nil }
 	typeRepo := &mockTypeRepo{}
@@ -228,7 +229,7 @@ func TestUpdateProperty_PartialPriceArea(t *testing.T) {
 	repo := &mockRepo{}
 
 	repo.GetByIDFn = func(ctx context.Context, id int) (domain.Property, error) {
-		return domain.Property{ID: id, Title: "old", Price: 100.0, Area: 50.0, TypeID: 1}, nil
+		return domain.Property{ID: id, Title: "old", Price: 100.0, Area: 50.0, TypeID: 1, PropertyAddress: "addr"}, nil
 	}
 	repo.UpdateFn = func(ctx context.Context, p domain.Property) error {
 
@@ -266,7 +267,7 @@ func TestCreateProperty_AlreadyExists(t *testing.T) {
 		return ptypedomain.PropertyType{Id: id, Name: "apartment"}, nil
 	}
 	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
-	_, err := svc.Create(ctx, 1, dto.CreatePropertyRequest{Title: "x", TypeID: 1})
+	_, err := svc.Create(ctx, 1, dto.CreatePropertyRequest{Title: "x", TypeID: 1, PropertyAddress: "addr"})
 	require.Error(t, err)
 	var ae apperrors.ErrAlreadyExists
 	assert.True(t, errors.As(err, &ae))
@@ -276,7 +277,7 @@ func TestUpdateProperty_AlreadyExists(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
 	repo.GetByIDFn = func(ctx context.Context, id int) (domain.Property, error) {
-		return domain.Property{ID: id, Title: "old"}, nil
+		return domain.Property{ID: id, Title: "old", PropertyAddress: "addr"}, nil
 	}
 	repo.UpdateFn = func(ctx context.Context, p domain.Property) error {
 		return dberrors.NewErrAlreadyExists("property", "title", p.Title)
@@ -288,4 +289,90 @@ func TestUpdateProperty_AlreadyExists(t *testing.T) {
 	require.Error(t, err)
 	var ae apperrors.ErrAlreadyExists
 	assert.True(t, errors.As(err, &ae))
+}
+
+// --- additional tests for address validation and geocoding errors
+
+type mockGeo struct {
+	GeocodeFn func(address string) (float64, float64, error)
+}
+
+func (m *mockGeo) Geocode(address string) (float64, float64, error) {
+	if m.GeocodeFn != nil {
+		return m.GeocodeFn(address)
+	}
+	return 0, 0, nil
+}
+
+func TestCreateProperty_EmptyAddress(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockRepo{}
+	typeRepo := &mockTypeRepo{}
+	typeRepo.GetByIDFn = func(ctx context.Context, id int) (ptypedomain.PropertyType, error) {
+		return ptypedomain.PropertyType{Id: id, Name: "apartment"}, nil
+	}
+	svc := New(repo, typeRepo, logger(), &mockGeo{}, &mockFavoriteService{})
+	_, err := svc.Create(ctx, 1, dto.CreatePropertyRequest{Title: "x", TypeID: 1, PropertyAddress: ""})
+	require.Error(t, err)
+	var di apperrors.ErrInvalidInput
+	assert.True(t, errors.As(err, &di))
+}
+
+func TestCreateProperty_GeocodeError(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockRepo{}
+	repo.CreateFn = func(ctx context.Context, p domain.Property) (int, error) { return 10, nil }
+	repo.GetByIDFn = func(ctx context.Context, id int) (domain.Property, error) {
+		return domain.Property{ID: id, Title: "x"}, nil
+	}
+	typeRepo := &mockTypeRepo{}
+	typeRepo.GetByIDFn = func(ctx context.Context, id int) (ptypedomain.PropertyType, error) {
+		return ptypedomain.PropertyType{Id: id, Name: "apartment"}, nil
+	}
+	svc := New(repo, typeRepo, logger(), &mockGeo{GeocodeFn: func(address string) (float64, float64, error) {
+		return 0, 0, fmt.Errorf("geo fail")
+	}}, &mockFavoriteService{})
+
+	_, err := svc.Create(ctx, 1, dto.CreatePropertyRequest{Title: "x", TypeID: 1, PropertyAddress: "addr"})
+	require.Error(t, err)
+	var ge apperrors.ErrGeocoding
+	assert.True(t, errors.As(err, &ge))
+}
+
+func TestUpdateProperty_SetEmptyAddress(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockRepo{}
+	repo.GetByIDFn = func(ctx context.Context, id int) (domain.Property, error) {
+		return domain.Property{ID: id, Title: "old", PropertyAddress: "addr"}, nil
+	}
+	repo.UpdateFn = func(ctx context.Context, p domain.Property) error { return nil }
+	typeRepo := &mockTypeRepo{}
+	svc := New(repo, typeRepo, logger(), &mockGeo{}, &mockFavoriteService{})
+
+	empty := ""
+	req := dto.UpdatePropertyRequest{ID: 2, PropertyAddress: optional.OptionalString{Defined: true, Valid: true, Value: &empty}}
+	err := svc.Update(ctx, req)
+	require.Error(t, err)
+	var di apperrors.ErrInvalidInput
+	assert.True(t, errors.As(err, &di))
+}
+
+func TestUpdateProperty_GeocodeErrorOnUpdate(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockRepo{}
+	repo.GetByIDFn = func(ctx context.Context, id int) (domain.Property, error) {
+		return domain.Property{ID: id, Title: "old", PropertyAddress: "addr"}, nil
+	}
+	repo.UpdateFn = func(ctx context.Context, p domain.Property) error { return nil }
+	typeRepo := &mockTypeRepo{}
+	svc := New(repo, typeRepo, logger(), &mockGeo{GeocodeFn: func(address string) (float64, float64, error) {
+		return 0, 0, fmt.Errorf("geo fail")
+	}}, &mockFavoriteService{})
+
+	addr := "new addr"
+	req := dto.UpdatePropertyRequest{ID: 2, PropertyAddress: optional.OptionalString{Defined: true, Valid: true, Value: &addr}}
+	err := svc.Update(ctx, req)
+	require.Error(t, err)
+	var ge apperrors.ErrGeocoding
+	assert.True(t, errors.As(err, &ge))
 }

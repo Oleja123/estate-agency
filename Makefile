@@ -23,7 +23,7 @@ migrate-generate:
 
 .PHONY: migrate-up
 migrate-up:
-	goose -dir $(MIGRATIONS_DIR) postgres $(PG_DSN) up
+	$(GOPATH)/bin/goose -dir $(MIGRATIONS_DIR) postgres $(PG_DSN) up
 
 .PHONY: migrate-down
 migrate-down:

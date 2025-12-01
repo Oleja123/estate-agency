@@ -10,6 +10,10 @@ db_config:
   max_attempts: 5
   seconds_to_connect: 5
 
-geo_config: {}
+geo_config:
+  # Geoapify API key. If empty, the application will use a noop geocoder.
+  api_key: ""
+  # Optional: override base URL (default is Geoapify search endpoint)
+  base_url: "https://api.geoapify.com/v1/geocode/search"
 
 goose_path: db/migrations

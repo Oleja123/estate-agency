@@ -69,3 +69,15 @@ func NewErrTimeout(message string) error {
 func (e ErrTimeout) Error() string {
 	return fmt.Sprintf("timeout: %s", e.Message)
 }
+
+type ErrGeocoding struct {
+	Message string
+}
+
+func NewErrGeocoding(message string) error {
+	return ErrGeocoding{Message: message}
+}
+
+func (e ErrGeocoding) Error() string {
+	return fmt.Sprintf("ошибка геокодирования: %s", e.Message)
+}

@@ -68,16 +68,19 @@ func (s *service) Create(ctx context.Context, userID int, req dto.CreateProperty
 		PropertyStatus:      domain.StatusActive,
 		CreatedBy:           userID,
 	}
-
-	// attempt to geocode address (best-effort)
-	if p.PropertyAddress != "" {
-		if lat, lon, err := s.geo.Geocode(p.PropertyAddress); err == nil {
-			p.Latitude = lat
-			p.Longitude = lon
-		} else {
-			s.logger.DebugContext(context.Background(), "geocode failed", "err", err)
-		}
+	// address must be provided
+	if p.PropertyAddress == "" {
+		return domain.Property{}, apperrors.NewErrInvalidInput("property_address", p.PropertyAddress, "must not be empty")
 	}
+
+	// attempt to geocode address — если не удалось, возвращаем ошибку
+	lat, lon, err := s.geo.Geocode(p.PropertyAddress)
+	if err != nil {
+		s.logger.Error("geocode error при создании свойства", "err", err)
+		return domain.Property{}, apperrors.NewErrGeocoding(err.Error())
+	}
+	p.Latitude = lat
+	p.Longitude = lon
 
 	id, err := s.repo.Create(ctx, p)
 	if err != nil {
@@ -172,14 +175,18 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 		p.PropertyStatus = domain.PropertyStatus(*req.PropertyStatus.Value)
 	}
 
-	// geocode updated address if provided
-	if p.PropertyAddress != "" {
-		if lat, lon, err := s.geo.Geocode(p.PropertyAddress); err == nil {
-			p.Latitude = lat
-			p.Longitude = lon
-		} else {
-			s.logger.DebugContext(context.Background(), "geocode failed", "err", err)
+	// если при обновлении был указан адрес, проверяем и геокодируем его
+	if req.PropertyAddress.Defined && req.PropertyAddress.Valid {
+		if p.PropertyAddress == "" {
+			return apperrors.NewErrInvalidInput("property_address", p.PropertyAddress, "must not be empty")
 		}
+		lat, lon, err := s.geo.Geocode(p.PropertyAddress)
+		if err != nil {
+			s.logger.Error("geocode error при обновлении свойства", "err", err)
+			return apperrors.NewErrGeocoding(err.Error())
+		}
+		p.Latitude = lat
+		p.Longitude = lon
 	}
 
 	if err := s.repo.Update(ctx, p); err != nil {
