@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-// PropertyDTO is the API representation of a property used in OpenAPI docs.
 type PropertyDTO struct {
 	ID                  int       `json:"id"`
 	Title               string    `json:"title"`

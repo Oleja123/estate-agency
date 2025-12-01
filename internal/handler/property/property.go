@@ -22,11 +22,9 @@ import (
 )
 
 const (
-	// maxImagesPerRequest is the maximum number of files accepted in a single
-	// multipart upload for property images.
 	maxImagesPerRequest = 10
-	// multipartMaxMemory is the max memory passed to ParseMultipartForm.
-	multipartMaxMemory = 32 << 20 // 32 MiB
+
+	multipartMaxMemory = 32 << 20
 )
 
 type PropertyHandler struct {
@@ -44,8 +42,7 @@ func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next
 	if prefix == "" {
 		prefix = "/properties"
 	}
-	// Enforce auth for all property endpoints. If auth middleware is not
-	// provided, insert a denying middleware so endpoints are not exposed.
+
 	if authMw == nil {
 		authMw = func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -55,52 +52,29 @@ func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next
 	}
 
 	r.Route(prefix, func(r chi.Router) {
-		// Require authentication for all routes under /properties
+
 		r.Use(authMw)
 
-		// reads now require authentication as well
 		r.Get("/", h.handleList)
 		r.Get("/{id}", h.handleGet)
 
-		// create/update/delete require admin role
 		r.With(auth.RequireAdminMiddleware()).Post("/", h.handleCreate)
 		r.With(auth.RequireAdminMiddleware()).Patch("/{id}", h.handleUpdate)
 		r.With(auth.RequireAdminMiddleware()).Delete("/{id}", h.handleDelete)
 
-		// allow authenticated users to toggle favorite for a property
 		if h.favSvc != nil {
-			// toggle favorite for current user: POST /{id}/favorites
+
 			r.Post("/{id}/favorites", h.handleToggleFavorite)
 		}
 
-		// images upload/update endpoints (admin-protected). Attach only if image service present.
 		if h.imgSvc != nil {
-			// allow authenticated users to list images for a property
+
 			r.Get("/{id}/images", h.handleListImages)
 			r.With(auth.RequireAdminMiddleware()).Put("/{id}/images", h.handleUpdateImages)
 		}
 	})
 }
 
-// constructor-only injection enforced; SetFavoriteService removed
-
-// handleToggleFavorite toggles favorite for the authenticated user and the
-// given property id. If the property was not favorited, it creates one and
-// returns 201 with the created object. If it was favorited already, it
-// deletes it and returns 204 No Content.
-// @Security BearerAuth
-// @Summary Toggle favorite for property
-// @Description Toggle favorite for the authenticated user and given property ID. Returns 201 with created favorite or 204 when removed.
-// @Tags properties
-// @Accept json
-// @Produce json
-// @Param id path int true "Property ID"
-// @Success 201 {object} FavoriteDTODoc
-// @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /properties/{id}/favorites [post]
 func (h *PropertyHandler) handleToggleFavorite(w http.ResponseWriter, r *http.Request) {
 	pidStr := chi.URLParam(r, "id")
 	pid, err := strconv.Atoi(pidStr)
@@ -114,7 +88,6 @@ func (h *PropertyHandler) handleToggleFavorite(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Delegate favorite toggle to property service: it will call favorites service.
 	created, fav, err := h.svc.ToggleFavorite(r.Context(), uid, pid)
 	if err != nil {
 		code, body := handlerutils.MapAppError(err)
@@ -128,17 +101,6 @@ func (h *PropertyHandler) handleToggleFavorite(w http.ResponseWriter, r *http.Re
 	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
-// @Security BearerAuth
-// @Summary Create property
-// @Description Create a new property
-// @Tags properties
-// @Accept json
-// @Produce json
-// @Param body body PropertyCreateDoc true "Property"
-// @Success 201 {object} PropertyDTODoc
-// @Failure 400 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Router /properties [post]
 func (h *PropertyHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreatePropertyRequest
 	if err := handlerutils.DecodeJSON(r, &req); err != nil {
@@ -157,21 +119,10 @@ func (h *PropertyHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	// map domain.Property to API DTO to avoid exposing internal fields like created_by
+
 	handlerutils.WriteJSON(w, http.StatusCreated, propertysvc.MapProperty(p))
 }
 
-// @Security BearerAuth
-// @Summary Get property
-// @Description Get property by ID
-// @Tags properties
-// @Accept json
-// @Produce json
-// @Param id path int true "Property ID"
-// @Success 200 {object} PropertyDTODoc
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /properties/{id} [get]
 func (h *PropertyHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -185,34 +136,10 @@ func (h *PropertyHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	// map domain.Property to API DTO using centralized mapper
+
 	handlerutils.WriteJSON(w, http.StatusOK, propertysvc.MapProperty(p))
 }
 
-// @Security BearerAuth
-// @Summary List properties
-// @Description List properties with pagination and filters
-// @Tags properties
-// @Accept json
-// @Produce json
-// @Param limit query int false "Limit"
-// @Param offset query int false "Offset"
-// @Param ids query string false "Comma-separated property IDs"
-// @Param type_ids query string false "Comma-separated property type IDs"
-// @Param transaction_type query string false "transaction type (sale|rent)"
-// @Param city query string false "City name"
-// @Param property_status query string false "Property status (active|sold|rented|inactive)"
-// @Param created_by query int false "Creator user ID"
-// @Param min_price query number false "Minimum price"
-// @Param max_price query number false "Maximum price"
-// @Param min_area query number false "Minimum area"
-// @Param max_area query number false "Maximum area"
-// @Param search query string false "Full-text search query"
-// @Param latitude query number false "Latitude for geo filter"
-// @Param longitude query number false "Longitude for geo filter"
-// @Param radius_km query number false "Radius in kilometers for geo filter"
-// @Success 200 {object} ListPropertiesResponseDoc
-// @Router /properties [get]
 func (h *PropertyHandler) handleList(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	limit := 20
@@ -230,10 +157,9 @@ func (h *PropertyHandler) handleList(w http.ResponseWriter, r *http.Request) {
 			offset = v
 		}
 	}
-	// build filter from query params
+
 	var f propdomain.Filter
 
-	// helper to parse comma-separated ints
 	parseInts := func(s string) []int {
 		if s == "" {
 			return nil
@@ -322,18 +248,6 @@ func (h *PropertyHandler) handleList(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusOK, res)
 }
 
-// @Security BearerAuth
-// @Summary Update property
-// @Description Partially update an existing property
-// @Tags properties
-// @Accept json
-// @Produce json
-// @Param id path int true "Property ID"
-// @Param body body UpdatePropertyDoc true "Property"
-// @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /properties/{id} [patch]
 func (h *PropertyHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -356,17 +270,6 @@ func (h *PropertyHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
-// @Security BearerAuth
-// @Summary Delete property
-// @Description Delete property by ID
-// @Tags properties
-// @Accept json
-// @Produce json
-// @Param id path int true "Property ID"
-// @Success 200 {object} map[string]int
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /properties/{id} [delete]
 func (h *PropertyHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -383,26 +286,6 @@ func (h *PropertyHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	handlerutils.WriteJSON(w, http.StatusOK, map[string]int{"deleted_id": deletedID})
 }
 
-// @Param id path int true "Property ID"
-// @Param files formData []file true "Files"
-// @Success 201 {array} ImageDTODoc
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Router /properties/{id}/images [post]
-
-// handleUpdateImages replaces existing images for the property with provided files.
-// @Security BearerAuth
-// @Summary Replace images for a property
-// @Description Replace existing images for the given property with provided files (up to 10). Field name: files (multipart/form-data).
-// @Tags properties
-// @Accept multipart/form-data
-// @Produce json
-// @Param id path int true "Property ID"
-// @Param files formData file true "Files"
-// @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Router /properties/{id}/images [put]
 func (h *PropertyHandler) handleUpdateImages(w http.ResponseWriter, r *http.Request) {
 	pidStr := chi.URLParam(r, "id")
 	pid, err := strconv.Atoi(pidStr)
@@ -452,18 +335,6 @@ func (h *PropertyHandler) handleUpdateImages(w http.ResponseWriter, r *http.Requ
 	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
-// @Security BearerAuth
-// @Summary List images for a property
-// @Description Get list of images for the given property ID. Requires authentication.
-// @Tags properties
-// @Accept json
-// @Produce json
-// @Param id path int true "Property ID"
-// @Success 200 {array} ImageDTODoc
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /properties/{id}/images [get]
 func (h *PropertyHandler) handleListImages(w http.ResponseWriter, r *http.Request) {
 	pidStr := chi.URLParam(r, "id")
 	pid, err := strconv.Atoi(pidStr)

@@ -40,8 +40,7 @@ func (h *TokenHandler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
 		return
 	}
-	// Delegate to application user service which performs validation and
-	// returns a full LoginResponse (user, access_token, refresh_token, expires_at).
+
 	resp, err := h.userSvc.RefreshToken(r.Context(), req.RefreshToken)
 	if err != nil {
 		handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid refresh token"})

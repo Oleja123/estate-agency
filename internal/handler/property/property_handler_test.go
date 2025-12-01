@@ -24,7 +24,6 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// mockService implements the property service interface used by handlers.
 type mockService struct {
 	CreateCalled bool
 	CreateFunc   func(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error)
@@ -40,7 +39,7 @@ type mockService struct {
 
 	DeleteCalled bool
 	DeleteFunc   func(ctx context.Context, id int) (int, error)
-	// ToggleFavoriteFunc allows tests to intercept ToggleFavorite calls.
+
 	ToggleFavoriteFunc func(ctx context.Context, userID int, propertyID int) (bool, favdomain.Favorite, error)
 }
 
@@ -91,7 +90,6 @@ func newLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 }
 
-// mockImageService implements the image service used by the property handler for tests.
 type mockImageService struct {
 	CreateManyCalled bool
 	CreateManyFunc   func(ctx context.Context, req imagedto.CreateImagesRequest) ([]imagedomain.PropertyImage, error)
@@ -117,7 +115,6 @@ func (m *mockImageService) Delete(ctx context.Context, id int) (int, error) {
 	return 0, nil
 }
 
-// mockFavorite is a small favorites service mock used by property handler tests.
 type mockFavorite struct{}
 
 func (m *mockFavorite) Create(ctx context.Context, req favdto.CreateFavoriteRequest) (favdomain.Favorite, error) {
@@ -171,7 +168,6 @@ func TestHandleUpdateImages_CallsServiceAndReturnsNoContent(t *testing.T) {
 	imgMock := &mockImageService{}
 	h := NewPropertyHandler(m, logger, &mockFavorite{}, imgMock)
 
-	// build multipart body with one file
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 	fw, _ := mw.CreateFormFile("files", "a.jpg")
@@ -249,7 +245,7 @@ func TestHandleCreate_Middleware_AdminAllowed(t *testing.T) {
 	b, _ := json.Marshal(body)
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
-	// set admin in context
+
 	req = req.WithContext(auth.ContextWithUser(req.Context(), 10, "admin"))
 	rr := httptest.NewRecorder()
 
@@ -271,7 +267,7 @@ func TestHandleCreate_Middleware_NonAdminForbidden(t *testing.T) {
 	b, _ := json.Marshal(body)
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
-	// set non-admin in context
+
 	req = req.WithContext(auth.ContextWithUser(req.Context(), 11, "client"))
 	rr := httptest.NewRecorder()
 
@@ -301,7 +297,6 @@ func TestHandleGet_CallsServiceAndReturns(t *testing.T) {
 	}
 }
 
-// Service error mapping tests
 func TestHandleCreate_ServiceInvalidInput_Returns400(t *testing.T) {
 	m := &mockService{}
 	m.CreateFunc = func(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error) {

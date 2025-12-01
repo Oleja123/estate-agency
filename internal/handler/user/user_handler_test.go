@@ -19,14 +19,13 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// mockService implements usersvc.Service with minimal stubs for testing handler behavior.
 type mockService struct {
 	ChangePasswordCalled      bool
 	ChangePasswordAdminCalled bool
 	LastChangePasswordUserID  int
 	LastChangePasswordReq     dto.ChangePasswordRequest
 	LastAdminNewPassword      string
-	// optional behavior overrides for tests
+
 	RegisterFunc            func(ctx context.Context, req dto.RegisterRequest) (dto.PublicUser, error)
 	LoginFunc               func(ctx context.Context, req dto.LoginRequest) (dto.LoginResponse, error)
 	ListUsersFunc           func(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error)
@@ -36,7 +35,6 @@ type mockService struct {
 	SetUserRoleFunc         func(ctx context.Context, userID int, role string) error
 }
 
-// mockFavorite is a lightweight favorites service mock for handler tests.
 type mockFavorite struct{}
 
 func (m *mockFavorite) Create(ctx context.Context, req favdto.CreateFavoriteRequest) (favdomain.Favorite, error) {
@@ -99,7 +97,7 @@ func (m *mockService) ChangePasswordAdmin(ctx context.Context, userID int, newPa
 	return nil
 }
 func (m *mockService) SetActiveAccount(ctx context.Context, userID int, active bool) error {
-	// kept for interface compatibility; tests should use ToggleActiveAccount
+
 	return nil
 }
 
@@ -132,11 +130,11 @@ func TestHandleChangePassword_AdminPath(t *testing.T) {
 	b, _ := json.Marshal(body)
 	req := httptest.NewRequest(http.MethodPatch, "/users/5/password", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
-	// set chi route param id=5
+
 	rc := chi.NewRouteContext()
 	rc.URLParams.Add("id", "5")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
-	// set admin role in context via auth helper
+
 	req = req.WithContext(auth.ContextWithUser(req.Context(), 3, "admin"))
 
 	rr := httptest.NewRecorder()
@@ -165,7 +163,7 @@ func TestHandleChangePassword_OwnerPath(t *testing.T) {
 	rc := chi.NewRouteContext()
 	rc.URLParams.Add("id", "7")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
-	// set owner id same as target
+
 	req = req.WithContext(auth.ContextWithUser(req.Context(), 7, "client"))
 
 	rr := httptest.NewRecorder()
@@ -287,7 +285,6 @@ func TestHandleListUsers_RequiresAdmin_Middleware(t *testing.T) {
 	r := chi.NewRouter()
 	r.With(auth.RequireAdminMiddleware()).Get("/", h.handleListUsers)
 
-	// unauthenticated -> 401
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
@@ -295,7 +292,6 @@ func TestHandleListUsers_RequiresAdmin_Middleware(t *testing.T) {
 		t.Fatalf("expected 401 for unauthenticated, got %d", rr.Code)
 	}
 
-	// authenticated non-admin -> 403
 	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	req = req.WithContext(auth.ContextWithUser(req.Context(), 5, "client"))
 	rr = httptest.NewRecorder()
@@ -304,7 +300,6 @@ func TestHandleListUsers_RequiresAdmin_Middleware(t *testing.T) {
 		t.Fatalf("expected 403 for non-admin, got %d", rr.Code)
 	}
 
-	// admin -> 200
 	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	req = req.WithContext(auth.ContextWithUser(req.Context(), 9, "admin"))
 	rr = httptest.NewRecorder()
@@ -324,7 +319,7 @@ func TestHandleChangePassword_RequiresOwnerOrAdmin_Middleware_Forbidden(t *testi
 
 	body := map[string]string{"current_password": "old", "new_password": "new"}
 	b, _ := json.Marshal(body)
-	// request target id 7, but context user is 6 -> should be forbidden
+
 	req := httptest.NewRequest(http.MethodPatch, "/7/password", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(auth.ContextWithUser(req.Context(), 6, "client"))
@@ -336,7 +331,6 @@ func TestHandleChangePassword_RequiresOwnerOrAdmin_Middleware_Forbidden(t *testi
 	}
 }
 
-// Error-path tests
 func TestHandleRegister_AlreadyExists_Returns409(t *testing.T) {
 	m := &mockService{}
 	m.RegisterFunc = func(ctx context.Context, req dto.RegisterRequest) (dto.PublicUser, error) {
@@ -379,8 +373,7 @@ func TestHandleLogin_InvalidCredentials_Returns401(t *testing.T) {
 
 func TestHandleGetUser_NotFound_Returns404(t *testing.T) {
 	m := &mockService{}
-	// use ListUsers or GetUserByID? Handler has GetUserByID method; override via Register? We'll simulate via ListUsers path by calling GetUserByID through handler's route if present.
-	// For simplicity, call handleGetUser directly would require method; if not present, skip. We'll test ListUsers error mapping instead.
+
 	m.ListUsersFunc = func(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error) {
 		return dto.ListUsersResponse{}, apperrors.NewErrNotFound("user", 77)
 	}
@@ -421,7 +414,7 @@ func TestHandleChangePassword_Owner_BadRequest_Returns400(t *testing.T) {
 
 func TestHandleSetActive_TogglesToInactive(t *testing.T) {
 	m := &mockService{}
-	// Expect ToggleActiveAccount to be called for the target user
+
 	setCalled := false
 	var setUserID int
 	m.ToggleActiveAccountFunc = func(ctx context.Context, userID int) error {

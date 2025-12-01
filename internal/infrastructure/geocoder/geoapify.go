@@ -27,7 +27,6 @@ func NewGeoapify(conf cfg.GeoServiceConfig, httpClient *http.Client) *GeoapifySe
 	return &GeoapifyService{apiKey: conf.APIKey, baseURL: base, client: httpClient}
 }
 
-// geoapify response subset
 type geoapifyResp struct {
 	Features []struct {
 		Properties struct {
@@ -48,7 +47,6 @@ func (g *GeoapifyService) Geocode(address string) (float64, float64, error) {
 		return 0, 0, NewErrGeoConfig("пустой api_key")
 	}
 
-	// build request URL
 	u, err := url.Parse(g.baseURL)
 	if err != nil {
 		return 0, 0, fmt.Errorf("invalid base url: %w", err)
@@ -80,14 +78,13 @@ func (g *GeoapifyService) Geocode(address string) (float64, float64, error) {
 	}
 
 	f := gr.Features[0]
-	// prefer geometry coordinates if present
+
 	if len(f.Geometry.Coordinates) >= 2 {
 		lon := f.Geometry.Coordinates[0]
 		lat := f.Geometry.Coordinates[1]
 		return lat, lon, nil
 	}
 
-	// fallback to properties
 	if f.Properties.Lat != 0 || f.Properties.Lon != 0 {
 		return f.Properties.Lat, f.Properties.Lon, nil
 	}

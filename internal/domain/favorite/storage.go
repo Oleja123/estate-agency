@@ -19,7 +19,7 @@ type Repository interface {
 	Create(ctx context.Context, favorite Favorite) error
 	GetByUserAndProperty(ctx context.Context, userID, propertyID int) (Favorite, error)
 	Delete(ctx context.Context, userID, propertyID int) (int, error)
-	// List returns matching favorites and total count for pagination
+
 	List(ctx context.Context, req ListRequest) ([]Favorite, int, error)
 	Exists(ctx context.Context, userID, propertyID int) (bool, error)
 }

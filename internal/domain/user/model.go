@@ -13,7 +13,6 @@ const (
 	RoleClient Role = "client"
 )
 
-// ParseRole converts a string to a Role, validating allowed values.
 func ParseRole(s string) (Role, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "admin":

@@ -27,7 +27,6 @@ type service struct {
 	favSvc   favoritesvc.Service
 }
 
-// New constructs property service with property repository and property-type repository.
 func New(repo domain.Repository, typeRepo ptypedomain.Repository, logger *slog.Logger, geo geocoder.GeoService, favSvc favoritesvc.Service) Service {
 	if geo == nil {
 		geo = geocoder.NewNoop()
@@ -41,7 +40,6 @@ func (s *service) Create(ctx context.Context, userID int, req dto.CreateProperty
 		return domain.Property{}, apperrors.NewErrInvalidInput("title", title, "must not be empty")
 	}
 
-	// validate type existence
 	if req.TypeID == 0 {
 		return domain.Property{}, apperrors.NewErrInvalidInput("type_id", req.TypeID, "must be provided")
 	}
@@ -68,12 +66,11 @@ func (s *service) Create(ctx context.Context, userID int, req dto.CreateProperty
 		PropertyStatus:      domain.StatusActive,
 		CreatedBy:           userID,
 	}
-	// address must be provided
+
 	if p.PropertyAddress == "" {
 		return domain.Property{}, apperrors.NewErrInvalidInput("property_address", p.PropertyAddress, "must not be empty")
 	}
 
-	// attempt to geocode address — если не удалось, возвращаем ошибку
 	lat, lon, err := s.geo.Geocode(p.PropertyAddress)
 	if err != nil {
 		s.logger.Error("geocode error при создании свойства", "err", err)
@@ -131,7 +128,6 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 		}
 	}
 
-	// if type changed (provided, valid and non-zero), validate existence
 	if req.TypeID.Defined && req.TypeID.Valid {
 		val := *req.TypeID.Value
 		if val != 0 && val != p.TypeID {
@@ -149,7 +145,6 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 		}
 	}
 
-	// apply updates (only if provided)
 	if req.Title.Defined && req.Title.Valid {
 		p.Title = strings.TrimSpace(*req.Title.Value)
 	}
@@ -175,7 +170,6 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 		p.PropertyStatus = domain.PropertyStatus(*req.PropertyStatus.Value)
 	}
 
-	// если при обновлении был указан адрес, проверяем и геокодируем его
 	if req.PropertyAddress.Defined && req.PropertyAddress.Valid {
 		if p.PropertyAddress == "" {
 			return apperrors.NewErrInvalidInput("property_address", p.PropertyAddress, "must not be empty")
@@ -233,9 +227,6 @@ func (s *service) Delete(ctx context.Context, id int) (int, error) {
 	return deletedID, nil
 }
 
-// ToggleFavorite toggles favorite for the given user and property.
-// It delegates to the favorites application service to perform existence check,
-// create or delete, and maps errors accordingly.
 func (s *service) ToggleFavorite(ctx context.Context, userID int, propertyID int) (bool, favdomain.Favorite, error) {
 	if s.favSvc == nil {
 		return false, favdomain.Favorite{}, apperrors.NewErrInternal("favorites not configured")
@@ -246,7 +237,7 @@ func (s *service) ToggleFavorite(ctx context.Context, userID int, propertyID int
 		return false, favdomain.Favorite{}, err
 	}
 	if exists {
-		// delete
+
 		_, err := s.favSvc.Delete(ctx, key)
 		if err != nil {
 			return false, favdomain.Favorite{}, err

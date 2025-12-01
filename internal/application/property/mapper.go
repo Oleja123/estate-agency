@@ -5,7 +5,6 @@ import (
 	domain "github.com/Oleja123/estate-agency/internal/domain/property"
 )
 
-// MapProperty converts domain.Property to API DTO PropertyDTO.
 func MapProperty(p domain.Property) dto.PropertyDTO {
 	return dto.PropertyDTO{
 		ID:                  p.ID,
@@ -25,7 +24,6 @@ func MapProperty(p domain.Property) dto.PropertyDTO {
 	}
 }
 
-// MapProperties converts a slice of domain.Property to a slice of PropertyDTO.
 func MapProperties(list []domain.Property) []dto.PropertyDTO {
 	out := make([]dto.PropertyDTO, 0, len(list))
 	for _, p := range list {

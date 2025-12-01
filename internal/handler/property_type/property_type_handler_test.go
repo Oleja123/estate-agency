@@ -255,7 +255,6 @@ func TestHandleDelete_Middleware_NonAdminForbidden(t *testing.T) {
 	}
 }
 
-// Service error mapping tests
 func TestHandleCreate_ServiceInvalidInput_Returns400(t *testing.T) {
 	m := &mockService{}
 	m.CreateFunc = func(ctx context.Context, req dto.CreatePropertyTypeRequest) (domain.PropertyType, error) {

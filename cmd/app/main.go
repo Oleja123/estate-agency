@@ -72,7 +72,7 @@ func main() {
 	userService := userservice.New(userStorage, logger, password.NewBcryptHasher(), tokSvc)
 	propertyTypeService := propertytypeservice.New(propertyTypeStorage, logger)
 	favoriteService := favoriteservice.New(favoriteStorage, logger)
-	// construct geocoder: use Geoapify if api key provided, otherwise noop
+
 	var geoSvc geocoder.GeoService
 	if cfg.GeoConfig.APIKey != "" {
 		httpClient := &http.Client{Timeout: 10 * time.Second}

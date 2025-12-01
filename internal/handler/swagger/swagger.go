@@ -13,9 +13,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// RegisterSwagger mounts swagger JSON and swagger UI handlers under /swagger.
-// It reads the canonical YAML from docs/swagger.yaml and serves converted JSON
-// at /swagger/doc.json and the UI at /swagger/*.
 func RegisterSwagger(router chi.Router, logger *slog.Logger) {
 	router.Get("/swagger/doc.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -31,8 +28,6 @@ func RegisterSwagger(router chi.Router, logger *slog.Logger) {
 			return
 		}
 
-		// Convert YAML-parsed structure to JSON-marshallable structure by
-		// converting map[interface{}] to map[string]interface{} recursively.
 		var convert func(interface{}) interface{}
 		convert = func(in interface{}) interface{} {
 			switch x := in.(type) {

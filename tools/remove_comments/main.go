@@ -19,7 +19,6 @@ func processFile(path string) error {
 		return fmt.Errorf("parse %s: %w", path, err)
 	}
 
-	// clear top-level comment groups
 	f.Comments = nil
 
 	ast.Inspect(f, func(n ast.Node) bool {
@@ -55,7 +54,8 @@ func processFile(path string) error {
 }
 
 func main() {
-	root := "cmd/app"
+
+	root := "."
 	var errs int
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

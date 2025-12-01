@@ -291,8 +291,6 @@ func TestUpdateProperty_AlreadyExists(t *testing.T) {
 	assert.True(t, errors.As(err, &ae))
 }
 
-// --- additional tests for address validation and geocoding errors
-
 type mockGeo struct {
 	GeocodeFn func(address string) (float64, float64, error)
 }

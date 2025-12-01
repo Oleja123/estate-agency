@@ -11,7 +11,7 @@ import (
 )
 
 func TestGeoapifyGeocodeSuccess(t *testing.T) {
-	// mock server returns feature with geometry coordinates [lon, lat]
+
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, `{"features":[{"geometry":{"coordinates":[37.123,55.456]}}]}`)
 	}))

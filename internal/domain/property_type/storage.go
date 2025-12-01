@@ -20,6 +20,6 @@ type Repository interface {
 	GetByName(ctx context.Context, name string) (PropertyType, error)
 	Update(ctx context.Context, propertyType PropertyType) error
 	Delete(ctx context.Context, id int) (int, error)
-	// List returns matching property types and the total count of matching rows (ignoring limit/offset)
+
 	List(ctx context.Context, req ListRequest) ([]PropertyType, int, error)
 }
