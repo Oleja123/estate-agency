@@ -52,11 +52,11 @@ func (m *mockRepo) GetByEmail(ctx context.Context, email string) (domain.User, e
 	return domain.User{}, basedberrors.NewErrNotFound("user", email)
 }
 
-func (m *mockRepo) Update(ctx context.Context, u domain.User) error {
+func (m *mockRepo) Update(ctx context.Context, u domain.User) (domain.User, error) {
 	if m.UpdateFunc != nil {
-		return m.UpdateFunc(ctx, u)
+		return u, m.UpdateFunc(ctx, u)
 	}
-	return nil
+	return u, nil
 }
 
 func (m *mockRepo) Delete(ctx context.Context, id int) (int, error) {
@@ -240,7 +240,7 @@ func TestUserService_ChangePassword(t *testing.T) {
 	}
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
-	err = svc.ChangePassword(ctx, 1, dto.ChangePasswordRequest{CurrentPassword: "oldpass", NewPassword: "newpass"})
+	_, err = svc.ChangePassword(ctx, 1, dto.ChangePasswordRequest{CurrentPassword: "oldpass", NewPassword: "newpass"})
 	require.NoError(t, err)
 }
 
@@ -351,7 +351,7 @@ func TestUserService_UpdateProfile_AlreadyExists(t *testing.T) {
 		Email:  optional.OptionalString{Defined: true, Valid: true, Value: func() *string { v := "dup@e.com"; return &v }()},
 	}
 
-	err := svc.UpdateProfile(ctx, req)
+	_, err := svc.UpdateProfile(ctx, req)
 	require.Error(t, err)
 	_, ok := err.(apperrors.ErrAlreadyExists)
 	assert.True(t, ok)
@@ -372,7 +372,7 @@ func TestUserService_ChangePassword_WrongCurrent(t *testing.T) {
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
 
-	err = svc.ChangePassword(ctx, 1, dto.ChangePasswordRequest{CurrentPassword: "wrong", NewPassword: "newpass"})
+	_, err = svc.ChangePassword(ctx, 1, dto.ChangePasswordRequest{CurrentPassword: "wrong", NewPassword: "newpass"})
 	require.Error(t, err)
 	_, ok := err.(apperrors.ErrInvalidInput)
 	assert.True(t, ok)
@@ -390,7 +390,7 @@ func TestUserService_DeactivateAccount_NotFound(t *testing.T) {
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
 
-	err := svc.ToggleActiveAccount(ctx, 99)
+	_, err := svc.ToggleActiveAccount(ctx, 99)
 	require.Error(t, err)
 	_, ok := err.(apperrors.ErrNotFound)
 	assert.True(t, ok)
@@ -496,7 +496,7 @@ func TestUserService_UpdateProfile_Success(t *testing.T) {
 		Role:        optional.OptionalString{Defined: true, Valid: true, Value: func() *string { v := "admin"; return &v }()},
 	}
 
-	err := svc.UpdateProfile(ctx, req)
+	_, err := svc.UpdateProfile(ctx, req)
 	require.NoError(t, err)
 }
 
@@ -531,7 +531,7 @@ func TestUserService_UpdateProfile_Partial(t *testing.T) {
 		FirstName: optional.OptionalString{Defined: true, Valid: true, Value: func() *string { v := "OnlyFirst"; return &v }()},
 	}
 
-	err := svc.UpdateProfile(ctx, req)
+	_, err := svc.UpdateProfile(ctx, req)
 	require.NoError(t, err)
 }
 
@@ -553,7 +553,7 @@ func TestUserService_SetUserRole_Success(t *testing.T) {
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
 
-	err := svc.SetUserRole(ctx, 1, "admin")
+	_, err := svc.SetUserRole(ctx, 1, "admin")
 	require.NoError(t, err)
 }
 
@@ -574,7 +574,7 @@ func TestUserService_DeactivateAccount_Success(t *testing.T) {
 	}
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
-	err := svc.ToggleActiveAccount(ctx, 5)
+	_, err := svc.ToggleActiveAccount(ctx, 5)
 	require.NoError(t, err)
 }
 
@@ -592,7 +592,7 @@ func TestUserService_ChangePasswordAdmin_RepoAlreadyExists(t *testing.T) {
 	}
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
-	err := svc.ChangePasswordAdmin(ctx, 1, "newpass")
+	_, err := svc.ChangePasswordAdmin(ctx, 1, "newpass")
 	require.Error(t, err)
 	_, ok := err.(apperrors.ErrInternal)
 	assert.True(t, ok)
@@ -612,7 +612,7 @@ func TestUserService_SetUserRole_RepoAlreadyExists(t *testing.T) {
 	}
 
 	svc := New(repo, logger, pwd.NewBcryptHasher(), token.NewMemoryService())
-	err := svc.SetUserRole(ctx, 1, "admin")
+	_, err := svc.SetUserRole(ctx, 1, "admin")
 	require.Error(t, err)
 	_, ok := err.(apperrors.ErrInternal)
 	assert.True(t, ok)

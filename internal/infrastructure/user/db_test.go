@@ -454,7 +454,7 @@ func TestUpdateUser(t *testing.T) {
 			userID := tt.setup()
 
 			tt.updateUser.Id = userID
-			err := testRepo.Update(testCtx, tt.updateUser)
+			_, err := testRepo.Update(testCtx, tt.updateUser)
 
 			if tt.wantErr {
 				assert.Error(t, err)

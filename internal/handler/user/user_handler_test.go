@@ -29,10 +29,12 @@ type mockService struct {
 	RegisterFunc            func(ctx context.Context, req dto.RegisterRequest) (dto.PublicUser, error)
 	LoginFunc               func(ctx context.Context, req dto.LoginRequest) (dto.LoginResponse, error)
 	ListUsersFunc           func(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error)
-	ChangePasswordFunc      func(ctx context.Context, userID int, req dto.ChangePasswordRequest) error
+	ChangePasswordFunc      func(ctx context.Context, userID int, req dto.ChangePasswordRequest) (dto.PublicUser, error)
+	ChangePasswordAdminFunc func(ctx context.Context, userID int, newPassword string) (dto.PublicUser, error)
 	GetUserByIDFunc         func(ctx context.Context, userID int) (dto.PublicUser, error)
-	ToggleActiveAccountFunc func(ctx context.Context, userID int) error
-	SetUserRoleFunc         func(ctx context.Context, userID int, role string) error
+	ToggleActiveAccountFunc func(ctx context.Context, userID int) (dto.PublicUser, error)
+	SetUserRoleFunc         func(ctx context.Context, userID int, role string) (dto.PublicUser, error)
+	UpdateProfileFunc       func(ctx context.Context, req dto.UpdateProfileRequest) (dto.PublicUser, error)
 }
 
 type mockFavorite struct{}
@@ -78,40 +80,46 @@ func (m *mockService) GetUserByID(ctx context.Context, userID int) (dto.PublicUs
 	}
 	return dto.PublicUser{}, nil
 }
-func (m *mockService) UpdateProfile(ctx context.Context, req dto.UpdateProfileRequest) error {
-	return nil
+func (m *mockService) UpdateProfile(ctx context.Context, req dto.UpdateProfileRequest) (dto.PublicUser, error) {
+	if m.UpdateProfileFunc != nil {
+		return m.UpdateProfileFunc(ctx, req)
+	}
+	return dto.PublicUser{}, nil
 }
-func (m *mockService) ChangePassword(ctx context.Context, userID int, req dto.ChangePasswordRequest) error {
+func (m *mockService) ChangePassword(ctx context.Context, userID int, req dto.ChangePasswordRequest) (dto.PublicUser, error) {
 	m.ChangePasswordCalled = true
 	m.LastChangePasswordUserID = userID
 	m.LastChangePasswordReq = req
 	if m.ChangePasswordFunc != nil {
 		return m.ChangePasswordFunc(ctx, userID, req)
 	}
-	return nil
+	return dto.PublicUser{}, nil
 }
-func (m *mockService) ChangePasswordAdmin(ctx context.Context, userID int, newPassword string) error {
+func (m *mockService) ChangePasswordAdmin(ctx context.Context, userID int, newPassword string) (dto.PublicUser, error) {
 	m.ChangePasswordAdminCalled = true
 	m.LastChangePasswordUserID = userID
 	m.LastAdminNewPassword = newPassword
-	return nil
+	if m.ChangePasswordAdminFunc != nil {
+		return m.ChangePasswordAdminFunc(ctx, userID, newPassword)
+	}
+	return dto.PublicUser{}, nil
 }
 func (m *mockService) SetActiveAccount(ctx context.Context, userID int, active bool) error {
 
 	return nil
 }
 
-func (m *mockService) ToggleActiveAccount(ctx context.Context, userID int) error {
+func (m *mockService) ToggleActiveAccount(ctx context.Context, userID int) (dto.PublicUser, error) {
 	if m.ToggleActiveAccountFunc != nil {
 		return m.ToggleActiveAccountFunc(ctx, userID)
 	}
-	return nil
+	return dto.PublicUser{}, nil
 }
-func (m *mockService) SetUserRole(ctx context.Context, userID int, role string) error {
+func (m *mockService) SetUserRole(ctx context.Context, userID int, role string) (dto.PublicUser, error) {
 	if m.SetUserRoleFunc != nil {
 		return m.SetUserRoleFunc(ctx, userID, role)
 	}
-	return nil
+	return dto.PublicUser{}, nil
 }
 func (m *mockService) ListUsers(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error) {
 	if m.ListUsersFunc != nil {
@@ -123,7 +131,7 @@ func (m *mockService) DeleteUser(ctx context.Context, userID int) (int, error) {
 
 func TestHandleChangePassword_AdminPath(t *testing.T) {
 	m := &mockService{}
-	m.GetUserByIDFunc = func(ctx context.Context, userID int) (dto.PublicUser, error) {
+	m.ChangePasswordAdminFunc = func(ctx context.Context, userID int, newPassword string) (dto.PublicUser, error) {
 		return dto.PublicUser{Id: userID}, nil
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -163,7 +171,7 @@ func TestHandleChangePassword_AdminPath(t *testing.T) {
 
 func TestHandleChangePassword_OwnerPath(t *testing.T) {
 	m := &mockService{}
-	m.GetUserByIDFunc = func(ctx context.Context, userID int) (dto.PublicUser, error) {
+	m.ChangePasswordFunc = func(ctx context.Context, userID int, req dto.ChangePasswordRequest) (dto.PublicUser, error) {
 		return dto.PublicUser{Id: userID}, nil
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -410,8 +418,8 @@ func TestHandleGetUser_NotFound_Returns404(t *testing.T) {
 
 func TestHandleChangePassword_Owner_BadRequest_Returns400(t *testing.T) {
 	m := &mockService{}
-	m.ChangePasswordFunc = func(ctx context.Context, userID int, req dto.ChangePasswordRequest) error {
-		return apperrors.NewErrInvalidInput("password", nil, "bad current password")
+	m.ChangePasswordFunc = func(ctx context.Context, userID int, req dto.ChangePasswordRequest) (dto.PublicUser, error) {
+		return dto.PublicUser{}, apperrors.NewErrInvalidInput("password", nil, "bad current password")
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 	h := NewUserHandler(m, logger, &mockFavorite{})
@@ -437,10 +445,10 @@ func TestHandleSetActive_TogglesToInactive(t *testing.T) {
 
 	setCalled := false
 	var setUserID int
-	m.ToggleActiveAccountFunc = func(ctx context.Context, userID int) error {
+	m.ToggleActiveAccountFunc = func(ctx context.Context, userID int) (dto.PublicUser, error) {
 		setCalled = true
 		setUserID = userID
-		return nil
+		return dto.PublicUser{Id: userID, Email: "u@x", IsActive: false}, nil
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -478,10 +486,10 @@ func TestHandleSetActive_TogglesToActive(t *testing.T) {
 	m := &mockService{}
 	setCalled := false
 	var setUserID int
-	m.ToggleActiveAccountFunc = func(ctx context.Context, userID int) error {
+	m.ToggleActiveAccountFunc = func(ctx context.Context, userID int) (dto.PublicUser, error) {
 		setCalled = true
 		setUserID = userID
-		return nil
+		return dto.PublicUser{Id: userID, Email: "u@x", IsActive: true}, nil
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))

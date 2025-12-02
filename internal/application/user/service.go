@@ -210,7 +210,7 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken string) (dto.Lo
 	u.PasswordHash = ""
 	return dto.LoginResponse{User: dto.PublicUserFromDomain(u), AccessToken: access, RefreshToken: newRefresh, ExpiresAt: exp}, nil
 }
-func (s *service) UpdateProfile(ctx context.Context, req dto.UpdateProfileRequest) error {
+func (s *service) UpdateProfile(ctx context.Context, req dto.UpdateProfileRequest) (dto.PublicUser, error) {
 
 	u, err := s.repo.GetByID(ctx, req.UserID)
 	if err != nil {
@@ -218,12 +218,12 @@ func (s *service) UpdateProfile(ctx context.Context, req dto.UpdateProfileReques
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &nf):
-			return apperrors.NewErrNotFound("user", req.UserID)
+			return dto.PublicUser{}, apperrors.NewErrNotFound("user", req.UserID)
 		case errors.As(err, &te):
 			s.logger.Error("update profile: fetch user timeout", "user_id", req.UserID, "err", err)
-			return apperrors.NewErrTimeout("request timeout")
+			return dto.PublicUser{}, apperrors.NewErrTimeout("request timeout")
 		default:
-			return apperrors.NewErrInternal("failed to fetch user")
+			return dto.PublicUser{}, apperrors.NewErrInternal("failed to fetch user")
 		}
 	}
 
@@ -261,169 +261,176 @@ func (s *service) UpdateProfile(ctx context.Context, req dto.UpdateProfileReques
 		}
 	}
 
-	err = s.repo.Update(ctx, u)
+	updated, err := s.repo.Update(ctx, u)
 	if err != nil {
 		var ae dberrors.ErrAlreadyExists
 		var di dberrors.ErrInvalidInput
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &ae):
-			return apperrors.NewErrAlreadyExists("user", "email", u.Email)
+			return dto.PublicUser{}, apperrors.NewErrAlreadyExists("user", "email", u.Email)
 		case errors.As(err, &di):
-			return apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
+			return dto.PublicUser{}, apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
 		case errors.As(err, &te):
 			s.logger.Error("update profile: repo timeout", "user_id", u.Id, "err", err)
-			return apperrors.NewErrTimeout("request timeout")
+			return dto.PublicUser{}, apperrors.NewErrTimeout("request timeout")
 		default:
 			s.logger.Error("update profile: failed to update user", "user_id", u.Id, "err", err)
-			return apperrors.NewErrInternal("failed to update user")
+			return dto.PublicUser{}, apperrors.NewErrInternal("failed to update user")
 		}
 	}
-	s.logger.Info("update profile: updated fields", "user_id", u.Id)
-	return nil
+	s.logger.Info("update profile: updated fields", "user_id", updated.Id)
+	updated.PasswordHash = ""
+	return dto.PublicUserFromDomain(updated), nil
 }
 
-func (s *service) ChangePassword(ctx context.Context, userID int, req dto.ChangePasswordRequest) error {
+func (s *service) ChangePassword(ctx context.Context, userID int, req dto.ChangePasswordRequest) (dto.PublicUser, error) {
 	u, err := s.repo.GetByID(ctx, userID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &nf):
-			return apperrors.NewErrNotFound("user", userID)
+			return dto.PublicUser{}, apperrors.NewErrNotFound("user", userID)
 		case errors.As(err, &te):
 			s.logger.Error("change password: fetch user timeout", "user_id", userID, "err", err)
-			return apperrors.NewErrTimeout("request timeout")
+			return dto.PublicUser{}, apperrors.NewErrTimeout("request timeout")
 		default:
-			return apperrors.NewErrInternal("failed to fetch user")
+			return dto.PublicUser{}, apperrors.NewErrInternal("failed to fetch user")
 		}
 	}
 	if err := s.hasher.Compare(u.PasswordHash, req.CurrentPassword); err != nil {
-		return apperrors.NewErrInvalidInput("current_password", nil, "invalid")
+		return dto.PublicUser{}, apperrors.NewErrInvalidInput("current_password", nil, "invalid")
 	}
 	hash, err := s.hasher.Hash(req.NewPassword)
 	if err != nil {
 		s.logger.Error("change password: failed to hash new password", "user_id", u.Id, "err", err)
-		return apperrors.NewErrInternal("failed to hash new password")
+		return dto.PublicUser{}, apperrors.NewErrInternal("failed to hash new password")
 	}
 	u.PasswordHash = hash
-	err = s.repo.Update(ctx, u)
+	updated, err := s.repo.Update(ctx, u)
 	if err != nil {
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &te):
 			s.logger.Error("change password: repo timeout", "user_id", u.Id, "err", err)
-			return apperrors.NewErrTimeout("request timeout")
+			return dto.PublicUser{}, apperrors.NewErrTimeout("request timeout")
 		default:
 			s.logger.Error("change password: failed to update user", "user_id", u.Id, "err", err)
-			return apperrors.NewErrInternal("failed to update user")
+			return dto.PublicUser{}, apperrors.NewErrInternal("failed to update user")
 		}
 	}
 	s.logger.Info("change password: password updated", "user_id", u.Id)
-	return nil
+	updated.PasswordHash = ""
+	return dto.PublicUserFromDomain(updated), nil
 }
 
-func (s *service) ChangePasswordAdmin(ctx context.Context, userID int, newPassword string) error {
+func (s *service) ChangePasswordAdmin(ctx context.Context, userID int, newPassword string) (dto.PublicUser, error) {
 	u, err := s.repo.GetByID(ctx, userID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &nf):
-			return apperrors.NewErrNotFound("user", userID)
+			return dto.PublicUser{}, apperrors.NewErrNotFound("user", userID)
 		case errors.As(err, &te):
 			s.logger.Error("change password admin: fetch user timeout", "user_id", userID, "err", err)
-			return apperrors.NewErrTimeout("request timeout")
+			return dto.PublicUser{}, apperrors.NewErrTimeout("request timeout")
 		default:
-			return apperrors.NewErrInternal("failed to fetch user")
+			return dto.PublicUser{}, apperrors.NewErrInternal("failed to fetch user")
 		}
 	}
 	hash, err := s.hasher.Hash(newPassword)
 	if err != nil {
 		s.logger.Error("change password admin: failed to hash new password", "user_id", u.Id, "err", err)
-		return apperrors.NewErrInternal("failed to hash new password")
+		return dto.PublicUser{}, apperrors.NewErrInternal("failed to hash new password")
 	}
 	u.PasswordHash = hash
-	if err := s.repo.Update(ctx, u); err != nil {
+	updated, err := s.repo.Update(ctx, u)
+	if err != nil {
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &te):
 			s.logger.Error("change password admin: repo timeout", "user_id", u.Id, "err", err)
-			return apperrors.NewErrTimeout("request timeout")
+			return dto.PublicUser{}, apperrors.NewErrTimeout("request timeout")
 		default:
 			s.logger.Error("change password admin: failed to update user", "user_id", u.Id, "err", err)
-			return apperrors.NewErrInternal("failed to update user")
+			return dto.PublicUser{}, apperrors.NewErrInternal("failed to update user")
 		}
 	}
 	s.logger.Info("change password admin: password updated", "user_id", u.Id)
-	return nil
+	updated.PasswordHash = ""
+	return dto.PublicUserFromDomain(updated), nil
 }
 
-func (s *service) SetUserRole(ctx context.Context, userID int, role string) error {
+func (s *service) SetUserRole(ctx context.Context, userID int, role string) (dto.PublicUser, error) {
 	u, err := s.repo.GetByID(ctx, userID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &nf):
-			return apperrors.NewErrNotFound("user", userID)
+			return dto.PublicUser{}, apperrors.NewErrNotFound("user", userID)
 		case errors.As(err, &te):
-			return apperrors.NewErrTimeout("request timeout")
+			return dto.PublicUser{}, apperrors.NewErrTimeout("request timeout")
 		default:
-			return apperrors.NewErrInternal("failed to fetch user")
+			return dto.PublicUser{}, apperrors.NewErrInternal("failed to fetch user")
 		}
 	}
 	rv := strings.TrimSpace(role)
 	if rv == "" {
-		return apperrors.NewErrInvalidInput("role", role, "must not be empty")
+		return dto.PublicUser{}, apperrors.NewErrInvalidInput("role", role, "must not be empty")
 	}
 	r, err := domain.ParseRole(rv)
 	if err != nil {
-		return apperrors.NewErrInvalidInput("role", role, "invalid role")
+		return dto.PublicUser{}, apperrors.NewErrInvalidInput("role", role, "invalid role")
 	}
 	u.UserRole = r
-	if err := s.repo.Update(ctx, u); err != nil {
+	updated, err := s.repo.Update(ctx, u)
+	if err != nil {
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &te):
 			s.logger.Error("set user role: repo timeout", "user_id", u.Id, "err", err)
-			return apperrors.NewErrTimeout("request timeout")
+			return dto.PublicUser{}, apperrors.NewErrTimeout("request timeout")
 		default:
 			s.logger.Error("set user role: failed to update user", "user_id", u.Id, "err", err)
-			return apperrors.NewErrInternal("failed to set user role")
+			return dto.PublicUser{}, apperrors.NewErrInternal("failed to set user role")
 		}
 	}
 	s.logger.Info("set user role", "user_id", u.Id, "role", u.UserRole)
-	return nil
+	updated.PasswordHash = ""
+	return dto.PublicUserFromDomain(updated), nil
 }
 
-func (s *service) ToggleActiveAccount(ctx context.Context, userID int) error {
+func (s *service) ToggleActiveAccount(ctx context.Context, userID int) (dto.PublicUser, error) {
 	u, err := s.repo.GetByID(ctx, userID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &nf):
-			return apperrors.NewErrNotFound("user", userID)
+			return dto.PublicUser{}, apperrors.NewErrNotFound("user", userID)
 		case errors.As(err, &te):
 			s.logger.Error("toggle active: fetch user timeout", "user_id", userID, "err", err)
-			return apperrors.NewErrTimeout("request timeout")
+			return dto.PublicUser{}, apperrors.NewErrTimeout("request timeout")
 		default:
 			s.logger.Error("toggle active: failed to fetch user", "user_id", userID, "err", err)
-			return apperrors.NewErrInternal("failed to fetch user")
+			return dto.PublicUser{}, apperrors.NewErrInternal("failed to fetch user")
 		}
 	}
 
 	u.IsActive = !u.IsActive
-	if err := s.repo.Update(ctx, u); err != nil {
+	updated, err := s.repo.Update(ctx, u)
+	if err != nil {
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &te):
 			s.logger.Error("toggle active: repo timeout", "user_id", userID, "err", err)
-			return apperrors.NewErrTimeout("request timeout")
+			return dto.PublicUser{}, apperrors.NewErrTimeout("request timeout")
 		default:
 			s.logger.Error("toggle active: failed to update user", "user_id", userID, "err", err)
-			return apperrors.NewErrInternal("failed to update user")
+			return dto.PublicUser{}, apperrors.NewErrInternal("failed to update user")
 		}
 	}
 	if u.IsActive {
@@ -431,7 +438,8 @@ func (s *service) ToggleActiveAccount(ctx context.Context, userID int) error {
 	} else {
 		s.logger.Info("toggle active: user deactivated", "user_id", userID)
 	}
-	return nil
+	updated.PasswordHash = ""
+	return dto.PublicUserFromDomain(updated), nil
 }
 
 func (s *service) ListUsers(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error) {

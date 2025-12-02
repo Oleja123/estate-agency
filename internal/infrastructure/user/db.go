@@ -206,44 +206,43 @@ func (r *Repository) List(ctx context.Context, req user.ListRequest) ([]user.Use
 
 }
 
-func (r *Repository) Update(ctx context.Context, user user.User) error {
+func (r *Repository) Update(ctx context.Context, u user.User) (user.User, error) {
 	const op = "userdb.Repository.Update"
 
 	sql, args, err := r.sq.
 		Update("users").
-		Set("email", user.Email).
-		Set("password_hash", user.PasswordHash).
-		Set("first_name", user.FirstName).
-		Set("last_name", user.LastName).
-		Set("phone_number", user.PhoneNumber).
-		Set("user_role", user.UserRole).
-		Set("is_active", user.IsActive).
+		Set("email", u.Email).
+		Set("password_hash", u.PasswordHash).
+		Set("first_name", u.FirstName).
+		Set("last_name", u.LastName).
+		Set("phone_number", u.PhoneNumber).
+		Set("user_role", u.UserRole).
+		Set("is_active", u.IsActive).
 		Set("updated_at", squirrel.Expr("NOW()")).
-		Where(squirrel.Eq{"id": user.Id}).
+		Where(squirrel.Eq{"id": u.Id}).
 		Suffix("RETURNING updated_at").
 		ToSql()
 
 	if err != nil {
-		return basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
+		return user.User{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
 	r.Logger.DebugContext(ctx, "updating user",
 		"operation", op,
-		"user_id", user.Id,
+		"user_id", u.Id,
 	)
 
-	err = r.Client.QueryRow(ctx, sql, args...).Scan(&user.UpdatedAt)
+	err = r.Client.QueryRow(ctx, sql, args...).Scan(&u.UpdatedAt)
 
 	if err != nil {
-		return r.HandleError(op, err)
+		return user.User{}, r.HandleError(op, err)
 	}
-
 	r.Logger.InfoContext(ctx, "user updated successfully",
 		"operation", op,
-		"user_id", user.Id,
+		"user_id", u.Id,
 	)
 
-	return nil
+	return u, nil
 }
 
 func (r *Repository) Delete(ctx context.Context, id int) (int, error) {

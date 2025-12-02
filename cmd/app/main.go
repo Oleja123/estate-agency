@@ -81,7 +81,9 @@ func main() {
 		geoSvc = geocoder.NewNoop()
 	}
 
-	userService.SetUserRole(context.Background(), 1, "admin")
+	if _, err := userService.SetUserRole(context.Background(), 1, "admin"); err != nil {
+		logger.Error("failed to set initial admin role", "err", err)
+	}
 
 	propertyService := propertyservice.New(propertyStorage, propertyTypeStorage, logger, geoSvc, favoriteService)
 	imageService := imageservice.New(imageStorage, logger, "images/")

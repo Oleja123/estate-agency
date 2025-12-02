@@ -14,15 +14,15 @@ type Service interface {
 	RefreshToken(ctx context.Context, refreshToken string) (dto.LoginResponse, error)
 
 	GetUserByID(ctx context.Context, userID int) (dto.PublicUser, error)
-	UpdateProfile(ctx context.Context, req dto.UpdateProfileRequest) error
-	ChangePassword(ctx context.Context, userID int, req dto.ChangePasswordRequest) error
+	UpdateProfile(ctx context.Context, req dto.UpdateProfileRequest) (dto.PublicUser, error)
+	ChangePassword(ctx context.Context, userID int, req dto.ChangePasswordRequest) (dto.PublicUser, error)
 
-	ChangePasswordAdmin(ctx context.Context, userID int, newPassword string) error
+	ChangePasswordAdmin(ctx context.Context, userID int, newPassword string) (dto.PublicUser, error)
 
-	ToggleActiveAccount(ctx context.Context, userID int) error
+	ToggleActiveAccount(ctx context.Context, userID int) (dto.PublicUser, error)
 
 	ListUsers(ctx context.Context, req dto.ListUsersRequest) (dto.ListUsersResponse, error)
 	DeleteUser(ctx context.Context, userID int) (int, error)
 
-	SetUserRole(ctx context.Context, userID int, role string) error
+	SetUserRole(ctx context.Context, userID int, role string) (dto.PublicUser, error)
 }

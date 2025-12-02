@@ -99,19 +99,14 @@ func (h *UserHandler) handleProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.UserID = id
-	if err := h.svc.UpdateProfile(r.Context(), req); err != nil {
-		code, body := handlerutils.MapAppError(err)
-		handlerutils.WriteJSON(w, code, body)
-		return
-	}
-	// вернуть обновлённую сущность
-	u, err := h.svc.GetUserByID(r.Context(), id)
+	updated, err := h.svc.UpdateProfile(r.Context(), req)
 	if err != nil {
 		code, body := handlerutils.MapAppError(err)
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	handlerutils.WriteJSON(w, http.StatusOK, u)
+	// вернуть обновлённую сущность, теперь сервис возвращает её напрямую
+	handlerutils.WriteJSON(w, http.StatusOK, updated)
 }
 
 func (h *UserHandler) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -223,32 +218,22 @@ func (h *UserHandler) handleChangePassword(w http.ResponseWriter, r *http.Reques
 			handlerutils.WriteJSON(w, code, body)
 			return
 		}
-		if err := h.svc.ChangePasswordAdmin(r.Context(), id, req.NewPassword); err != nil {
-			code, body := handlerutils.MapAppError(err)
-			handlerutils.WriteJSON(w, code, body)
-			return
-		}
-		u, err := h.svc.GetUserByID(r.Context(), id)
+		updated, err := h.svc.ChangePasswordAdmin(r.Context(), id, req.NewPassword)
 		if err != nil {
 			code, body := handlerutils.MapAppError(err)
 			handlerutils.WriteJSON(w, code, body)
 			return
 		}
-		handlerutils.WriteJSON(w, http.StatusOK, u)
+		handlerutils.WriteJSON(w, http.StatusOK, updated)
 		return
 	}
-	if err := h.svc.ChangePassword(r.Context(), id, req); err != nil {
-		code, body := handlerutils.MapAppError(err)
-		handlerutils.WriteJSON(w, code, body)
-		return
-	}
-	u, err := h.svc.GetUserByID(r.Context(), id)
+	updated, err := h.svc.ChangePassword(r.Context(), id, req)
 	if err != nil {
 		code, body := handlerutils.MapAppError(err)
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	handlerutils.WriteJSON(w, http.StatusOK, u)
+	handlerutils.WriteJSON(w, http.StatusOK, updated)
 }
 
 func (h *UserHandler) handleSetActive(w http.ResponseWriter, r *http.Request) {
@@ -274,21 +259,13 @@ func (h *UserHandler) handleSetActive(w http.ResponseWriter, r *http.Request) {
 		// если пользователь уже неактивен — позволим toggling (это активирует его)
 	}
 
-	if err := h.svc.ToggleActiveAccount(r.Context(), id); err != nil {
-		code, body := handlerutils.MapAppError(err)
-		handlerutils.WriteJSON(w, code, body)
-		return
-	}
-
-	// после успешного переключения статуса вернём обновлённого пользователя,
-	// чтобы клиент мог обновить список без дополнительного запроса
-	u, err := h.svc.GetUserByID(r.Context(), id)
+	updated, err := h.svc.ToggleActiveAccount(r.Context(), id)
 	if err != nil {
 		code, body := handlerutils.MapAppError(err)
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	handlerutils.WriteJSON(w, http.StatusOK, u)
+	handlerutils.WriteJSON(w, http.StatusOK, updated)
 }
 
 func (h *UserHandler) handleChangeRole(w http.ResponseWriter, r *http.Request) {
@@ -316,16 +293,11 @@ func (h *UserHandler) handleChangeRole(w http.ResponseWriter, r *http.Request) {
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	if err := h.svc.SetUserRole(r.Context(), id, req.Role); err != nil {
-		code, body := handlerutils.MapAppError(err)
-		handlerutils.WriteJSON(w, code, body)
-		return
-	}
-	u, err := h.svc.GetUserByID(r.Context(), id)
+	updated, err := h.svc.SetUserRole(r.Context(), id, req.Role)
 	if err != nil {
 		code, body := handlerutils.MapAppError(err)
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	handlerutils.WriteJSON(w, http.StatusOK, u)
+	handlerutils.WriteJSON(w, http.StatusOK, updated)
 }

@@ -2,7 +2,7 @@ swagger: "2.0"
 info:
   title: Estate Agency API
   description: 'Enter the token as: "Bearer <token>" (include the word Bearer and a space)'
-  version: 0.0.0
+  version: 0.0.1
 host: localhost:8080
 basePath: /
 schemes:
@@ -615,7 +615,7 @@ paths:
   /users/{id}/profile:
     patch:
       summary: Update user profile
-      description: "Partially update user profile. Only provided fields will be changed. Requires owner or admin privileges."
+      description: "Partially update user profile. Only provided fields will be changed. Requires owner or admin privileges. Returns the updated user." 
       tags: [users]
       parameters:
         - name: id
@@ -646,6 +646,7 @@ paths:
     patch:
       summary: Change user password
       tags: [users]
+      description: "Change user password. If performed successfully the updated user is returned. Admins can change other users' passwords."
       parameters:
         - name: id
           in: path
@@ -686,7 +687,7 @@ paths:
             $ref: '#/definitions/userhandler.RoleRequestDoc'
       responses:
         "200":
-          description: OK
+          description: OK — returns the updated user with new role
           schema:
             $ref: '#/definitions/userhandler.PublicUserDoc'
         "400":
@@ -702,6 +703,7 @@ paths:
     patch:
       summary: Set user active status (toggle)
       tags: [users]
+      description: "Toggle the user's active status and return the updated user. If the user was active, they become inactive and vice-versa."
       parameters:
         - name: id
           in: path
