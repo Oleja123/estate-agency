@@ -104,7 +104,14 @@ func (h *UserHandler) handleProfile(w http.ResponseWriter, r *http.Request) {
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
+	// вернуть обновлённую сущность
+	u, err := h.svc.GetUserByID(r.Context(), id)
+	if err != nil {
+		code, body := handlerutils.MapAppError(err)
+		handlerutils.WriteJSON(w, code, body)
+		return
+	}
+	handlerutils.WriteJSON(w, http.StatusOK, u)
 }
 
 func (h *UserHandler) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -221,7 +228,13 @@ func (h *UserHandler) handleChangePassword(w http.ResponseWriter, r *http.Reques
 			handlerutils.WriteJSON(w, code, body)
 			return
 		}
-		handlerutils.WriteJSON(w, http.StatusNoContent, nil)
+		u, err := h.svc.GetUserByID(r.Context(), id)
+		if err != nil {
+			code, body := handlerutils.MapAppError(err)
+			handlerutils.WriteJSON(w, code, body)
+			return
+		}
+		handlerutils.WriteJSON(w, http.StatusOK, u)
 		return
 	}
 	if err := h.svc.ChangePassword(r.Context(), id, req); err != nil {
@@ -229,7 +242,13 @@ func (h *UserHandler) handleChangePassword(w http.ResponseWriter, r *http.Reques
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
+	u, err := h.svc.GetUserByID(r.Context(), id)
+	if err != nil {
+		code, body := handlerutils.MapAppError(err)
+		handlerutils.WriteJSON(w, code, body)
+		return
+	}
+	handlerutils.WriteJSON(w, http.StatusOK, u)
 }
 
 func (h *UserHandler) handleSetActive(w http.ResponseWriter, r *http.Request) {
@@ -302,5 +321,11 @@ func (h *UserHandler) handleChangeRole(w http.ResponseWriter, r *http.Request) {
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
+	u, err := h.svc.GetUserByID(r.Context(), id)
+	if err != nil {
+		code, body := handlerutils.MapAppError(err)
+		handlerutils.WriteJSON(w, code, body)
+		return
+	}
+	handlerutils.WriteJSON(w, http.StatusOK, u)
 }

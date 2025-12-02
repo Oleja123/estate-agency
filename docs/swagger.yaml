@@ -629,8 +629,10 @@ paths:
           schema:
             $ref: '#/definitions/userhandler.UpdateProfileRequestDoc'
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/userhandler.PublicUserDoc'
         "400":
           description: Invalid request
         "401":
@@ -656,8 +658,10 @@ paths:
           schema:
             $ref: '#/definitions/userhandler.ChangePasswordRequestDoc'
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/userhandler.PublicUserDoc'
         "400":
           description: Invalid request
         "401":
@@ -681,8 +685,10 @@ paths:
           schema:
             $ref: '#/definitions/userhandler.RoleRequestDoc'
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/userhandler.PublicUserDoc'
         "400":
           description: Invalid request
         "401":
@@ -703,8 +709,10 @@ paths:
           type: integer
           example: 1
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/userhandler.PublicUserDoc'
         "400":
           description: Bad Request
         "401":
