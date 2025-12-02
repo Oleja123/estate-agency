@@ -83,43 +83,44 @@ func (s *service) GetByID(ctx context.Context, id int) (domain.PropertyType, err
 	return pt, nil
 }
 
-func (s *service) Update(ctx context.Context, req dto.UpdatePropertyTypeRequest) error {
+func (s *service) Update(ctx context.Context, req dto.UpdatePropertyTypeRequest) (domain.PropertyType, error) {
 	pt, err := s.repo.GetByID(ctx, req.ID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &nf):
-			return apperrors.NewErrNotFound("property_type", req.ID)
+			return domain.PropertyType{}, apperrors.NewErrNotFound("property_type", req.ID)
 		case errors.As(err, &te):
 			s.logger.Error("update: fetch property type timeout", "err", err)
-			return apperrors.NewErrTimeout("request timeout")
+			return domain.PropertyType{}, apperrors.NewErrTimeout("request timeout")
 		default:
 			s.logger.Error("update: failed to fetch", "err", err)
-			return apperrors.NewErrInternal("failed to fetch property type")
+			return domain.PropertyType{}, apperrors.NewErrInternal("failed to fetch property type")
 		}
 	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
-		return apperrors.NewErrInvalidInput("name", name, "must not be empty")
+		return domain.PropertyType{}, apperrors.NewErrInvalidInput("name", name, "must not be empty")
 	}
 	pt.Name = name
-	if err := s.repo.Update(ctx, pt); err != nil {
+	updated, err := s.repo.Update(ctx, pt)
+	if err != nil {
 		var ae dberrors.ErrAlreadyExists
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &ae):
-			return apperrors.NewErrAlreadyExists("property_type", "name", name)
+			return domain.PropertyType{}, apperrors.NewErrAlreadyExists("property_type", "name", name)
 		case errors.As(err, &te):
 			s.logger.Error("update: repo timeout", "err", err)
-			return apperrors.NewErrTimeout("request timeout")
+			return domain.PropertyType{}, apperrors.NewErrTimeout("request timeout")
 		default:
 			s.logger.Error("update: repo update failed", "err", err)
-			return apperrors.NewErrInternal("failed to update property type")
+			return domain.PropertyType{}, apperrors.NewErrInternal("failed to update property type")
 		}
 	}
-	s.logger.Info("update: property type updated", "id", pt.Id)
-	return nil
+	s.logger.Info("update: property type updated", "id", updated.Id)
+	return updated, nil
 }
 
 func (s *service) List(ctx context.Context, req dto.ListPropertyTypesRequest) (dto.ListPropertyTypesResponse, error) {

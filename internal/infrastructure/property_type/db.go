@@ -135,17 +135,19 @@ func (r *Repository) GetByName(ctx context.Context, name string) (propertytype.P
 	return pt, nil
 }
 
-func (r *Repository) Update(ctx context.Context, propertyType propertytype.PropertyType) error {
+func (r *Repository) Update(ctx context.Context, propertyType propertytype.PropertyType) (propertytype.PropertyType, error) {
 	const op = "propertytypedb.Repository.Update"
 
+	// Return the updated row so callers can use refreshed fields if DB sets them
 	sql, args, err := r.sq.
 		Update("property_types").
 		Set("property_name", propertyType.Name).
 		Where(squirrel.Eq{"id": propertyType.Id}).
+		Suffix("RETURNING id, property_name, created_at").
 		ToSql()
 
 	if err != nil {
-		return basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
+		return propertytype.PropertyType{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
 	r.Logger.DebugContext(ctx, "updating property type",
@@ -154,25 +156,26 @@ func (r *Repository) Update(ctx context.Context, propertyType propertytype.Prope
 		"new_name", propertyType.Name,
 	)
 
-	result, err := r.Client.Exec(ctx, sql, args...)
+	row := r.Client.QueryRow(ctx, sql, args...)
+	updated, err := r.ScanPropertyType(row)
 	if err != nil {
-		return r.HandleError(op, err)
-	}
-
-	if result.RowsAffected() == 0 {
-		r.Logger.DebugContext(ctx, "property type not found for update",
-			"operation", op,
-			"type_id", propertyType.Id,
-		)
-		return basedberrors.NewErrNotFound("property_type", propertyType.Id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			r.Logger.DebugContext(ctx, "property type not found for update",
+				"operation", op,
+				"type_id", propertyType.Id,
+			)
+			return propertytype.PropertyType{}, basedberrors.NewErrNotFound("property_type", propertyType.Id)
+		}
+		return propertytype.PropertyType{}, r.HandleError(op, err)
 	}
 
 	r.Logger.InfoContext(ctx, "property type updated successfully",
 		"operation", op,
-		"type_id", propertyType.Id,
+		"type_id", updated.Id,
+		"name", updated.Name,
 	)
 
-	return nil
+	return updated, nil
 }
 
 func (r *Repository) Delete(ctx context.Context, Id int) (int, error) {

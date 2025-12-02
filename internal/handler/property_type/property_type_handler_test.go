@@ -25,7 +25,7 @@ type mockService struct {
 	GetByIDFunc   func(ctx context.Context, id int) (domain.PropertyType, error)
 
 	UpdateCalled bool
-	UpdateFunc   func(ctx context.Context, req dto.UpdatePropertyTypeRequest) error
+	UpdateFunc   func(ctx context.Context, req dto.UpdatePropertyTypeRequest) (domain.PropertyType, error)
 
 	ListCalled bool
 	ListFunc   func(ctx context.Context, req dto.ListPropertyTypesRequest) (dto.ListPropertyTypesResponse, error)
@@ -48,12 +48,12 @@ func (m *mockService) GetByID(ctx context.Context, id int) (domain.PropertyType,
 	}
 	return domain.PropertyType{Id: id, Name: "t"}, nil
 }
-func (m *mockService) Update(ctx context.Context, req dto.UpdatePropertyTypeRequest) error {
+func (m *mockService) Update(ctx context.Context, req dto.UpdatePropertyTypeRequest) (domain.PropertyType, error) {
 	m.UpdateCalled = true
 	if m.UpdateFunc != nil {
 		return m.UpdateFunc(ctx, req)
 	}
-	return nil
+	return domain.PropertyType{Id: req.ID, Name: req.Name}, nil
 }
 func (m *mockService) List(ctx context.Context, req dto.ListPropertyTypesRequest) (dto.ListPropertyTypesResponse, error) {
 	m.ListCalled = true
@@ -195,8 +195,8 @@ func TestHandleUpdate_Middleware_AdminAllowed(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	r.ServeHTTP(rr, req)
-	if rr.Code != http.StatusNoContent {
-		t.Fatalf("expected 204 for admin update, got %d body=%s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 for admin update, got %d body=%s", rr.Code, rr.Body.String())
 	}
 }
 
@@ -317,8 +317,8 @@ func TestHandleGet_NotFound_Returns404(t *testing.T) {
 
 func TestHandleUpdate_NotFound_Returns404(t *testing.T) {
 	m := &mockService{}
-	m.UpdateFunc = func(ctx context.Context, req dto.UpdatePropertyTypeRequest) error {
-		return apperrors.NewErrNotFound("property_type", req.ID)
+	m.UpdateFunc = func(ctx context.Context, req dto.UpdatePropertyTypeRequest) (domain.PropertyType, error) {
+		return domain.PropertyType{}, apperrors.NewErrNotFound("property_type", req.ID)
 	}
 	logger := newLogger()
 	h := NewPropertyTypeHandler(m, logger)

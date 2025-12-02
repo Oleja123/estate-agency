@@ -20,7 +20,7 @@ type mockRepo struct {
 	CreateFn    func(ctx context.Context, pt domain.PropertyType) (int, error)
 	GetByIDFn   func(ctx context.Context, id int) (domain.PropertyType, error)
 	GetByNameFn func(ctx context.Context, name string) (domain.PropertyType, error)
-	UpdateFn    func(ctx context.Context, pt domain.PropertyType) error
+	UpdateFn    func(ctx context.Context, pt domain.PropertyType) (domain.PropertyType, error)
 	DeleteFn    func(ctx context.Context, id int) (int, error)
 	ListFn      func(ctx context.Context, req domain.ListRequest) ([]domain.PropertyType, int, error)
 }
@@ -34,7 +34,7 @@ func (m *mockRepo) GetByID(ctx context.Context, id int) (domain.PropertyType, er
 func (m *mockRepo) GetByName(ctx context.Context, name string) (domain.PropertyType, error) {
 	return m.GetByNameFn(ctx, name)
 }
-func (m *mockRepo) Update(ctx context.Context, pt domain.PropertyType) error {
+func (m *mockRepo) Update(ctx context.Context, pt domain.PropertyType) (domain.PropertyType, error) {
 	return m.UpdateFn(ctx, pt)
 }
 func (m *mockRepo) Delete(ctx context.Context, id int) (int, error) { return m.DeleteFn(ctx, id) }
@@ -93,11 +93,12 @@ func TestUpdate_Success(t *testing.T) {
 	existing := domain.PropertyType{Id: 2, Name: "house"}
 	repo := &mockRepo{}
 	repo.GetByIDFn = func(ctx context.Context, id int) (domain.PropertyType, error) { return existing, nil }
-	repo.UpdateFn = func(ctx context.Context, pt domain.PropertyType) error { return nil }
+	repo.UpdateFn = func(ctx context.Context, pt domain.PropertyType) (domain.PropertyType, error) { return pt, nil }
 
 	svc := New(repo, logger())
-	err := svc.Update(ctx, dto.UpdatePropertyTypeRequest{ID: 2, Name: "villa"})
+	updated, err := svc.Update(ctx, dto.UpdatePropertyTypeRequest{ID: 2, Name: "villa"})
 	require.NoError(t, err)
+	assert.Equal(t, "villa", updated.Name)
 }
 
 func TestUpdate_NotFound(t *testing.T) {
@@ -107,7 +108,7 @@ func TestUpdate_NotFound(t *testing.T) {
 		return domain.PropertyType{}, dberrors.NewErrNotFound("property_type", id)
 	}
 	svc := New(repo, logger())
-	err := svc.Update(ctx, dto.UpdatePropertyTypeRequest{ID: 99, Name: "x"})
+	_, err := svc.Update(ctx, dto.UpdatePropertyTypeRequest{ID: 99, Name: "x"})
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
 	assert.True(t, errors.As(err, &nf))

@@ -108,11 +108,11 @@ func TestPropertyTypeCRUD(t *testing.T) {
 			},
 			action: func(t *testing.T, pt propertytype.PropertyType) (propertytype.PropertyType, error) {
 				pt.Name = "updated-house"
-				err := testRepo.Update(testCtx, pt)
+				updated, err := testRepo.Update(testCtx, pt)
 				if err != nil {
 					return propertytype.PropertyType{}, err
 				}
-				return testRepo.GetByID(testCtx, pt.Id)
+				return updated, nil
 			},
 			validate: func(t *testing.T, pt propertytype.PropertyType, err error) {
 				require.NoError(t, err)

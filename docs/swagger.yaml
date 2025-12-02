@@ -203,8 +203,15 @@ paths:
           schema:
             $ref: '#/definitions/propertyhandler.UpdatePropertyDoc'
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/propertytypehandler.PropertyTypeDTODoc'
+          examples:
+            application/json:
+              id: 1
+              name: "UpdatedType"
+              created_at: "2025-11-29T12:00:00Z"
         "400":
           description: Invalid request
         "401":

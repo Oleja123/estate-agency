@@ -121,12 +121,13 @@ func (h *PropertyTypeHandler) handleUpdate(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	req.ID = id
-	if err := h.svc.Update(r.Context(), req); err != nil {
+	updated, err := h.svc.Update(r.Context(), req)
+	if err != nil {
 		code, body := handlerutils.MapAppError(err)
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
+	handlerutils.WriteJSON(w, http.StatusOK, updated)
 }
 
 func (h *PropertyTypeHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
