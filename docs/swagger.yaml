@@ -763,9 +763,25 @@ paths:
         "200":
           description: OK
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/propertyhandler.PropertyDTODoc'
+            $ref: '#/definitions/userhandler.ListFavoritesResponseDoc'
+          examples:
+            application/json:
+              favorites:
+                - id: 1
+                  title: "Luxury Apartment"
+                  property_description: "A spacious 3-bedroom apartment."
+                  type_id: 2
+                  transaction_type: "sale"
+                  price: 350000
+                  area: 120
+                  property_address: "123 Main Street"
+                  latitude: 40.7128
+                  longitude: -74.006
+                  city: "New York"
+                  property_status: "available"
+                  created_at: "2025-11-29T12:00:00Z"
+                  updated_at: "2025-11-29T12:00:00Z"
+              total: 1
         "400":
           description: Bad Request
         "401":
@@ -985,6 +1001,14 @@ definitions:
       access_token: { type: string, example: "eyJhbGciOiJIUzI1..." }
       refresh_token: { type: string, example: "dGhpc2lzYXJlZnJlc2h0b2tlbg==" }
       expires_at: { type: string, format: date-time, example: "2025-11-29T14:00:00Z" }
+    userhandler.ListFavoritesResponseDoc:
+      type: object
+      properties:
+        favorites:
+          type: array
+          items:
+            $ref: '#/definitions/propertyhandler.PropertyDTODoc'
+        total: { type: integer, example: 2 }
 
   userhandler.ListUsersResponseDoc:
     type: object
