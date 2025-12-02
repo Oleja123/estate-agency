@@ -281,7 +281,7 @@ func TestUserService_RefreshAndLogout(t *testing.T) {
 			return domain.User{Id: 7, Email: email, PasswordHash: string(h)}, nil
 		},
 		GetByIDFunc: func(ctx context.Context, id int) (domain.User, error) {
-				return domain.User{Id: id, Email: "x@x.com", IsActive: true}, nil
+			return domain.User{Id: id, Email: "x@x.com", IsActive: true}, nil
 		},
 	}
 	tokSvc := token.NewMemoryService()
