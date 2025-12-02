@@ -32,7 +32,7 @@ type mockService struct {
 	GetByIDFunc   func(ctx context.Context, id int) (domain.Property, error)
 
 	UpdateCalled bool
-	UpdateFunc   func(ctx context.Context, req dto.UpdatePropertyRequest) error
+	UpdateFunc   func(ctx context.Context, req dto.UpdatePropertyRequest) (domain.Property, error)
 
 	ListCalled bool
 	ListFunc   func(ctx context.Context, req dto.ListPropertiesRequest) (dto.ListPropertiesResponse, error)
@@ -57,12 +57,12 @@ func (m *mockService) GetByID(ctx context.Context, id int) (domain.Property, err
 	}
 	return domain.Property{ID: id, Title: "t", CreatedBy: 3}, nil
 }
-func (m *mockService) Update(ctx context.Context, req dto.UpdatePropertyRequest) error {
+func (m *mockService) Update(ctx context.Context, req dto.UpdatePropertyRequest) (domain.Property, error) {
 	m.UpdateCalled = true
 	if m.UpdateFunc != nil {
 		return m.UpdateFunc(ctx, req)
 	}
-	return nil
+	return domain.Property{ID: req.ID}, nil
 }
 func (m *mockService) List(ctx context.Context, req dto.ListPropertiesRequest) (dto.ListPropertiesResponse, error) {
 	m.ListCalled = true
@@ -361,8 +361,8 @@ func TestHandleGet_NotFound_Returns404(t *testing.T) {
 
 func TestHandleUpdate_NotFound_Returns404(t *testing.T) {
 	m := &mockService{}
-	m.UpdateFunc = func(ctx context.Context, req dto.UpdatePropertyRequest) error {
-		return apperrors.NewErrNotFound("property", req.ID)
+	m.UpdateFunc = func(ctx context.Context, req dto.UpdatePropertyRequest) (domain.Property, error) {
+		return domain.Property{}, apperrors.NewErrNotFound("property", req.ID)
 	}
 	logger := newLogger()
 	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
@@ -399,7 +399,7 @@ func TestHandleDelete_InternalError_Returns500(t *testing.T) {
 	}
 }
 
-func TestHandleUpdate_CallsServiceAndReturnsNoContent(t *testing.T) {
+func TestHandleUpdate_CallsServiceAndReturnsOK(t *testing.T) {
 	m := &mockService{}
 	logger := newLogger()
 	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
@@ -414,8 +414,15 @@ func TestHandleUpdate_CallsServiceAndReturnsNoContent(t *testing.T) {
 	if !m.UpdateCalled {
 		t.Fatalf("expected Update called")
 	}
-	if rr.Code != http.StatusNoContent {
-		t.Fatalf("expected 204, got %d body=%s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	var got domain.Property
+	if err := json.NewDecoder(rr.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.ID != 3 {
+		t.Fatalf("unexpected id: %d", got.ID)
 	}
 }
 
@@ -433,8 +440,8 @@ func TestHandleUpdate_Middleware_AdminAllowed(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	r.ServeHTTP(rr, req)
-	if rr.Code != http.StatusNoContent {
-		t.Fatalf("expected 204 for admin update, got %d body=%s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 for admin update, got %d body=%s", rr.Code, rr.Body.String())
 	}
 }
 

@@ -115,16 +115,16 @@ func (s *service) GetByID(ctx context.Context, id int) (domain.Property, error) 
 	return p, nil
 }
 
-func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) error {
+func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) (domain.Property, error) {
 	p, err := s.repo.GetByID(ctx, req.ID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
 		switch {
 		case errors.As(err, &nf):
-			return apperrors.NewErrNotFound("property", req.ID)
+			return domain.Property{}, apperrors.NewErrNotFound("property", req.ID)
 		default:
 			s.logger.Error("update property: failed to fetch", "err", err)
-			return apperrors.NewErrInternal("failed to fetch property")
+			return domain.Property{}, apperrors.NewErrInternal("failed to fetch property")
 		}
 	}
 
@@ -135,10 +135,10 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 				var nf dberrors.ErrNotFound
 				switch {
 				case errors.As(err, &nf):
-					return apperrors.NewErrNotFound("property_type", val)
+					return domain.Property{}, apperrors.NewErrNotFound("property_type", val)
 				default:
 					s.logger.Error("update property: type repo error", "err", err)
-					return apperrors.NewErrInternal("failed to validate property type")
+					return domain.Property{}, apperrors.NewErrInternal("failed to validate property type")
 				}
 			}
 			p.TypeID = val
@@ -172,32 +172,33 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) err
 
 	if req.PropertyAddress.Defined && req.PropertyAddress.Valid {
 		if p.PropertyAddress == "" {
-			return apperrors.NewErrInvalidInput("property_address", p.PropertyAddress, "must not be empty")
+			return domain.Property{}, apperrors.NewErrInvalidInput("property_address", p.PropertyAddress, "must not be empty")
 		}
 		lat, lon, err := s.geo.Geocode(p.PropertyAddress)
 		if err != nil {
 			s.logger.Error("geocode error при обновлении свойства", "err", err)
-			return apperrors.NewErrGeocoding(err.Error())
+			return domain.Property{}, apperrors.NewErrGeocoding(err.Error())
 		}
 		p.Latitude = lat
 		p.Longitude = lon
 	}
 
-	if err := s.repo.Update(ctx, p); err != nil {
+	updated, err := s.repo.Update(ctx, p)
+	if err != nil {
 		var ae dberrors.ErrAlreadyExists
 		var di dberrors.ErrInvalidInput
 		switch {
 		case errors.As(err, &ae):
-			return apperrors.NewErrAlreadyExists("property", ae.Field, ae.Value)
+			return domain.Property{}, apperrors.NewErrAlreadyExists("property", ae.Field, ae.Value)
 		case errors.As(err, &di):
-			return apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
+			return domain.Property{}, apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
 		default:
 			s.logger.Error("update property: repo update failed", "err", err)
-			return apperrors.NewErrInternal("failed to update property")
+			return domain.Property{}, apperrors.NewErrInternal("failed to update property")
 		}
 	}
-	s.logger.Info("update property: updated", "id", p.ID)
-	return nil
+	s.logger.Info("update property: updated", "id", updated.ID)
+	return updated, nil
 }
 
 func (s *service) List(ctx context.Context, req dto.ListPropertiesRequest) (dto.ListPropertiesResponse, error) {

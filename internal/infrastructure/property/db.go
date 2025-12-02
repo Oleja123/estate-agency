@@ -120,7 +120,7 @@ func (r *Repository) GetByID(ctx context.Context, id int) (property.Property, er
 	return prop, nil
 }
 
-func (r *Repository) Update(ctx context.Context, prop property.Property) error {
+func (r *Repository) Update(ctx context.Context, prop property.Property) (property.Property, error) {
 	const op = "propertydb.Repository.Update"
 
 	sql, args, err := r.sq.
@@ -138,11 +138,11 @@ func (r *Repository) Update(ctx context.Context, prop property.Property) error {
 		Set("property_status", prop.PropertyStatus).
 		Set("updated_at", squirrel.Expr("NOW()")).
 		Where(squirrel.Eq{"id": prop.ID}).
-		Suffix("RETURNING updated_at").
+		Suffix("RETURNING id, title, property_description, type_id, transaction_type, price, area, property_address, latitude, longitude, city, property_status, created_by, created_at, updated_at").
 		ToSql()
 
 	if err != nil {
-		return basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
+		return property.Property{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
 	r.Logger.DebugContext(ctx, "updating property",
@@ -150,18 +150,31 @@ func (r *Repository) Update(ctx context.Context, prop property.Property) error {
 		"property_id", prop.ID,
 	)
 
-	err = r.Client.QueryRow(ctx, sql, args...).Scan(&prop.UpdatedAt)
+	var updated property.Property
+	err = r.Client.QueryRow(ctx, sql, args...).Scan(
+		&updated.ID, &updated.Title, &updated.PropertyDescription, &updated.TypeID,
+		&updated.TransactionType, &updated.Price, &updated.Area, &updated.PropertyAddress,
+		&updated.Latitude, &updated.Longitude, &updated.City, &updated.PropertyStatus,
+		&updated.CreatedBy, &updated.CreatedAt, &updated.UpdatedAt,
+	)
 
 	if err != nil {
-		return r.HandleError(op, err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			r.Logger.DebugContext(ctx, "property not found on update",
+				"operation", op,
+				"property_id", prop.ID,
+			)
+			return property.Property{}, basedberrors.NewErrNotFound("property", prop.ID)
+		}
+		return property.Property{}, r.HandleError(op, err)
 	}
 
 	r.Logger.InfoContext(ctx, "property updated successfully",
 		"operation", op,
-		"property_id", prop.ID,
+		"property_id", updated.ID,
 	)
 
-	return nil
+	return updated, nil
 }
 
 func (r *Repository) Delete(ctx context.Context, id int) (int, error) {

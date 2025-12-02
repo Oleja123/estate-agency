@@ -45,7 +45,7 @@ func (m *mockFavoriteService) Exists(ctx context.Context, key favdto.CreateFavor
 type mockRepo struct {
 	CreateFn  func(ctx context.Context, p domain.Property) (int, error)
 	GetByIDFn func(ctx context.Context, id int) (domain.Property, error)
-	UpdateFn  func(ctx context.Context, p domain.Property) error
+	UpdateFn  func(ctx context.Context, p domain.Property) (domain.Property, error)
 	DeleteFn  func(ctx context.Context, id int) (int, error)
 	ListFn    func(ctx context.Context, req domain.ListRequest) ([]domain.Property, int, error)
 }
@@ -107,8 +107,10 @@ func (m *mockRepo) Create(ctx context.Context, p domain.Property) (int, error) {
 func (m *mockRepo) GetByID(ctx context.Context, id int) (domain.Property, error) {
 	return m.GetByIDFn(ctx, id)
 }
-func (m *mockRepo) Update(ctx context.Context, p domain.Property) error { return m.UpdateFn(ctx, p) }
-func (m *mockRepo) Delete(ctx context.Context, id int) (int, error)     { return m.DeleteFn(ctx, id) }
+func (m *mockRepo) Update(ctx context.Context, p domain.Property) (domain.Property, error) {
+	return m.UpdateFn(ctx, p)
+}
+func (m *mockRepo) Delete(ctx context.Context, id int) (int, error) { return m.DeleteFn(ctx, id) }
 func (m *mockRepo) List(ctx context.Context, req domain.ListRequest) ([]domain.Property, int, error) {
 	return m.ListFn(ctx, req)
 }
@@ -155,11 +157,11 @@ func TestUpdateProperty_Success(t *testing.T) {
 	repo.GetByIDFn = func(ctx context.Context, id int) (domain.Property, error) {
 		return domain.Property{ID: id, Title: "old", PropertyAddress: "addr"}, nil
 	}
-	repo.UpdateFn = func(ctx context.Context, p domain.Property) error { return nil }
+	repo.UpdateFn = func(ctx context.Context, p domain.Property) (domain.Property, error) { return p, nil }
 	typeRepo := &mockTypeRepo{}
 	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
 	title := "new"
-	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Title: optional.OptionalString{Defined: true, Valid: true, Value: &title}})
+	_, err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Title: optional.OptionalString{Defined: true, Valid: true, Value: &title}})
 	require.NoError(t, err)
 }
 
@@ -218,7 +220,7 @@ func TestUpdateProperty_TypeNotFound(t *testing.T) {
 
 	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
 	tid := 99
-	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, TypeID: optional.OptionalInt{Defined: true, Valid: true, Value: &tid}})
+	_, err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, TypeID: optional.OptionalInt{Defined: true, Valid: true, Value: &tid}})
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
 	assert.True(t, errors.As(err, &nf))
@@ -231,28 +233,27 @@ func TestUpdateProperty_PartialPriceArea(t *testing.T) {
 	repo.GetByIDFn = func(ctx context.Context, id int) (domain.Property, error) {
 		return domain.Property{ID: id, Title: "old", Price: 100.0, Area: 50.0, TypeID: 1, PropertyAddress: "addr"}, nil
 	}
-	repo.UpdateFn = func(ctx context.Context, p domain.Property) error {
-
+	repo.UpdateFn = func(ctx context.Context, p domain.Property) (domain.Property, error) {
 		if p.Price != 200.5 {
-			return fmt.Errorf("price not updated: %v", p.Price)
+			return domain.Property{}, fmt.Errorf("price not updated: %v", p.Price)
 		}
 		if p.Area != 75.25 {
-			return fmt.Errorf("area not updated: %v", p.Area)
+			return domain.Property{}, fmt.Errorf("area not updated: %v", p.Area)
 		}
 		if p.Title != "old" {
-			return fmt.Errorf("title was modified: %s", p.Title)
+			return domain.Property{}, fmt.Errorf("title was modified: %s", p.Title)
 		}
 		if p.TypeID != 1 {
-			return fmt.Errorf("type id was modified: %d", p.TypeID)
+			return domain.Property{}, fmt.Errorf("type id was modified: %d", p.TypeID)
 		}
-		return nil
+		return p, nil
 	}
 	typeRepo := &mockTypeRepo{}
 	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
 
 	price := 200.5
 	area := 75.25
-	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Price: optional.OptionalFloat64{Defined: true, Valid: true, Value: &price}, Area: optional.OptionalFloat64{Defined: true, Valid: true, Value: &area}})
+	_, err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Price: optional.OptionalFloat64{Defined: true, Valid: true, Value: &price}, Area: optional.OptionalFloat64{Defined: true, Valid: true, Value: &area}})
 	require.NoError(t, err)
 }
 
@@ -279,13 +280,13 @@ func TestUpdateProperty_AlreadyExists(t *testing.T) {
 	repo.GetByIDFn = func(ctx context.Context, id int) (domain.Property, error) {
 		return domain.Property{ID: id, Title: "old", PropertyAddress: "addr"}, nil
 	}
-	repo.UpdateFn = func(ctx context.Context, p domain.Property) error {
-		return dberrors.NewErrAlreadyExists("property", "title", p.Title)
+	repo.UpdateFn = func(ctx context.Context, p domain.Property) (domain.Property, error) {
+		return domain.Property{}, dberrors.NewErrAlreadyExists("property", "title", p.Title)
 	}
 	typeRepo := &mockTypeRepo{}
 	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
 	title := "x"
-	err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Title: optional.OptionalString{Defined: true, Valid: true, Value: &title}})
+	_, err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Title: optional.OptionalString{Defined: true, Valid: true, Value: &title}})
 	require.Error(t, err)
 	var ae apperrors.ErrAlreadyExists
 	assert.True(t, errors.As(err, &ae))
@@ -343,13 +344,13 @@ func TestUpdateProperty_SetEmptyAddress(t *testing.T) {
 	repo.GetByIDFn = func(ctx context.Context, id int) (domain.Property, error) {
 		return domain.Property{ID: id, Title: "old", PropertyAddress: "addr"}, nil
 	}
-	repo.UpdateFn = func(ctx context.Context, p domain.Property) error { return nil }
+	repo.UpdateFn = func(ctx context.Context, p domain.Property) (domain.Property, error) { return p, nil }
 	typeRepo := &mockTypeRepo{}
 	svc := New(repo, typeRepo, logger(), &mockGeo{}, &mockFavoriteService{})
 
 	empty := ""
 	req := dto.UpdatePropertyRequest{ID: 2, PropertyAddress: optional.OptionalString{Defined: true, Valid: true, Value: &empty}}
-	err := svc.Update(ctx, req)
+	_, err := svc.Update(ctx, req)
 	require.Error(t, err)
 	var di apperrors.ErrInvalidInput
 	assert.True(t, errors.As(err, &di))
@@ -361,7 +362,7 @@ func TestUpdateProperty_GeocodeErrorOnUpdate(t *testing.T) {
 	repo.GetByIDFn = func(ctx context.Context, id int) (domain.Property, error) {
 		return domain.Property{ID: id, Title: "old", PropertyAddress: "addr"}, nil
 	}
-	repo.UpdateFn = func(ctx context.Context, p domain.Property) error { return nil }
+	repo.UpdateFn = func(ctx context.Context, p domain.Property) (domain.Property, error) { return p, nil }
 	typeRepo := &mockTypeRepo{}
 	svc := New(repo, typeRepo, logger(), &mockGeo{GeocodeFn: func(address string) (float64, float64, error) {
 		return 0, 0, fmt.Errorf("geo fail")
@@ -369,7 +370,7 @@ func TestUpdateProperty_GeocodeErrorOnUpdate(t *testing.T) {
 
 	addr := "new addr"
 	req := dto.UpdatePropertyRequest{ID: 2, PropertyAddress: optional.OptionalString{Defined: true, Valid: true, Value: &addr}}
-	err := svc.Update(ctx, req)
+	_, err := svc.Update(ctx, req)
 	require.Error(t, err)
 	var ge apperrors.ErrGeocoding
 	assert.True(t, errors.As(err, &ge))

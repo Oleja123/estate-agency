@@ -181,11 +181,11 @@ func TestPropertyCRUD(t *testing.T) {
 				prop.PropertyDescription = "Updated description"
 				prop.Price = 75000
 				prop.PropertyStatus = property.StatusSold
-				err := testRepo.Update(testCtx, prop)
+				updated, err := testRepo.Update(testCtx, prop)
 				if err != nil {
 					return property.Property{}, err
 				}
-				return testRepo.GetByID(testCtx, prop.ID)
+				return updated, nil
 			},
 			validate: func(t *testing.T, prop property.Property, err error) {
 				require.NoError(t, err)

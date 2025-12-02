@@ -11,7 +11,7 @@ import (
 type Service interface {
 	Create(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error)
 	GetByID(ctx context.Context, id int) (domain.Property, error)
-	Update(ctx context.Context, req dto.UpdatePropertyRequest) error
+	Update(ctx context.Context, req dto.UpdatePropertyRequest) (domain.Property, error)
 	List(ctx context.Context, req dto.ListPropertiesRequest) (dto.ListPropertiesResponse, error)
 	Delete(ctx context.Context, id int) (int, error)
 	ToggleFavorite(ctx context.Context, userID int, propertyID int) (bool, favdomain.Favorite, error)
