@@ -7,6 +7,8 @@ services:
       depends_on:
         db:
           condition: service_healthy
+      volumes:
+        - images:/app/images
   db:
       image: postgis/postgis:16-3.4
       restart: unless-stopped
@@ -27,3 +29,4 @@ services:
   
 volumes:
   db_data:
+  images:
