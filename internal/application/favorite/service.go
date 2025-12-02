@@ -8,6 +8,7 @@ import (
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
 	dto "github.com/Oleja123/estate-agency/internal/application/favorite/dto"
 	domain "github.com/Oleja123/estate-agency/internal/domain/favorite"
+	prop "github.com/Oleja123/estate-agency/internal/domain/property"
 	dberrors "github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
 )
 
@@ -22,12 +23,12 @@ func New(repo domain.Repository, logger *slog.Logger) Service {
 	return &service{repo: repo, logger: logger}
 }
 
-func (s *service) Create(ctx context.Context, req dto.CreateFavoriteRequest) (domain.Favorite, error) {
+func (s *service) Create(ctx context.Context, req dto.CreateFavoriteRequest) (int, error) {
 	if req.UserID == 0 {
-		return domain.Favorite{}, apperrors.NewErrInvalidInput("user_id", req.UserID, "must be provided")
+		return 0, apperrors.NewErrInvalidInput("user_id", req.UserID, "must be provided")
 	}
 	if req.PropertyID == 0 {
-		return domain.Favorite{}, apperrors.NewErrInvalidInput("property_id", req.PropertyID, "must be provided")
+		return 0, apperrors.NewErrInvalidInput("property_id", req.PropertyID, "must be provided")
 	}
 
 	fav := domain.Favorite{UserID: req.UserID, PropertyID: req.PropertyID}
@@ -36,48 +37,35 @@ func (s *service) Create(ctx context.Context, req dto.CreateFavoriteRequest) (do
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &ae):
-			return domain.Favorite{}, apperrors.NewErrAlreadyExists("favorite", "user_id,property_id", nil)
+			return 0, apperrors.NewErrAlreadyExists("favorite", "user_id,property_id", nil)
 		case errors.As(err, &te):
 			s.logger.Error("create favorite: repo timeout", "err", err)
-			return domain.Favorite{}, apperrors.NewErrTimeout("request timeout")
+			return 0, apperrors.NewErrTimeout("request timeout")
 		default:
 			s.logger.Error("create favorite: repo error", "err", err)
-			return domain.Favorite{}, apperrors.NewErrInternal("failed to create favorite")
+			return 0, apperrors.NewErrInternal("failed to create favorite")
 		}
 	}
-
-	created, err := s.repo.GetByUserAndProperty(ctx, req.UserID, req.PropertyID)
-	if err != nil {
-		var te dberrors.ErrTimeout
-		switch {
-		case errors.As(err, &te):
-			s.logger.Error("create favorite: fetch created timeout", "err", err)
-			return domain.Favorite{}, apperrors.NewErrTimeout("request timeout")
-		default:
-			s.logger.Error("create favorite: fetch created failed", "err", err)
-			return domain.Favorite{}, apperrors.NewErrInternal("failed to fetch created favorite")
-		}
-	}
-	return created, nil
+	return req.PropertyID, nil
 }
 
-func (s *service) GetByUserAndProperty(ctx context.Context, key dto.CreateFavoriteRequest) (domain.Favorite, error) {
-	fav, err := s.repo.GetByUserAndProperty(ctx, key.UserID, key.PropertyID)
+func (s *service) GetByUserAndProperty(ctx context.Context, key dto.CreateFavoriteRequest) (prop.Property, error) {
+	p, err := s.repo.GetByUserAndProperty(ctx, key.UserID, key.PropertyID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &nf):
-			return domain.Favorite{}, apperrors.NewErrNotFound("favorite", map[string]int{"user_id": key.UserID, "property_id": key.PropertyID})
+			return prop.Property{}, apperrors.NewErrNotFound("favorite", map[string]int{"user_id": key.UserID, "property_id": key.PropertyID})
 		case errors.As(err, &te):
 			s.logger.Error("get favorite: repo timeout", "err", err)
-			return domain.Favorite{}, apperrors.NewErrTimeout("request timeout")
+			return prop.Property{}, apperrors.NewErrTimeout("request timeout")
 		default:
 			s.logger.Error("get favorite: repo error", "err", err)
-			return domain.Favorite{}, apperrors.NewErrInternal("failed to fetch favorite")
+			return prop.Property{}, apperrors.NewErrInternal("failed to fetch favorite")
 		}
 	}
-	return fav, nil
+	return p, nil
 }
 
 func (s *service) Delete(ctx context.Context, key dto.CreateFavoriteRequest) (int, error) {

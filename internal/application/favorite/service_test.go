@@ -11,6 +11,7 @@ import (
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
 	dto "github.com/Oleja123/estate-agency/internal/application/favorite/dto"
 	domain "github.com/Oleja123/estate-agency/internal/domain/favorite"
+	prop "github.com/Oleja123/estate-agency/internal/domain/property"
 	dberrors "github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,9 +19,9 @@ import (
 
 type mockRepo struct {
 	CreateFn               func(ctx context.Context, fav domain.Favorite) error
-	GetByUserAndPropertyFn func(ctx context.Context, userID, propertyID int) (domain.Favorite, error)
+	GetByUserAndPropertyFn func(ctx context.Context, userID, propertyID int) (prop.Property, error)
 	DeleteFn               func(ctx context.Context, userID, propertyID int) (int, error)
-	ListFn                 func(ctx context.Context, req domain.ListRequest) ([]domain.Favorite, int, error)
+	ListFn                 func(ctx context.Context, req domain.ListRequest) ([]prop.Property, int, error)
 	ExistsFn               func(ctx context.Context, userID, propertyID int) (bool, error)
 }
 
@@ -30,9 +31,9 @@ func (m *mockRepo) Create(ctx context.Context, fav domain.Favorite) error {
 	}
 	return m.CreateFn(ctx, fav)
 }
-func (m *mockRepo) GetByUserAndProperty(ctx context.Context, userID, propertyID int) (domain.Favorite, error) {
+func (m *mockRepo) GetByUserAndProperty(ctx context.Context, userID, propertyID int) (prop.Property, error) {
 	if m.GetByUserAndPropertyFn == nil {
-		return domain.Favorite{}, nil
+		return prop.Property{}, nil
 	}
 	return m.GetByUserAndPropertyFn(ctx, userID, propertyID)
 }
@@ -42,7 +43,7 @@ func (m *mockRepo) Delete(ctx context.Context, userID, propertyID int) (int, err
 	}
 	return m.DeleteFn(ctx, userID, propertyID)
 }
-func (m *mockRepo) List(ctx context.Context, req domain.ListRequest) ([]domain.Favorite, int, error) {
+func (m *mockRepo) List(ctx context.Context, req domain.ListRequest) ([]prop.Property, int, error) {
 	if m.ListFn == nil {
 		return nil, 0, nil
 	}
@@ -63,14 +64,14 @@ func TestCreate_Success(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
 	repo.CreateFn = func(ctx context.Context, fav domain.Favorite) error { return nil }
-	repo.GetByUserAndPropertyFn = func(ctx context.Context, userID, propertyID int) (domain.Favorite, error) {
-		return domain.Favorite{UserID: userID, PropertyID: propertyID}, nil
+	repo.GetByUserAndPropertyFn = func(ctx context.Context, userID, propertyID int) (prop.Property, error) {
+		return prop.Property{ID: propertyID, CreatedBy: userID}, nil
 	}
 
 	svc := New(repo, logger())
 	got, err := svc.Create(ctx, dto.CreateFavoriteRequest{UserID: 1, PropertyID: 2})
 	require.NoError(t, err)
-	assert.Equal(t, 1, got.UserID)
+	assert.Equal(t, 2, got)
 }
 
 func TestCreate_InvalidInput(t *testing.T) {
@@ -85,8 +86,8 @@ func TestCreate_InvalidInput(t *testing.T) {
 func TestGetByUserAndProperty_NotFound(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
-	repo.GetByUserAndPropertyFn = func(ctx context.Context, userID, propertyID int) (domain.Favorite, error) {
-		return domain.Favorite{}, dberrors.NewErrNotFound("favorite", nil)
+	repo.GetByUserAndPropertyFn = func(ctx context.Context, userID, propertyID int) (prop.Property, error) {
+		return prop.Property{}, dberrors.NewErrNotFound("favorite", nil)
 	}
 	svc := New(repo, logger())
 	_, err := svc.GetByUserAndProperty(ctx, dto.CreateFavoriteRequest{UserID: 1, PropertyID: 2})
@@ -111,8 +112,8 @@ func TestDelete_NotFound(t *testing.T) {
 func TestList_Success(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
-	repo.ListFn = func(ctx context.Context, req domain.ListRequest) ([]domain.Favorite, int, error) {
-		return []domain.Favorite{{UserID: 1, PropertyID: 2}, {UserID: 2, PropertyID: 3}}, 2, nil
+	repo.ListFn = func(ctx context.Context, req domain.ListRequest) ([]prop.Property, int, error) {
+		return []prop.Property{{ID: 2}, {ID: 3}}, 2, nil
 	}
 	svc := New(repo, logger())
 	res, err := svc.List(ctx, dto.ListFavoritesRequest{Limit: 10, Offset: 0})

@@ -152,8 +152,8 @@ func TestFavoriteCRUD(t *testing.T) {
 	tests := []struct {
 		name     string
 		setup    func() favorite.Favorite
-		action   func(t *testing.T, fav favorite.Favorite) (favorite.Favorite, error)
-		validate func(t *testing.T, fav favorite.Favorite, err error)
+		action   func(t *testing.T, fav favorite.Favorite) (property.Property, error)
+		validate func(t *testing.T, fav property.Property, err error)
 	}{
 		{
 			name: "create_and_get_favorite",
@@ -163,17 +163,17 @@ func TestFavoriteCRUD(t *testing.T) {
 					PropertyID: testPropertyIDs[0],
 				}
 			},
-			action: func(t *testing.T, fav favorite.Favorite) (favorite.Favorite, error) {
+			action: func(t *testing.T, fav favorite.Favorite) (property.Property, error) {
 				err := testRepo.Create(testCtx, fav)
 				if err != nil {
-					return favorite.Favorite{}, err
+					return property.Property{}, err
 				}
 				return testRepo.GetByUserAndProperty(testCtx, fav.UserID, fav.PropertyID)
 			},
-			validate: func(t *testing.T, fav favorite.Favorite, err error) {
+			validate: func(t *testing.T, fav property.Property, err error) {
 				require.NoError(t, err)
-				assert.Equal(t, testUserID, fav.UserID)
-				assert.Equal(t, testPropertyIDs[0], fav.PropertyID)
+				assert.Equal(t, testUserID, fav.CreatedBy)
+				assert.Equal(t, testPropertyIDs[0], fav.ID)
 				assert.NotZero(t, fav.CreatedAt)
 			},
 		},
@@ -188,14 +188,14 @@ func TestFavoriteCRUD(t *testing.T) {
 				require.NoError(t, err)
 				return fav
 			},
-			action: func(t *testing.T, fav favorite.Favorite) (favorite.Favorite, error) {
+			action: func(t *testing.T, fav favorite.Favorite) (property.Property, error) {
 				_, err := testRepo.Delete(testCtx, fav.UserID, fav.PropertyID)
 				if err != nil {
-					return favorite.Favorite{}, err
+					return property.Property{}, err
 				}
 				return testRepo.GetByUserAndProperty(testCtx, fav.UserID, fav.PropertyID)
 			},
-			validate: func(t *testing.T, fav favorite.Favorite, err error) {
+			validate: func(t *testing.T, fav property.Property, err error) {
 				assert.Error(t, err)
 				assert.True(t, basedb.IsNotFound(err))
 			},
@@ -231,7 +231,7 @@ func TestFavoriteList(t *testing.T) {
 		request   favorite.ListRequest
 		wantLen   int
 		wantTotal int
-		validate  func(t *testing.T, favorites []favorite.Favorite)
+		validate  func(t *testing.T, favorites []property.Property)
 	}{
 		{
 			name: "get_all_favorites",
@@ -249,9 +249,9 @@ func TestFavoriteList(t *testing.T) {
 			},
 			wantLen:   2,
 			wantTotal: 2,
-			validate: func(t *testing.T, favorites []favorite.Favorite) {
+			validate: func(t *testing.T, favorites []property.Property) {
 				for _, fav := range favorites {
-					assert.Equal(t, testUserID, fav.UserID)
+					assert.Equal(t, testUserID, fav.CreatedBy)
 				}
 			},
 		},
@@ -263,8 +263,8 @@ func TestFavoriteList(t *testing.T) {
 			},
 			wantLen:   1,
 			wantTotal: 1,
-			validate: func(t *testing.T, favorites []favorite.Favorite) {
-				assert.Equal(t, testPropertyIDs[0], favorites[0].PropertyID)
+			validate: func(t *testing.T, favorites []property.Property) {
+				assert.Equal(t, testPropertyIDs[0], favorites[0].ID)
 			},
 		},
 		{
@@ -342,7 +342,7 @@ func TestGetByUser(t *testing.T) {
 		assert.Equal(t, 2, total)
 
 		for _, fav := range result {
-			assert.Equal(t, testUserID, fav.UserID)
+			assert.Equal(t, testUserID, fav.CreatedBy)
 		}
 	})
 }
@@ -365,7 +365,7 @@ func TestGetByProperty(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Len(t, result, 1)
-		assert.Equal(t, testPropertyIDs[0], result[0].PropertyID)
+		assert.Equal(t, testPropertyIDs[0], result[0].ID)
 		assert.Equal(t, 1, total)
 	})
 }

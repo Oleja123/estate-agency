@@ -14,7 +14,7 @@ import (
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
 	favdto "github.com/Oleja123/estate-agency/internal/application/favorite/dto"
 	dto "github.com/Oleja123/estate-agency/internal/application/user/dto"
-	favdomain "github.com/Oleja123/estate-agency/internal/domain/favorite"
+	prop "github.com/Oleja123/estate-agency/internal/domain/property"
 	auth "github.com/Oleja123/estate-agency/internal/handler/auth"
 	"github.com/go-chi/chi/v5"
 )
@@ -39,11 +39,11 @@ type mockService struct {
 
 type mockFavorite struct{}
 
-func (m *mockFavorite) Create(ctx context.Context, req favdto.CreateFavoriteRequest) (favdomain.Favorite, error) {
-	return favdomain.Favorite{}, nil
+func (m *mockFavorite) Create(ctx context.Context, req favdto.CreateFavoriteRequest) (int, error) {
+	return req.PropertyID, nil
 }
-func (m *mockFavorite) GetByUserAndProperty(ctx context.Context, key favdto.CreateFavoriteRequest) (favdomain.Favorite, error) {
-	return favdomain.Favorite{}, nil
+func (m *mockFavorite) GetByUserAndProperty(ctx context.Context, key favdto.CreateFavoriteRequest) (prop.Property, error) {
+	return prop.Property{ID: key.PropertyID, CreatedBy: key.UserID}, nil
 }
 func (m *mockFavorite) Delete(ctx context.Context, key favdto.CreateFavoriteRequest) (int, error) {
 	return 0, nil

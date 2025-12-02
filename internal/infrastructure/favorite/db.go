@@ -8,6 +8,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/Oleja123/estate-agency/internal/domain/favorite"
+	prop "github.com/Oleja123/estate-agency/internal/domain/property"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/basedb"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/client"
@@ -59,51 +60,54 @@ func (r *Repository) Create(ctx context.Context, fav favorite.Favorite) error {
 	return nil
 }
 
-func (r *Repository) GetByUserAndProperty(ctx context.Context, userID, propertyID int) (favorite.Favorite, error) {
+func (r *Repository) GetByUserAndProperty(ctx context.Context, userID, propertyID int) (prop.Property, error) {
 	const op = "favoritedb.Repository.GetByUserAndProperty"
 
 	sql, args, err := r.sq.
-		Select("*").
-		From("favorites").
-		Where(squirrel.Eq{"user_id": userID, "property_id": propertyID}).
+		Select("p.id, p.title, p.property_description, p.type_id, p.transaction_type, p.price, p.area, p.property_address, p.latitude, p.longitude, p.city, p.property_status, p.created_by, p.created_at, p.updated_at").
+		From("favorites f").
+		Join("properties p ON p.id = f.property_id").
+		Where(squirrel.Eq{"f.user_id": userID, "f.property_id": propertyID}).
 		ToSql()
 
 	if err != nil {
-		return favorite.Favorite{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
+		return prop.Property{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
 	}
 
-	r.Logger.DebugContext(ctx, "searching favorite by user and property",
+	r.Logger.DebugContext(ctx, "searching favorite -> property by user and property",
 		"operation", op,
 		"user_id", userID,
 		"property_id", propertyID,
 	)
 
-	var fav favorite.Favorite
+	var p prop.Property
 	err = r.Client.QueryRow(ctx, sql, args...).Scan(
-		&fav.UserID,
-		&fav.PropertyID,
-		&fav.CreatedAt,
+		&p.ID, &p.Title, &p.PropertyDescription, &p.TypeID,
+		&p.TransactionType, &p.Price, &p.Area, &p.PropertyAddress,
+		&p.Latitude, &p.Longitude, &p.City, &p.PropertyStatus,
+		&p.CreatedBy, &p.CreatedAt, &p.UpdatedAt,
 	)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			r.Logger.DebugContext(ctx, "favorite not found",
+			r.Logger.DebugContext(ctx, "favorite/property not found",
 				"operation", op,
 				"user_id", userID,
 				"property_id", propertyID,
 			)
-			return favorite.Favorite{}, basedberrors.NewErrNotFound("favorite", fmt.Sprintf("user:%d,property:%d", userID, propertyID))
+			return prop.Property{}, basedberrors.NewErrNotFound("favorite.property", fmt.Sprintf("user:%d,property:%d", userID, propertyID))
 		}
-		return favorite.Favorite{}, r.HandleError(op, err)
+		return prop.Property{}, r.HandleError(op, err)
 	}
 
-	r.Logger.DebugContext(ctx, "favorite found",
+	r.Logger.DebugContext(ctx, "favorite -> property found",
 		"operation", op,
 		"user_id", userID,
 		"property_id", propertyID,
+		"title", p.Title,
 	)
 
-	return fav, nil
+	return p, nil
 }
 
 func (r *Repository) Delete(ctx context.Context, userID, propertyID int) (int, error) {
@@ -149,14 +153,14 @@ func (r *Repository) Delete(ctx context.Context, userID, propertyID int) (int, e
 	return propertyID, nil
 }
 
-func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favorite.Favorite, int, error) {
+func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]prop.Property, int, error) {
 	const op = "favoritedb.Repository.List"
-
-	var favorites []favorite.Favorite
+	var properties []prop.Property
 
 	query := r.sq.
-		Select("*").
-		From("favorites")
+		Select("p.id, p.title, p.property_description, p.type_id, p.transaction_type, p.price, p.area, p.property_address, p.latitude, p.longitude, p.city, p.property_status, p.created_by, p.created_at, p.updated_at").
+		From("favorites f").
+		Join("properties p ON p.id = f.property_id")
 
 	query = r.ApplyFilters(query, req.Filter)
 
@@ -173,7 +177,7 @@ func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favo
 	}
 
 	sql, args, err := query.
-		OrderBy("created_at DESC").
+		OrderBy("f.created_at DESC").
 		Limit(uint64(req.Limit)).
 		Offset(uint64(req.Offset)).
 		ToSql()
@@ -196,23 +200,28 @@ func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]favo
 	defer rows.Close()
 
 	for rows.Next() {
-		fav, err := r.ScanFavorite(rows)
-		if err != nil {
+		var p prop.Property
+		if err := rows.Scan(
+			&p.ID, &p.Title, &p.PropertyDescription, &p.TypeID,
+			&p.TransactionType, &p.Price, &p.Area, &p.PropertyAddress,
+			&p.Latitude, &p.Longitude, &p.City, &p.PropertyStatus,
+			&p.CreatedBy, &p.CreatedAt, &p.UpdatedAt,
+		); err != nil {
 			return nil, 0, fmt.Errorf("row scan error: %w", err)
 		}
-		favorites = append(favorites, fav)
+		properties = append(properties, p)
 	}
 
 	if err = rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("rows iteration error: %w", err)
 	}
 
-	r.Logger.DebugContext(ctx, "favorites list retrieved",
+	r.Logger.DebugContext(ctx, "favorites (properties) list retrieved",
 		"operation", op,
-		"favorites_count", len(favorites),
+		"properties_count", len(properties),
 	)
 
-	return favorites, total, nil
+	return properties, total, nil
 }
 
 func (r *Repository) Exists(ctx context.Context, userID, propertyID int) (bool, error) {

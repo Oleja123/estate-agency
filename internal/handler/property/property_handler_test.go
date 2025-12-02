@@ -18,7 +18,6 @@ import (
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
 	favdto "github.com/Oleja123/estate-agency/internal/application/favorite/dto"
 	dto "github.com/Oleja123/estate-agency/internal/application/property/dto"
-	favdomain "github.com/Oleja123/estate-agency/internal/domain/favorite"
 	domain "github.com/Oleja123/estate-agency/internal/domain/property"
 	auth "github.com/Oleja123/estate-agency/internal/handler/auth"
 	"github.com/go-chi/chi/v5"
@@ -40,7 +39,7 @@ type mockService struct {
 	DeleteCalled bool
 	DeleteFunc   func(ctx context.Context, id int) (int, error)
 
-	ToggleFavoriteFunc func(ctx context.Context, userID int, propertyID int) (bool, favdomain.Favorite, error)
+	ToggleFavoriteFunc func(ctx context.Context, userID int, propertyID int) (bool, domain.Property, error)
 }
 
 func (m *mockService) Create(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error) {
@@ -79,11 +78,11 @@ func (m *mockService) Delete(ctx context.Context, id int) (int, error) {
 	return id, nil
 }
 
-func (m *mockService) ToggleFavorite(ctx context.Context, userID int, propertyID int) (bool, favdomain.Favorite, error) {
+func (m *mockService) ToggleFavorite(ctx context.Context, userID int, propertyID int) (bool, domain.Property, error) {
 	if m.ToggleFavoriteFunc != nil {
 		return m.ToggleFavoriteFunc(ctx, userID, propertyID)
 	}
-	return false, favdomain.Favorite{}, nil
+	return false, domain.Property{}, nil
 }
 
 func newLogger() *slog.Logger {
@@ -117,11 +116,11 @@ func (m *mockImageService) Delete(ctx context.Context, id int) (int, error) {
 
 type mockFavorite struct{}
 
-func (m *mockFavorite) Create(ctx context.Context, req favdto.CreateFavoriteRequest) (favdomain.Favorite, error) {
-	return favdomain.Favorite{}, nil
+func (m *mockFavorite) Create(ctx context.Context, req favdto.CreateFavoriteRequest) (int, error) {
+	return req.PropertyID, nil
 }
-func (m *mockFavorite) GetByUserAndProperty(ctx context.Context, key favdto.CreateFavoriteRequest) (favdomain.Favorite, error) {
-	return favdomain.Favorite{}, nil
+func (m *mockFavorite) GetByUserAndProperty(ctx context.Context, key favdto.CreateFavoriteRequest) (domain.Property, error) {
+	return domain.Property{ID: key.PropertyID, CreatedBy: key.UserID}, nil
 }
 func (m *mockFavorite) Delete(ctx context.Context, key favdto.CreateFavoriteRequest) (int, error) {
 	return 0, nil

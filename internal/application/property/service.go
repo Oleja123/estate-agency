@@ -10,7 +10,6 @@ import (
 	favoritesvc "github.com/Oleja123/estate-agency/internal/application/favorite"
 	favdto "github.com/Oleja123/estate-agency/internal/application/favorite/dto"
 	dto "github.com/Oleja123/estate-agency/internal/application/property/dto"
-	favdomain "github.com/Oleja123/estate-agency/internal/domain/favorite"
 	domain "github.com/Oleja123/estate-agency/internal/domain/property"
 	ptypedomain "github.com/Oleja123/estate-agency/internal/domain/property_type"
 	dberrors "github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
@@ -228,26 +227,30 @@ func (s *service) Delete(ctx context.Context, id int) (int, error) {
 	return deletedID, nil
 }
 
-func (s *service) ToggleFavorite(ctx context.Context, userID int, propertyID int) (bool, favdomain.Favorite, error) {
+func (s *service) ToggleFavorite(ctx context.Context, userID int, propertyID int) (bool, domain.Property, error) {
 	if s.favSvc == nil {
-		return false, favdomain.Favorite{}, apperrors.NewErrInternal("favorites not configured")
+		return false, domain.Property{}, apperrors.NewErrInternal("favorites not configured")
 	}
 	key := favdto.CreateFavoriteRequest{UserID: userID, PropertyID: propertyID}
 	exists, err := s.favSvc.Exists(ctx, key)
 	if err != nil {
-		return false, favdomain.Favorite{}, err
+		return false, domain.Property{}, err
 	}
 	if exists {
-
 		_, err := s.favSvc.Delete(ctx, key)
 		if err != nil {
-			return false, favdomain.Favorite{}, err
+			return false, domain.Property{}, err
 		}
-		return false, favdomain.Favorite{}, nil
+		return false, domain.Property{}, nil
 	}
-	created, err := s.favSvc.Create(ctx, key)
+	// create favorite returns the property id; fetch full property to return to caller
+	_, err = s.favSvc.Create(ctx, key)
 	if err != nil {
-		return false, favdomain.Favorite{}, err
+		return false, domain.Property{}, err
 	}
-	return true, created, nil
+	createdProp, err := s.favSvc.GetByUserAndProperty(ctx, key)
+	if err != nil {
+		return false, domain.Property{}, err
+	}
+	return true, createdProp, nil
 }
