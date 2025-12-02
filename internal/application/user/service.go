@@ -187,6 +187,11 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken string) (dto.Lo
 		}
 	}
 
+	if !u.IsActive {
+		s.logger.Info("refresh: user deactivated", "user_id", u.Id)
+		return dto.LoginResponse{}, apperrors.NewErrForbidden("account deactivated")
+	}
+
 	accessTTL := 15 * time.Minute
 	refreshTTL := 24 * time.Hour
 	access, exp, err := s.tokenService.GenerateAccessToken(u.Id, string(u.UserRole), accessTTL)

@@ -1,10 +1,12 @@
 package auth
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 
+	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
 	tokensvc "github.com/Oleja123/estate-agency/internal/application/token"
 	usersvc "github.com/Oleja123/estate-agency/internal/application/user"
 	handlerutils "github.com/Oleja123/estate-agency/internal/handler/utils"
@@ -43,6 +45,11 @@ func (h *TokenHandler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.userSvc.RefreshToken(r.Context(), req.RefreshToken)
 	if err != nil {
+		var forb apperrors.ErrForbidden
+		if errors.As(err, &forb) {
+			handlerutils.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "аккаунт деактивирован"})
+			return
+		}
 		handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "недействительный refresh-токен"})
 		return
 	}

@@ -304,6 +304,33 @@ func TestUserService_RefreshAndLogout(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestUserService_RefreshToken_Deactivated(t *testing.T) {
+	ctx := context.Background()
+	logger := makeLogger()
+
+	h, err := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
+	repo := &mockRepo{
+		GetByEmailFn: func(ctx context.Context, email string) (domain.User, error) {
+			return domain.User{Id: 7, Email: email, PasswordHash: string(h)}, nil
+		},
+		GetByIDFunc: func(ctx context.Context, id int) (domain.User, error) {
+			return domain.User{Id: id, Email: "x@x.com", IsActive: false}, nil
+		},
+	}
+	tokSvc := token.NewMemoryService()
+	svc := New(repo, logger, pwd.NewBcryptHasher(), tokSvc)
+
+	resp, err := svc.Login(ctx, dto.LoginRequest{Email: "x@x.com", Password: "secret"})
+	require.NoError(t, err)
+
+	_, err = svc.RefreshToken(ctx, resp.RefreshToken)
+	require.Error(t, err)
+	_, ok := err.(apperrors.ErrForbidden)
+	assert.True(t, ok)
+}
+
 func TestUserService_UpdateProfile_AlreadyExists(t *testing.T) {
 	ctx := context.Background()
 	logger := makeLogger()

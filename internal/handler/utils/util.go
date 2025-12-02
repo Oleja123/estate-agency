@@ -33,6 +33,8 @@ func mapAppError(err error) (int, interface{}) {
 		return http.StatusConflict, map[string]string{"error": e.Error()}
 	case apperrors.ErrNotFound:
 		return http.StatusNotFound, map[string]string{"error": e.Error()}
+	case apperrors.ErrForbidden:
+		return http.StatusForbidden, map[string]string{"error": "доступ запрещён"}
 	case apperrors.ErrInternal:
 		return http.StatusInternalServerError, map[string]string{"error": "внутренняя ошибка"}
 	default:

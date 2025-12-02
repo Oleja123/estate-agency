@@ -81,3 +81,15 @@ func NewErrGeocoding(message string) error {
 func (e ErrGeocoding) Error() string {
 	return fmt.Sprintf("ошибка геокодирования: %s", e.Message)
 }
+
+type ErrForbidden struct {
+	Message string
+}
+
+func NewErrForbidden(message string) error {
+	return ErrForbidden{Message: message}
+}
+
+func (e ErrForbidden) Error() string {
+	return fmt.Sprintf("forbidden: %s", e.Message)
+}
