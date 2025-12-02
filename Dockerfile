@@ -8,7 +8,7 @@ RUN apk add --no-cache bash
 COPY cmd cmd
 COPY db db
 COPY docs docs
-RUN mkdir /images
+RUN mkdir ./images
 COPY internal internal
 COPY pkg pkg
 COPY go.mod go.mod
