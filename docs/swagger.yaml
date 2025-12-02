@@ -276,7 +276,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/propertyhandler.FavoriteDTODoc'
+            $ref: '#/definitions/propertyhandler.PropertyDTODoc'
         "204":
           description: Removed
         "400":
@@ -765,7 +765,7 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/definitions/propertyhandler.FavoriteDTODoc'
+              $ref: '#/definitions/propertyhandler.PropertyDTODoc'
         "400":
           description: Bad Request
         "401":

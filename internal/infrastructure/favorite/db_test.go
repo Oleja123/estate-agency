@@ -108,6 +108,8 @@ func CreateTestProperties() []int {
 			Price:               100000,
 			Area:                75.0,
 			PropertyAddress:     "Address 1",
+			Latitude:            55.7558,
+			Longitude:           37.6173,
 			City:                "Moscow",
 			PropertyStatus:      property.StatusActive,
 			CreatedBy:           testUserID,
@@ -120,6 +122,8 @@ func CreateTestProperties() []int {
 			Price:               2000,
 			Area:                60.0,
 			PropertyAddress:     "Address 2",
+			Latitude:            55.7558,
+			Longitude:           37.6173,
 			City:                "Moscow",
 			PropertyStatus:      property.StatusActive,
 			CreatedBy:           testUserID,
@@ -130,10 +134,10 @@ func CreateTestProperties() []int {
 	for _, prop := range properties {
 		var id int
 		err := testClient.QueryRow(context.Background(), `
-            INSERT INTO properties (title, property_description, type_id, transaction_type, price, area, property_address, city, property_status, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            RETURNING id
-        `, prop.Title, prop.PropertyDescription, prop.TypeID, prop.TransactionType, prop.Price, prop.Area, prop.PropertyAddress, prop.City, prop.PropertyStatus, prop.CreatedBy).Scan(&id)
+			INSERT INTO properties (title, property_description, type_id, transaction_type, price, area, property_address, latitude, longitude, city, property_status, created_by)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			RETURNING id
+		`, prop.Title, prop.PropertyDescription, prop.TypeID, prop.TransactionType, prop.Price, prop.Area, prop.PropertyAddress, prop.Latitude, prop.Longitude, prop.City, prop.PropertyStatus, prop.CreatedBy).Scan(&id)
 
 		if err != nil {
 			panic("Failed to create test property: " + err.Error())
