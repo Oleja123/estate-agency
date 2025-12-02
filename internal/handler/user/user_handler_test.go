@@ -123,6 +123,9 @@ func (m *mockService) DeleteUser(ctx context.Context, userID int) (int, error) {
 
 func TestHandleChangePassword_AdminPath(t *testing.T) {
 	m := &mockService{}
+	m.GetUserByIDFunc = func(ctx context.Context, userID int) (dto.PublicUser, error) {
+		return dto.PublicUser{Id: userID}, nil
+	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 	h := NewUserHandler(m, logger, &mockFavorite{})
 
@@ -140,8 +143,15 @@ func TestHandleChangePassword_AdminPath(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h.handleChangePassword(rr, req)
 
-	if rr.Code != http.StatusNoContent {
-		t.Fatalf("expected 204, got %d body=%s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	var got dto.PublicUser
+	if err := json.NewDecoder(rr.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v body=%s", err, rr.Body.String())
+	}
+	if got.Id != 5 {
+		t.Fatalf("expected returned user id 5, got %d", got.Id)
 	}
 	if !m.ChangePasswordAdminCalled {
 		t.Fatalf("expected ChangePasswordAdmin called")
@@ -153,6 +163,9 @@ func TestHandleChangePassword_AdminPath(t *testing.T) {
 
 func TestHandleChangePassword_OwnerPath(t *testing.T) {
 	m := &mockService{}
+	m.GetUserByIDFunc = func(ctx context.Context, userID int) (dto.PublicUser, error) {
+		return dto.PublicUser{Id: userID}, nil
+	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 	h := NewUserHandler(m, logger, &mockFavorite{})
 
@@ -169,8 +182,15 @@ func TestHandleChangePassword_OwnerPath(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h.handleChangePassword(rr, req)
 
-	if rr.Code != http.StatusNoContent {
-		t.Fatalf("expected 204, got %d body=%s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	var got dto.PublicUser
+	if err := json.NewDecoder(rr.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v body=%s", err, rr.Body.String())
+	}
+	if got.Id != 7 {
+		t.Fatalf("expected returned user id 7, got %d", got.Id)
 	}
 	if !m.ChangePasswordCalled {
 		t.Fatalf("expected ChangePassword called")
@@ -432,9 +452,22 @@ func TestHandleSetActive_TogglesToInactive(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
 	rr := httptest.NewRecorder()
 
+	// ensure GetUserByID returns updated user for the response
+	now := time.Now()
+	m.GetUserByIDFunc = func(ctx context.Context, userID int) (dto.PublicUser, error) {
+		return dto.PublicUser{Id: userID, Email: "u@x", IsActive: false, CreatedAt: now, UpdatedAt: now}, nil
+	}
+
 	h.handleSetActive(rr, req)
-	if rr.Code != http.StatusNoContent {
-		t.Fatalf("expected 204, got %d body=%s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	var got dto.PublicUser
+	if err := json.NewDecoder(rr.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v body=%s", err, rr.Body.String())
+	}
+	if got.Id != 5 {
+		t.Fatalf("expected returned user id 5, got %d", got.Id)
 	}
 	if !setCalled || setUserID != 5 {
 		t.Fatalf("expected ToggleActiveAccount called with user 5, got called=%v user=%d", setCalled, setUserID)
@@ -460,9 +493,21 @@ func TestHandleSetActive_TogglesToActive(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
 	rr := httptest.NewRecorder()
 
+	now := time.Now()
+	m.GetUserByIDFunc = func(ctx context.Context, userID int) (dto.PublicUser, error) {
+		return dto.PublicUser{Id: userID, Email: "u@x", IsActive: true, CreatedAt: now, UpdatedAt: now}, nil
+	}
+
 	h.handleSetActive(rr, req)
-	if rr.Code != http.StatusNoContent {
-		t.Fatalf("expected 204, got %d body=%s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	var got dto.PublicUser
+	if err := json.NewDecoder(rr.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v body=%s", err, rr.Body.String())
+	}
+	if got.Id != 8 {
+		t.Fatalf("expected returned user id 8, got %d", got.Id)
 	}
 	if !setCalled || setUserID != 8 {
 		t.Fatalf("expected ToggleActiveAccount called with user 8, got called=%v user=%d", setCalled, setUserID)
