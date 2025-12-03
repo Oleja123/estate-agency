@@ -152,8 +152,18 @@ paths:
           description: Forbidden
         "409":
           description: Conflict
+        "422":
+          description: Unprocessable Entity — геокодирование не вернуло координаты
+          schema:
+            $ref: '#/definitions/GeocodingErrorResponse'
+        "502":
+          description: Bad Gateway — ошибка внешнего геосервиса
+          schema:
+            $ref: '#/definitions/GeocodingErrorResponse'
         "500":
           description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
 
   /properties/{id}:
     get:
@@ -231,6 +241,14 @@ paths:
           description: Forbidden
         "404":
           description: Not Found
+        "422":
+          description: Unprocessable Entity — геокодирование не вернуло координаты
+          schema:
+            $ref: '#/definitions/GeocodingErrorResponse'
+        "502":
+          description: Bad Gateway — ошибка внешнего геосервиса
+          schema:
+            $ref: '#/definitions/GeocodingErrorResponse'
         "500":
           description: Internal Server Error
     delete:
@@ -1034,6 +1052,16 @@ definitions:
         type: object
         additionalProperties:
           type: string
+
+  GeocodingErrorResponse:
+    type: object
+    properties:
+      error: { type: string, example: "ошибка геокодирования: external service error" }
+      provider: { type: string, example: "geoapify" }
+      code: { type: string, example: "request" }
+      details: { type: string, example: "timeout while connecting to geo service" }
+      address: { type: string, example: "123 Main Street" }
+      status_code: { type: integer, example: 504, nullable: true }
 
 securityDefinitions:
   BearerAuth:
