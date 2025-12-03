@@ -849,6 +849,31 @@ paths:
         "401":
           description: Invalid refresh token
 
+  /tokens/logout:
+    post:
+      summary: Logout (invalidate refresh token)
+      tags: [tokens]
+      security: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/auth.RefreshRequestDoc'
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+            properties:
+              message: { type: string, example: "logged out" }
+        "400":
+          description: Bad Request
+        "401":
+          description: Invalid refresh token
+        "500":
+          description: Internal Server Error
+
 # -------------------- Definitions --------------------
 definitions:
   propertyhandler.PropertyDTODoc:

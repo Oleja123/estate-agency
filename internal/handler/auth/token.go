@@ -31,6 +31,7 @@ func (h *TokenHandler) Register(r chi.Router, prefix string, _ func(next http.Ha
 	}
 	r.Route(prefix, func(r chi.Router) {
 		r.Post("/refresh", h.handleRefresh)
+		r.Post("/logout", h.handleLogout)
 	})
 }
 
@@ -54,4 +55,27 @@ func (h *TokenHandler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	handlerutils.WriteJSON(w, http.StatusOK, resp)
+}
+
+func (h *TokenHandler) handleLogout(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := handlerutils.DecodeJSON(r, &req); err != nil {
+		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный JSON"})
+		return
+	}
+
+	err := h.userSvc.Logout(r.Context(), req.RefreshToken)
+	if err != nil {
+		var forb apperrors.ErrForbidden
+		if errors.As(err, &forb) {
+			handlerutils.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "аккаунт деактивирован"})
+			return
+		}
+		handlerutils.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "недействительный refresh-токен"})
+		return
+	}
+
+	handlerutils.WriteJSON(w, http.StatusOK, map[string]string{"message": "logged out"})
 }
