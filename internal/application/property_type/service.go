@@ -144,10 +144,13 @@ func (s *service) Delete(ctx context.Context, id int) (int, error) {
 	deletedID, err := s.repo.Delete(ctx, id)
 	if err != nil {
 		var nf dberrors.ErrNotFound
+		var fk dberrors.ErrForeignKeyViolation
 		var te dberrors.ErrTimeout
 		switch {
 		case errors.As(err, &nf):
 			return 0, apperrors.NewErrNotFound("property_type", id)
+		case errors.As(err, &fk):
+			return 0, apperrors.NewErrInvalidInput("id", id, "has dependent records")
 		case errors.As(err, &te):
 			s.logger.Error("delete: repo timeout", "err", err)
 			return 0, apperrors.NewErrTimeout("request timeout")

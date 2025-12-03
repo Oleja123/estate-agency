@@ -73,7 +73,29 @@ func (s *service) Create(ctx context.Context, userID int, req dto.CreateProperty
 	lat, lon, err := s.geo.Geocode(p.PropertyAddress)
 	if err != nil {
 		s.logger.Error("geocode error при создании свойства", "err", err)
-		return domain.Property{}, apperrors.NewErrGeocoding(err.Error())
+		// try to extract infra geocoder error details and translate to structured app error
+		var (
+			greq geocoder.ErrGeoRequest
+			gno  geocoder.ErrGeoNoResults
+			gcfg geocoder.ErrGeoConfig
+			gdec geocoder.ErrGeoDecode
+		)
+		switch {
+		case errors.As(err, &gno):
+			appErr := apperrors.NewErrGeocodingWithDetails(gno.Error(), "geoapify", "no_results", "no coordinates for address", 422, gno.Address)
+			return domain.Property{}, appErr
+		case errors.As(err, &gcfg):
+			appErr := apperrors.NewErrGeocodingWithDetails(gcfg.Error(), "geoapify", "config", gcfg.Message, 500, "")
+			return domain.Property{}, appErr
+		case errors.As(err, &gdec):
+			appErr := apperrors.NewErrGeocodingWithDetails(gdec.Error(), "geoapify", "decode", gdec.Details, 502, "")
+			return domain.Property{}, appErr
+		case errors.As(err, &greq):
+			appErr := apperrors.NewErrGeocodingWithDetails(greq.Error(), "geoapify", "request", greq.Details, 502, "")
+			return domain.Property{}, appErr
+		default:
+			return domain.Property{}, apperrors.NewErrGeocoding(err.Error())
+		}
 	}
 	p.Latitude = lat
 	p.Longitude = lon
@@ -191,7 +213,28 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) (do
 		lat, lon, err := s.geo.Geocode(p.PropertyAddress)
 		if err != nil {
 			s.logger.Error("geocode error при обновлении свойства", "err", err)
-			return domain.Property{}, apperrors.NewErrGeocoding(err.Error())
+			var (
+				greq geocoder.ErrGeoRequest
+				gno  geocoder.ErrGeoNoResults
+				gcfg geocoder.ErrGeoConfig
+				gdec geocoder.ErrGeoDecode
+			)
+			switch {
+			case errors.As(err, &gno):
+				appErr := apperrors.NewErrGeocodingWithDetails(gno.Error(), "geoapify", "no_results", "no coordinates for address", 422, gno.Address)
+				return domain.Property{}, appErr
+			case errors.As(err, &gcfg):
+				appErr := apperrors.NewErrGeocodingWithDetails(gcfg.Error(), "geoapify", "config", gcfg.Message, 500, "")
+				return domain.Property{}, appErr
+			case errors.As(err, &gdec):
+				appErr := apperrors.NewErrGeocodingWithDetails(gdec.Error(), "geoapify", "decode", gdec.Details, 502, "")
+				return domain.Property{}, appErr
+			case errors.As(err, &greq):
+				appErr := apperrors.NewErrGeocodingWithDetails(greq.Error(), "geoapify", "request", greq.Details, 502, "")
+				return domain.Property{}, appErr
+			default:
+				return domain.Property{}, apperrors.NewErrGeocoding(err.Error())
+			}
 		}
 		p.Latitude = lat
 		p.Longitude = lon

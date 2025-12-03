@@ -139,3 +139,16 @@ func TestDelete_NotFound(t *testing.T) {
 	var nf apperrors.ErrNotFound
 	assert.True(t, errors.As(err, &nf))
 }
+
+func TestDelete_ForeignKeyViolation(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockRepo{}
+	repo.DeleteFn = func(ctx context.Context, id int) (int, error) {
+		return 0, dberrors.NewErrForeignKeyViolation("property", "fk_property_property_type_id", "property_type_id")
+	}
+	svc := New(repo, logger())
+	_, err := svc.Delete(ctx, 7)
+	require.Error(t, err)
+	var inv apperrors.ErrInvalidInput
+	assert.True(t, errors.As(err, &inv))
+}

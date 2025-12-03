@@ -71,7 +71,12 @@ func (e ErrTimeout) Error() string {
 }
 
 type ErrGeocoding struct {
-	Message string
+	Message    string
+	Provider   string
+	Code       string
+	Details    string
+	StatusCode int
+	Address    string
 }
 
 func NewErrGeocoding(message string) error {
@@ -80,6 +85,17 @@ func NewErrGeocoding(message string) error {
 
 func (e ErrGeocoding) Error() string {
 	return fmt.Sprintf("ошибка геокодирования: %s", e.Message)
+}
+
+func NewErrGeocodingWithDetails(message, provider, code, details string, statusCode int, address string) error {
+	return ErrGeocoding{
+		Message:    message,
+		Provider:   provider,
+		Code:       code,
+		Details:    details,
+		StatusCode: statusCode,
+		Address:    address,
+	}
 }
 
 type ErrForbidden struct {
