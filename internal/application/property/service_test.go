@@ -142,7 +142,7 @@ func TestCreateProperty_Success(t *testing.T) {
 	typeRepo.GetByIDFn = func(ctx context.Context, id int) (ptypedomain.PropertyType, error) {
 		return ptypedomain.PropertyType{Id: id, Name: "apartment"}, nil
 	}
-	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{}, nil)
 	got, err := svc.Create(ctx, 1, dto.CreatePropertyRequest{Title: "x", TypeID: 1, PropertyAddress: "addr"})
 	require.NoError(t, err)
 	assert.Equal(t, 10, got.ID)
@@ -155,7 +155,7 @@ func TestGetByID_NotFound(t *testing.T) {
 		return domain.Property{}, dberrors.NewErrNotFound("property", id)
 	}
 	typeRepo := &mockTypeRepo{}
-	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{}, nil)
 	_, err := svc.GetByID(ctx, 5)
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
@@ -170,7 +170,7 @@ func TestUpdateProperty_Success(t *testing.T) {
 	}
 	repo.UpdateFn = func(ctx context.Context, p domain.Property) (domain.Property, error) { return p, nil }
 	typeRepo := &mockTypeRepo{}
-	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{}, nil)
 	title := "new"
 	_, err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Title: optional.OptionalString{Defined: true, Valid: true, Value: &title}})
 	require.NoError(t, err)
@@ -183,7 +183,7 @@ func TestListProperties_Success(t *testing.T) {
 		return []domain.Property{{ID: 1}, {ID: 2}}, 2, nil
 	}
 	typeRepo := &mockTypeRepo{}
-	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{}, nil)
 	res, err := svc.List(ctx, dto.ListPropertiesRequest{Limit: 10})
 	require.NoError(t, err)
 	assert.Len(t, res.Properties, 2)
@@ -195,7 +195,7 @@ func TestDelete_NotFound(t *testing.T) {
 	repo := &mockRepo{}
 	repo.DeleteFn = func(ctx context.Context, id int) (int, error) { return 0, dberrors.NewErrNotFound("property", id) }
 	typeRepo := &mockTypeRepo{}
-	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{}, nil)
 	_, err := svc.Delete(ctx, 7)
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
@@ -211,7 +211,7 @@ func TestCreateProperty_TypeNotFound(t *testing.T) {
 		return ptypedomain.PropertyType{}, dberrors.NewErrNotFound("property_type", id)
 	}
 
-	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{}, nil)
 	_, err := svc.Create(ctx, 1, dto.CreatePropertyRequest{Title: "x", TypeID: 99})
 	require.Error(t, err)
 	var nf apperrors.ErrNotFound
@@ -229,7 +229,7 @@ func TestUpdateProperty_TypeNotFound(t *testing.T) {
 		return ptypedomain.PropertyType{}, dberrors.NewErrNotFound("property_type", id)
 	}
 
-	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{}, nil)
 	tid := 99
 	_, err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, TypeID: optional.OptionalInt{Defined: true, Valid: true, Value: &tid}})
 	require.Error(t, err)
@@ -260,7 +260,7 @@ func TestUpdateProperty_PartialPriceArea(t *testing.T) {
 		return p, nil
 	}
 	typeRepo := &mockTypeRepo{}
-	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{}, nil)
 
 	price := 200.5
 	area := 75.25
@@ -278,7 +278,7 @@ func TestCreateProperty_AlreadyExists(t *testing.T) {
 	typeRepo.GetByIDFn = func(ctx context.Context, id int) (ptypedomain.PropertyType, error) {
 		return ptypedomain.PropertyType{Id: id, Name: "apartment"}, nil
 	}
-	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{}, nil)
 	_, err := svc.Create(ctx, 1, dto.CreatePropertyRequest{Title: "x", TypeID: 1, PropertyAddress: "addr"})
 	require.Error(t, err)
 	var ae apperrors.ErrAlreadyExists
@@ -295,7 +295,7 @@ func TestUpdateProperty_AlreadyExists(t *testing.T) {
 		return domain.Property{}, dberrors.NewErrAlreadyExists("property", "title", p.Title)
 	}
 	typeRepo := &mockTypeRepo{}
-	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{})
+	svc := New(repo, typeRepo, logger(), geocoder.NewNoop(), &mockFavoriteService{}, nil)
 	title := "x"
 	_, err := svc.Update(ctx, dto.UpdatePropertyRequest{ID: 2, Title: optional.OptionalString{Defined: true, Valid: true, Value: &title}})
 	require.Error(t, err)
@@ -321,7 +321,7 @@ func TestCreateProperty_EmptyAddress(t *testing.T) {
 	typeRepo.GetByIDFn = func(ctx context.Context, id int) (ptypedomain.PropertyType, error) {
 		return ptypedomain.PropertyType{Id: id, Name: "apartment"}, nil
 	}
-	svc := New(repo, typeRepo, logger(), &mockGeo{}, &mockFavoriteService{})
+	svc := New(repo, typeRepo, logger(), &mockGeo{}, &mockFavoriteService{}, nil)
 	_, err := svc.Create(ctx, 1, dto.CreatePropertyRequest{Title: "x", TypeID: 1, PropertyAddress: ""})
 	require.Error(t, err)
 	var di apperrors.ErrInvalidInput
@@ -341,7 +341,7 @@ func TestCreateProperty_GeocodeError(t *testing.T) {
 	}
 	svc := New(repo, typeRepo, logger(), &mockGeo{GeocodeFn: func(address string) (float64, float64, error) {
 		return 0, 0, fmt.Errorf("geo fail")
-	}}, &mockFavoriteService{})
+	}}, &mockFavoriteService{}, nil)
 
 	_, err := svc.Create(ctx, 1, dto.CreatePropertyRequest{Title: "x", TypeID: 1, PropertyAddress: "addr"})
 	require.Error(t, err)
@@ -357,7 +357,7 @@ func TestUpdateProperty_SetEmptyAddress(t *testing.T) {
 	}
 	repo.UpdateFn = func(ctx context.Context, p domain.Property) (domain.Property, error) { return p, nil }
 	typeRepo := &mockTypeRepo{}
-	svc := New(repo, typeRepo, logger(), &mockGeo{}, &mockFavoriteService{})
+	svc := New(repo, typeRepo, logger(), &mockGeo{}, &mockFavoriteService{}, nil)
 
 	empty := ""
 	req := dto.UpdatePropertyRequest{ID: 2, PropertyAddress: optional.OptionalString{Defined: true, Valid: true, Value: &empty}}
@@ -377,7 +377,7 @@ func TestUpdateProperty_GeocodeErrorOnUpdate(t *testing.T) {
 	typeRepo := &mockTypeRepo{}
 	svc := New(repo, typeRepo, logger(), &mockGeo{GeocodeFn: func(address string) (float64, float64, error) {
 		return 0, 0, fmt.Errorf("geo fail")
-	}}, &mockFavoriteService{})
+	}}, &mockFavoriteService{}, nil)
 
 	addr := "new addr"
 	req := dto.UpdatePropertyRequest{ID: 2, PropertyAddress: optional.OptionalString{Defined: true, Valid: true, Value: &addr}}

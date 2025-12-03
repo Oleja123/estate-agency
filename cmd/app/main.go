@@ -26,6 +26,7 @@ import (
 	postgresqlclient "github.com/Oleja123/estate-agency/internal/infrastructure/client/postgresql"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/config"
 	favoritedb "github.com/Oleja123/estate-agency/internal/infrastructure/favorite"
+	"github.com/Oleja123/estate-agency/internal/infrastructure/filestore"
 	geocoder "github.com/Oleja123/estate-agency/internal/infrastructure/geocoder"
 	imagedb "github.com/Oleja123/estate-agency/internal/infrastructure/image"
 	propertydb "github.com/Oleja123/estate-agency/internal/infrastructure/property"
@@ -85,8 +86,9 @@ func main() {
 		logger.Error("failed to set initial admin role", "err", err)
 	}
 
-	propertyService := propertyservice.New(propertyStorage, propertyTypeStorage, logger, geoSvc, favoriteService)
-	imageService := imageservice.New(imageStorage, logger, "images/")
+	filestore := filestore.New("images/")
+	propertyService := propertyservice.New(propertyStorage, propertyTypeStorage, logger, geoSvc, favoriteService, filestore)
+	imageService := imageservice.New(imageStorage, logger, filestore, "images/")
 
 	router := chi.NewRouter()
 

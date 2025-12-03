@@ -3,6 +3,7 @@ package dto
 import (
 	"time"
 
+	imagedto "github.com/Oleja123/estate-agency/internal/application/image/dto"
 	property "github.com/Oleja123/estate-agency/internal/domain/property"
 	optional "github.com/denpa16/optional-go-type"
 )
@@ -43,19 +44,21 @@ type ListPropertiesResponse struct {
 }
 
 type PropertyDTO struct {
-	ID                  int       `json:"id"`
-	Title               string    `json:"title"`
-	PropertyDescription string    `json:"property_description"`
-	TypeID              int       `json:"type_id"`
-	TransactionType     string    `json:"transaction_type"`
-	Price               float64   `json:"price"`
-	Area                float64   `json:"area"`
-	PropertyAddress     string    `json:"property_address"`
-	Latitude            float64   `json:"latitude"`
-	Longitude           float64   `json:"longitude"`
-	City                string    `json:"city"`
-	PropertyStatus      string    `json:"property_status"`
-	IsFavorited         bool      `json:"is_favorited,omitempty"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	ID                  int                  `json:"id"`
+	Title               string               `json:"title"`
+	PropertyDescription string               `json:"property_description"`
+	TypeID              int                  `json:"type_id"`
+	TransactionType     string               `json:"transaction_type"`
+	Price               float64              `json:"price"`
+	Area                float64              `json:"area"`
+	PropertyAddress     string               `json:"property_address"`
+	Latitude            float64              `json:"latitude"`
+	Longitude           float64              `json:"longitude"`
+	City                string               `json:"city"`
+	PropertyStatus      string               `json:"property_status"`
+	IsFavorited         bool                 `json:"is_favorited,omitempty"`
+	CreatedAt           time.Time            `json:"created_at"`
+	UpdatedAt           time.Time            `json:"updated_at"`
+	Images              []imagedto.ImageFile `json:"images,omitempty"`
+	Image               *imagedto.ImageFile  `json:"image,omitempty"`
 }

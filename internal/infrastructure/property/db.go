@@ -8,7 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"encoding/json"
+
 	"github.com/Masterminds/squirrel"
+	imagedomain "github.com/Oleja123/estate-agency/internal/domain/image"
 	"github.com/Oleja123/estate-agency/internal/domain/property"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/basedb"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
@@ -75,12 +78,14 @@ func (r *Repository) Create(ctx context.Context, prop property.Property) (int, e
 
 func (r *Repository) GetByID(ctx context.Context, id int) (property.Property, error) {
 	const op = "propertydb.Repository.GetByID"
+	// Build query with LEFT JOIN to aggregate images as JSON
+	imagesAgg := `COALESCE(json_agg(json_build_object('id', i.id, 'property_id', i.property_id, 'path', i.path, 'created_at', i.created_at) ORDER BY i.created_at DESC) FILTER (WHERE i.id IS NOT NULL), '[]') AS images`
 
 	sql, args, err := r.sq.
-		Select("*").
-		From("properties").
-		Where(squirrel.Eq{"id": id}).
-		ToSql()
+		Select(
+			"p.id", "p.title", "p.property_description", "p.type_id", "p.transaction_type", "p.price", "p.area", "p.property_address", "p.latitude", "p.longitude", "p.city", "p.property_status", "p.created_by", "p.created_at", "p.updated_at",
+			imagesAgg,
+		).From("properties p").LeftJoin("property_images i ON i.property_id = p.id").Where(squirrel.Eq{"p.id": id}).GroupBy("p.id").Limit(1).ToSql()
 
 	if err != nil {
 		return property.Property{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("query build error: %s", err))
@@ -92,12 +97,14 @@ func (r *Repository) GetByID(ctx context.Context, id int) (property.Property, er
 	)
 
 	var prop property.Property
+	var imagesJSON []byte
 
-	err = r.Client.QueryRow(ctx, sql, args...).Scan(
+	row := r.Client.QueryRow(ctx, sql, args...)
+	err = row.Scan(
 		&prop.ID, &prop.Title, &prop.PropertyDescription, &prop.TypeID,
 		&prop.TransactionType, &prop.Price, &prop.Area, &prop.PropertyAddress,
 		&prop.Latitude, &prop.Longitude, &prop.City, &prop.PropertyStatus,
-		&prop.CreatedBy, &prop.CreatedAt, &prop.UpdatedAt,
+		&prop.CreatedBy, &prop.CreatedAt, &prop.UpdatedAt, &imagesJSON,
 	)
 
 	if err != nil {
@@ -109,6 +116,14 @@ func (r *Repository) GetByID(ctx context.Context, id int) (property.Property, er
 			return property.Property{}, basedberrors.NewErrNotFound("property", id)
 		}
 		return property.Property{}, r.HandleError(op, err)
+	}
+
+	if len(imagesJSON) > 0 {
+		var imgs []imagedomain.PropertyImage
+		if err := json.Unmarshal(imagesJSON, &imgs); err != nil {
+			return property.Property{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("failed to unmarshal images: %s", err))
+		}
+		prop.Images = imgs
 	}
 
 	r.Logger.DebugContext(ctx, "property retrieved by id",
@@ -127,11 +142,14 @@ func (r *Repository) GetByIDWithFavorite(ctx context.Context, id int, userID int
 	// Build the query using squirrel: select property columns and a boolean
 	// computed by checking if a favorite row exists for the given user.
 	// Use LEFT JOIN with the user filter in the join to avoid duplicating rows.
+	imagesAgg := `COALESCE(json_agg(json_build_object('id', i.id, 'property_id', i.property_id, 'path', i.path, 'created_at', i.created_at) ORDER BY i.created_at DESC) FILTER (WHERE i.id IS NOT NULL), '[]') AS images`
+
 	sql, args, err := r.sq.
 		Select(
 			"p.id", "p.title", "p.property_description", "p.type_id", "p.transaction_type", "p.price", "p.area", "p.property_address", "p.latitude", "p.longitude", "p.city", "p.property_status", "p.created_by", "p.created_at", "p.updated_at", "COALESCE(f.user_id IS NOT NULL, false) AS is_favorited",
+			imagesAgg,
 		).From("properties p").LeftJoin("favorites f ON f.property_id = p.id AND f.user_id = ?", userID).
-		Where(squirrel.Eq{"p.id": id}).Limit(1).ToSql()
+		LeftJoin("property_images i ON i.property_id = p.id").Where(squirrel.Eq{"p.id": id}).GroupBy("p.id, f.user_id").Limit(1).ToSql()
 	if err != nil {
 		return property.Property{}, false, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query error: %s", err))
 	}
@@ -144,12 +162,14 @@ func (r *Repository) GetByIDWithFavorite(ctx context.Context, id int, userID int
 
 	var prop property.Property
 	var isFav bool
+	var imagesJSON []byte
 
-	err = r.Client.QueryRow(ctx, sql, args...).Scan(
+	row := r.Client.QueryRow(ctx, sql, args...)
+	err = row.Scan(
 		&prop.ID, &prop.Title, &prop.PropertyDescription, &prop.TypeID,
 		&prop.TransactionType, &prop.Price, &prop.Area, &prop.PropertyAddress,
 		&prop.Latitude, &prop.Longitude, &prop.City, &prop.PropertyStatus,
-		&prop.CreatedBy, &prop.CreatedAt, &prop.UpdatedAt, &isFav,
+		&prop.CreatedBy, &prop.CreatedAt, &prop.UpdatedAt, &isFav, &imagesJSON,
 	)
 
 	if err != nil {
@@ -161,6 +181,14 @@ func (r *Repository) GetByIDWithFavorite(ctx context.Context, id int, userID int
 			return property.Property{}, false, basedberrors.NewErrNotFound("property", id)
 		}
 		return property.Property{}, false, r.HandleError(op, err)
+	}
+
+	if len(imagesJSON) > 0 {
+		var imgs []imagedomain.PropertyImage
+		if err := json.Unmarshal(imagesJSON, &imgs); err != nil {
+			return property.Property{}, false, basedberrors.NewErrDatabase(op, fmt.Sprintf("failed to unmarshal images: %s", err))
+		}
+		prop.Images = imgs
 	}
 
 	return prop, isFav, nil
@@ -268,9 +296,11 @@ func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]prop
 
 	var properties []property.Property
 
+	// select property columns and the single image with smallest id per property
 	query := r.sq.
-		Select("*").
-		From("properties")
+		Select("properties.*", "i.id AS image_id", "i.property_id AS image_property_id", "i.path AS image_path", "i.created_at AS image_created_at").
+		From("properties").
+		LeftJoin("LATERAL (SELECT id, property_id, path, created_at FROM property_images WHERE property_id = properties.id ORDER BY id ASC LIMIT 1) i ON true")
 
 	query = r.ApplyFilters(query, req.Filter)
 
@@ -331,14 +361,35 @@ func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]prop
 
 func (r *Repository) ScanProperty(sc basedb.RowScanner) (property.Property, error) {
 	var prop property.Property
+	var imageID *int
+	var imagePropertyID *int
+	var imagePath *string
+	var imageCreatedAt *time.Time
+
 	if err := sc.Scan(
 		&prop.ID, &prop.Title, &prop.PropertyDescription, &prop.TypeID,
 		&prop.TransactionType, &prop.Price, &prop.Area, &prop.PropertyAddress,
 		&prop.Latitude, &prop.Longitude, &prop.City, &prop.PropertyStatus,
 		&prop.CreatedBy, &prop.CreatedAt, &prop.UpdatedAt,
+		&imageID, &imagePropertyID, &imagePath, &imageCreatedAt,
 	); err != nil {
 		return property.Property{}, err
 	}
+
+	if imageID != nil {
+		img := imagedomain.PropertyImage{ID: *imageID}
+		if imagePropertyID != nil {
+			img.PropertyID = *imagePropertyID
+		}
+		if imagePath != nil {
+			img.Path = *imagePath
+		}
+		if imageCreatedAt != nil {
+			img.CreatedAt = *imageCreatedAt
+		}
+		prop.Images = []imagedomain.PropertyImage{img}
+	}
+
 	return prop, nil
 }
 

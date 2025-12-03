@@ -120,7 +120,7 @@ func (h *PropertyHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handlerutils.WriteJSON(w, http.StatusCreated, propertysvc.MapProperty(p))
+	handlerutils.WriteJSON(w, http.StatusCreated, p)
 }
 
 func (h *PropertyHandler) handleGet(w http.ResponseWriter, r *http.Request) {
@@ -132,13 +132,13 @@ func (h *PropertyHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	}
 	// if user is authenticated, fetch favorite flag along with property
 	if uid, ok := auth.UserIDFromContext(r.Context()); ok {
-		p, fav, err := h.svc.GetByIDWithFavorite(r.Context(), id, uid)
+		prop, err := h.svc.GetByIDWithFavorite(r.Context(), id, uid)
 		if err != nil {
 			code, body := handlerutils.MapAppError(err)
 			handlerutils.WriteJSON(w, code, body)
 			return
 		}
-		handlerutils.WriteJSON(w, http.StatusOK, propertysvc.MapPropertyWithFavorite(p, fav))
+		handlerutils.WriteJSON(w, http.StatusOK, prop)
 		return
 	}
 
@@ -148,7 +148,7 @@ func (h *PropertyHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	handlerutils.WriteJSON(w, http.StatusOK, propertysvc.MapProperty(p))
+	handlerutils.WriteJSON(w, http.StatusOK, p)
 }
 
 func (h *PropertyHandler) handleList(w http.ResponseWriter, r *http.Request) {
@@ -279,7 +279,7 @@ func (h *PropertyHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	handlerutils.WriteJSON(w, http.StatusOK, propertysvc.MapProperty(updated))
+	handlerutils.WriteJSON(w, http.StatusOK, updated)
 }
 
 func (h *PropertyHandler) handleDelete(w http.ResponseWriter, r *http.Request) {

@@ -25,15 +25,15 @@ import (
 
 type mockService struct {
 	CreateCalled bool
-	CreateFunc   func(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error)
+	CreateFunc   func(ctx context.Context, userID int, req dto.CreatePropertyRequest) (dto.PropertyDTO, error)
 
 	GetByIDCalled bool
-	GetByIDFunc   func(ctx context.Context, id int) (domain.Property, error)
+	GetByIDFunc   func(ctx context.Context, id int) (dto.PropertyDTO, error)
 
-	GetByIDWithFavoriteFunc func(ctx context.Context, id int, userID int) (domain.Property, bool, error)
+	GetByIDWithFavoriteFunc func(ctx context.Context, id int, userID int) (dto.PropertyDTO, error)
 
 	UpdateCalled bool
-	UpdateFunc   func(ctx context.Context, req dto.UpdatePropertyRequest) (domain.Property, error)
+	UpdateFunc   func(ctx context.Context, req dto.UpdatePropertyRequest) (dto.PropertyDTO, error)
 
 	ListCalled bool
 	ListFunc   func(ctx context.Context, req dto.ListPropertiesRequest) (dto.ListPropertiesResponse, error)
@@ -41,38 +41,37 @@ type mockService struct {
 	DeleteCalled bool
 	DeleteFunc   func(ctx context.Context, id int) (int, error)
 
-	ToggleFavoriteFunc func(ctx context.Context, userID int, propertyID int) (bool, domain.Property, error)
+	ToggleFavoriteFunc func(ctx context.Context, userID int, propertyID int) (bool, dto.PropertyDTO, error)
 }
 
-func (m *mockService) Create(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error) {
+func (m *mockService) Create(ctx context.Context, userID int, req dto.CreatePropertyRequest) (dto.PropertyDTO, error) {
 	m.CreateCalled = true
 	if m.CreateFunc != nil {
 		return m.CreateFunc(ctx, userID, req)
 	}
-	return domain.Property{ID: 1, Title: req.Title, CreatedBy: userID}, nil
+	return dto.PropertyDTO{ID: 1, Title: req.Title}, nil
 }
-func (m *mockService) GetByID(ctx context.Context, id int) (domain.Property, error) {
+func (m *mockService) GetByID(ctx context.Context, id int) (dto.PropertyDTO, error) {
 	m.GetByIDCalled = true
 	if m.GetByIDFunc != nil {
 		return m.GetByIDFunc(ctx, id)
 	}
-	return domain.Property{ID: id, Title: "t", CreatedBy: 3}, nil
+	return dto.PropertyDTO{ID: id, Title: "t"}, nil
 }
-
-func (m *mockService) GetByIDWithFavorite(ctx context.Context, id int, userID int) (domain.Property, bool, error) {
+func (m *mockService) GetByIDWithFavorite(ctx context.Context, id int, userID int) (dto.PropertyDTO, error) {
 	if m.GetByIDWithFavoriteFunc != nil {
 		return m.GetByIDWithFavoriteFunc(ctx, id, userID)
 	}
 	// fallback to GetByID
 	p, err := m.GetByID(ctx, id)
-	return p, false, err
+	return p, err
 }
-func (m *mockService) Update(ctx context.Context, req dto.UpdatePropertyRequest) (domain.Property, error) {
+func (m *mockService) Update(ctx context.Context, req dto.UpdatePropertyRequest) (dto.PropertyDTO, error) {
 	m.UpdateCalled = true
 	if m.UpdateFunc != nil {
 		return m.UpdateFunc(ctx, req)
 	}
-	return domain.Property{ID: req.ID}, nil
+	return dto.PropertyDTO{ID: req.ID}, nil
 }
 func (m *mockService) List(ctx context.Context, req dto.ListPropertiesRequest) (dto.ListPropertiesResponse, error) {
 	m.ListCalled = true
@@ -89,11 +88,11 @@ func (m *mockService) Delete(ctx context.Context, id int) (int, error) {
 	return id, nil
 }
 
-func (m *mockService) ToggleFavorite(ctx context.Context, userID int, propertyID int) (bool, domain.Property, error) {
+func (m *mockService) ToggleFavorite(ctx context.Context, userID int, propertyID int) (bool, dto.PropertyDTO, error) {
 	if m.ToggleFavoriteFunc != nil {
 		return m.ToggleFavoriteFunc(ctx, userID, propertyID)
 	}
-	return false, domain.Property{}, nil
+	return false, dto.PropertyDTO{}, nil
 }
 
 func newLogger() *slog.Logger {
@@ -163,7 +162,7 @@ func TestHandleCreate_CallsServiceAndReturnsCreated(t *testing.T) {
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d body=%s", rr.Code, rr.Body.String())
 	}
-	var got domain.Property
+	var got dto.PropertyDTO
 	if err := json.NewDecoder(rr.Body).Decode(&got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -309,8 +308,8 @@ func TestHandleGet_CallsServiceAndReturns(t *testing.T) {
 
 func TestHandleGet_ReturnsIsFavoritedWhenAuthenticated(t *testing.T) {
 	m := &mockService{}
-	m.GetByIDWithFavoriteFunc = func(ctx context.Context, id int, userID int) (domain.Property, bool, error) {
-		return domain.Property{ID: id, Title: "t", CreatedBy: 3}, true, nil
+	m.GetByIDWithFavoriteFunc = func(ctx context.Context, id int, userID int) (dto.PropertyDTO, error) {
+		return dto.PropertyDTO{ID: id, Title: "t", IsFavorited: true}, nil
 	}
 	logger := newLogger()
 	h := NewPropertyHandler(m, logger, nil, nil)
@@ -337,8 +336,8 @@ func TestHandleGet_ReturnsIsFavoritedWhenAuthenticated(t *testing.T) {
 
 func TestHandleCreate_ServiceInvalidInput_Returns400(t *testing.T) {
 	m := &mockService{}
-	m.CreateFunc = func(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error) {
-		return domain.Property{}, apperrors.NewErrInvalidInput("title", req.Title, "invalid")
+	m.CreateFunc = func(ctx context.Context, userID int, req dto.CreatePropertyRequest) (dto.PropertyDTO, error) {
+		return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("title", req.Title, "invalid")
 	}
 	logger := newLogger()
 	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
@@ -358,8 +357,8 @@ func TestHandleCreate_ServiceInvalidInput_Returns400(t *testing.T) {
 
 func TestHandleCreate_ServiceAlreadyExists_Returns409(t *testing.T) {
 	m := &mockService{}
-	m.CreateFunc = func(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error) {
-		return domain.Property{}, apperrors.NewErrAlreadyExists("property", "title", req.Title)
+	m.CreateFunc = func(ctx context.Context, userID int, req dto.CreatePropertyRequest) (dto.PropertyDTO, error) {
+		return dto.PropertyDTO{}, apperrors.NewErrAlreadyExists("property", "title", req.Title)
 	}
 	logger := newLogger()
 	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
@@ -379,8 +378,8 @@ func TestHandleCreate_ServiceAlreadyExists_Returns409(t *testing.T) {
 
 func TestHandleGet_NotFound_Returns404(t *testing.T) {
 	m := &mockService{}
-	m.GetByIDFunc = func(ctx context.Context, id int) (domain.Property, error) {
-		return domain.Property{}, apperrors.NewErrNotFound("property", id)
+	m.GetByIDFunc = func(ctx context.Context, id int) (dto.PropertyDTO, error) {
+		return dto.PropertyDTO{}, apperrors.NewErrNotFound("property", id)
 	}
 	logger := newLogger()
 	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
@@ -399,8 +398,8 @@ func TestHandleGet_NotFound_Returns404(t *testing.T) {
 
 func TestHandleUpdate_NotFound_Returns404(t *testing.T) {
 	m := &mockService{}
-	m.UpdateFunc = func(ctx context.Context, req dto.UpdatePropertyRequest) (domain.Property, error) {
-		return domain.Property{}, apperrors.NewErrNotFound("property", req.ID)
+	m.UpdateFunc = func(ctx context.Context, req dto.UpdatePropertyRequest) (dto.PropertyDTO, error) {
+		return dto.PropertyDTO{}, apperrors.NewErrNotFound("property", req.ID)
 	}
 	logger := newLogger()
 	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
@@ -455,7 +454,7 @@ func TestHandleUpdate_CallsServiceAndReturnsOK(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
 	}
-	var got domain.Property
+	var got dto.PropertyDTO
 	if err := json.NewDecoder(rr.Body).Decode(&got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}

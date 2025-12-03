@@ -111,6 +111,12 @@ paths:
                   longitude: -74.006
                   city: "New York"
                   property_status: "available"
+                  images:
+                    - filename: "photo1.jpg"
+                      data: "base64encodedstring=="
+                  image:
+                    filename: "photo1.jpg"
+                    data: "base64encodedstring=="
                   created_at: "2025-11-29T12:00:00Z"
                   updated_at: "2025-11-29T12:00:00Z"
               total: 1
@@ -231,6 +237,12 @@ paths:
               longitude: -74.006
               city: "New York"
               property_status: "available"
+              images:
+                - filename: "photo1.jpg"
+                  data: "base64encodedstring=="
+              image:
+                filename: "photo1.jpg"
+                data: "base64encodedstring=="
               created_at: "2025-11-29T12:00:00Z"
               updated_at: "2025-11-29T12:00:00Z"
         "400":
@@ -894,6 +906,12 @@ definitions:
       is_favorited: { type: boolean, example: false }
       created_at: { type: string, format: date-time, example: "2025-11-29T12:00:00Z" }
       updated_at: { type: string, format: date-time, example: "2025-11-29T12:00:00Z" }
+      images:
+        type: array
+        items:
+          $ref: '#/definitions/propertyhandler.ImageFileDoc'
+      image:
+        $ref: '#/definitions/propertyhandler.ImageFileDoc'
 
   propertyhandler.PropertyCreateDoc:
     type: object

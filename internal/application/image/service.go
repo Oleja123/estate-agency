@@ -40,11 +40,10 @@ func (s *service) lockForProperty(propertyID int) func() {
 	}
 }
 
-func New(repo domain.ImageRepository, logger *slog.Logger, basePath string) Service {
+func New(repo domain.ImageRepository, logger *slog.Logger, store *filestore.FileStore, basePath string) Service {
 	if basePath == "" {
 		basePath = "property_images"
 	}
-	store := filestore.New(basePath)
 	return &service{repo: repo, logger: logger, store: store, baseDir: basePath}
 }
 
@@ -143,15 +142,26 @@ func (s *service) CreateMany(ctx context.Context, req dto.CreateImagesRequest) (
 	if req.PropertyID == 0 {
 		return nil, apperrors.NewErrInvalidInput("property_id", req.PropertyID, "must be provided")
 	}
-	if len(req.Files) == 0 {
-		return nil, nil
-	}
 	if len(req.Files) > 110 {
 		return nil, apperrors.NewErrInvalidInput("files", len(req.Files), "maximum 110 images allowed")
 	}
 
 	unlock := s.lockForProperty(req.PropertyID)
 	defer unlock()
+
+	// remove existing DB records for this property to ensure we replace them
+	if _, err := s.repo.DeleteMany(ctx, req.PropertyID); err != nil {
+		var nf dberrors.ErrNotFound
+		if !errors.As(err, &nf) {
+			s.logger.Error("create many: delete existing db rows failed", "err", err)
+			return nil, apperrors.NewErrInternal("failed to remove existing images")
+		}
+	}
+	// remove existing files on disk as well
+	if delErr := s.store.DeletePropertyDir(req.PropertyID); delErr != nil {
+		s.logger.Error("create many: filestore delete dir failed", "err", delErr, "property_id", req.PropertyID)
+		return nil, apperrors.NewErrInternal("failed to remove existing images")
+	}
 
 	tmpDir, err := os.MkdirTemp(s.baseDir, fmt.Sprintf("%d_tmp_", req.PropertyID))
 	if err != nil {

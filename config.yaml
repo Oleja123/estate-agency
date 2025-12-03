@@ -4,7 +4,7 @@
 db_config:
   username: root
   password: root
-  host: db
+  host: localhost
   port: "5432"
   database: estate
   max_attempts: 5

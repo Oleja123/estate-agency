@@ -13,43 +13,45 @@ import (
 	domain "github.com/Oleja123/estate-agency/internal/domain/property"
 	ptypedomain "github.com/Oleja123/estate-agency/internal/domain/property_type"
 	dberrors "github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
+	"github.com/Oleja123/estate-agency/internal/infrastructure/filestore"
 	geocoder "github.com/Oleja123/estate-agency/internal/infrastructure/geocoder"
 )
 
 var _ Service = (*service)(nil)
 
 type service struct {
-	repo     domain.Repository
-	typeRepo ptypedomain.Repository
-	logger   *slog.Logger
-	geo      geocoder.GeoService
-	favSvc   favoritesvc.Service
+	repo      domain.Repository
+	typeRepo  ptypedomain.Repository
+	logger    *slog.Logger
+	geo       geocoder.GeoService
+	favSvc    favoritesvc.Service
+	fileStore *filestore.FileStore
 }
 
-func New(repo domain.Repository, typeRepo ptypedomain.Repository, logger *slog.Logger, geo geocoder.GeoService, favSvc favoritesvc.Service) Service {
+func New(repo domain.Repository, typeRepo ptypedomain.Repository, logger *slog.Logger, geo geocoder.GeoService, favSvc favoritesvc.Service, fileStore *filestore.FileStore) Service {
 	if geo == nil {
 		geo = geocoder.NewNoop()
 	}
-	return &service{repo: repo, typeRepo: typeRepo, logger: logger, geo: geo, favSvc: favSvc}
+	return &service{repo: repo, typeRepo: typeRepo, logger: logger, geo: geo, favSvc: favSvc, fileStore: fileStore}
 }
 
-func (s *service) Create(ctx context.Context, userID int, req dto.CreatePropertyRequest) (domain.Property, error) {
+func (s *service) Create(ctx context.Context, userID int, req dto.CreatePropertyRequest) (dto.PropertyDTO, error) {
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
-		return domain.Property{}, apperrors.NewErrInvalidInput("title", title, "must not be empty")
+		return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("title", title, "must not be empty")
 	}
 
 	if req.TypeID == 0 {
-		return domain.Property{}, apperrors.NewErrInvalidInput("type_id", req.TypeID, "must be provided")
+		return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("type_id", req.TypeID, "must be provided")
 	}
 	if _, err := s.typeRepo.GetByID(ctx, req.TypeID); err != nil {
 		var nf dberrors.ErrNotFound
 		switch {
 		case errors.As(err, &nf):
-			return domain.Property{}, apperrors.NewErrNotFound("property_type", req.TypeID)
+			return dto.PropertyDTO{}, apperrors.NewErrNotFound("property_type", req.TypeID)
 		default:
 			s.logger.Error("create property: type repo error", "err", err)
-			return domain.Property{}, apperrors.NewErrInternal("failed to validate property type")
+			return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to validate property type")
 		}
 	}
 
@@ -67,7 +69,7 @@ func (s *service) Create(ctx context.Context, userID int, req dto.CreateProperty
 	}
 
 	if p.PropertyAddress == "" {
-		return domain.Property{}, apperrors.NewErrInvalidInput("property_address", p.PropertyAddress, "must not be empty")
+		return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("property_address", p.PropertyAddress, "must not be empty")
 	}
 
 	lat, lon, err := s.geo.Geocode(p.PropertyAddress)
@@ -83,18 +85,18 @@ func (s *service) Create(ctx context.Context, userID int, req dto.CreateProperty
 		switch {
 		case errors.As(err, &gno):
 			appErr := apperrors.NewErrGeocodingWithDetails(gno.Error(), "geoapify", "no_results", "no coordinates for address", 422, gno.Address)
-			return domain.Property{}, appErr
+			return dto.PropertyDTO{}, appErr
 		case errors.As(err, &gcfg):
 			appErr := apperrors.NewErrGeocodingWithDetails(gcfg.Error(), "geoapify", "config", gcfg.Message, 500, "")
-			return domain.Property{}, appErr
+			return dto.PropertyDTO{}, appErr
 		case errors.As(err, &gdec):
 			appErr := apperrors.NewErrGeocodingWithDetails(gdec.Error(), "geoapify", "decode", gdec.Details, 502, "")
-			return domain.Property{}, appErr
+			return dto.PropertyDTO{}, appErr
 		case errors.As(err, &greq):
 			appErr := apperrors.NewErrGeocodingWithDetails(greq.Error(), "geoapify", "request", greq.Details, 502, "")
-			return domain.Property{}, appErr
+			return dto.PropertyDTO{}, appErr
 		default:
-			return domain.Property{}, apperrors.NewErrGeocoding(err.Error())
+			return dto.PropertyDTO{}, apperrors.NewErrGeocoding(err.Error())
 		}
 	}
 	p.Latitude = lat
@@ -105,62 +107,62 @@ func (s *service) Create(ctx context.Context, userID int, req dto.CreateProperty
 		var ae dberrors.ErrAlreadyExists
 		switch {
 		case errors.As(err, &ae):
-			return domain.Property{}, apperrors.NewErrAlreadyExists("property", "title", title)
+			return dto.PropertyDTO{}, apperrors.NewErrAlreadyExists("property", "title", title)
 		default:
 			s.logger.Error("create property: repo create error", "err", err)
-			return domain.Property{}, apperrors.NewErrInternal("failed to create property")
+			return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to create property")
 		}
 	}
 
 	created, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		s.logger.Error("create property: failed to fetch created", "err", err)
-		return domain.Property{}, apperrors.NewErrInternal("failed to fetch created property")
+		return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to fetch created property")
 	}
 	s.logger.Info("property created", "id", created.ID, "title", created.Title)
-	return created, nil
+	return s.MapProperty(created)
 }
 
-func (s *service) GetByID(ctx context.Context, id int) (domain.Property, error) {
+func (s *service) GetByID(ctx context.Context, id int) (dto.PropertyDTO, error) {
 	p, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		var nf dberrors.ErrNotFound
 		switch {
 		case errors.As(err, &nf):
-			return domain.Property{}, apperrors.NewErrNotFound("property", id)
+			return dto.PropertyDTO{}, apperrors.NewErrNotFound("property", id)
 		default:
 			s.logger.Error("get property: repo error", "err", err)
-			return domain.Property{}, apperrors.NewErrInternal("failed to fetch property")
+			return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to fetch property")
 		}
 	}
-	return p, nil
+	return s.MapProperty(p)
 }
 
-func (s *service) GetByIDWithFavorite(ctx context.Context, id int, userID int) (domain.Property, bool, error) {
+func (s *service) GetByIDWithFavorite(ctx context.Context, id int, userID int) (dto.PropertyDTO, error) {
 	p, fav, err := s.repo.GetByIDWithFavorite(ctx, id, userID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
 		switch {
 		case errors.As(err, &nf):
-			return domain.Property{}, false, apperrors.NewErrNotFound("property", id)
+			return dto.PropertyDTO{}, apperrors.NewErrNotFound("property", id)
 		default:
 			s.logger.Error("get property with favorite: repo error", "err", err)
-			return domain.Property{}, false, apperrors.NewErrInternal("failed to fetch property")
+			return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to fetch property")
 		}
 	}
-	return p, fav, nil
+	return s.MapPropertyWithFavorite(p, fav)
 }
 
-func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) (domain.Property, error) {
+func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) (dto.PropertyDTO, error) {
 	p, err := s.repo.GetByID(ctx, req.ID)
 	if err != nil {
 		var nf dberrors.ErrNotFound
 		switch {
 		case errors.As(err, &nf):
-			return domain.Property{}, apperrors.NewErrNotFound("property", req.ID)
+			return dto.PropertyDTO{}, apperrors.NewErrNotFound("property", req.ID)
 		default:
 			s.logger.Error("update property: failed to fetch", "err", err)
-			return domain.Property{}, apperrors.NewErrInternal("failed to fetch property")
+			return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to fetch property")
 		}
 	}
 
@@ -171,10 +173,10 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) (do
 				var nf dberrors.ErrNotFound
 				switch {
 				case errors.As(err, &nf):
-					return domain.Property{}, apperrors.NewErrNotFound("property_type", val)
+					return dto.PropertyDTO{}, apperrors.NewErrNotFound("property_type", val)
 				default:
 					s.logger.Error("update property: type repo error", "err", err)
-					return domain.Property{}, apperrors.NewErrInternal("failed to validate property type")
+					return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to validate property type")
 				}
 			}
 			p.TypeID = val
@@ -208,7 +210,7 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) (do
 
 	if req.PropertyAddress.Defined && req.PropertyAddress.Valid {
 		if p.PropertyAddress == "" {
-			return domain.Property{}, apperrors.NewErrInvalidInput("property_address", p.PropertyAddress, "must not be empty")
+			return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("property_address", p.PropertyAddress, "must not be empty")
 		}
 		lat, lon, err := s.geo.Geocode(p.PropertyAddress)
 		if err != nil {
@@ -222,18 +224,18 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) (do
 			switch {
 			case errors.As(err, &gno):
 				appErr := apperrors.NewErrGeocodingWithDetails(gno.Error(), "geoapify", "no_results", "no coordinates for address", 422, gno.Address)
-				return domain.Property{}, appErr
+				return dto.PropertyDTO{}, appErr
 			case errors.As(err, &gcfg):
 				appErr := apperrors.NewErrGeocodingWithDetails(gcfg.Error(), "geoapify", "config", gcfg.Message, 500, "")
-				return domain.Property{}, appErr
+				return dto.PropertyDTO{}, appErr
 			case errors.As(err, &gdec):
 				appErr := apperrors.NewErrGeocodingWithDetails(gdec.Error(), "geoapify", "decode", gdec.Details, 502, "")
-				return domain.Property{}, appErr
+				return dto.PropertyDTO{}, appErr
 			case errors.As(err, &greq):
 				appErr := apperrors.NewErrGeocodingWithDetails(greq.Error(), "geoapify", "request", greq.Details, 502, "")
-				return domain.Property{}, appErr
+				return dto.PropertyDTO{}, appErr
 			default:
-				return domain.Property{}, apperrors.NewErrGeocoding(err.Error())
+				return dto.PropertyDTO{}, apperrors.NewErrGeocoding(err.Error())
 			}
 		}
 		p.Latitude = lat
@@ -246,16 +248,16 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) (do
 		var di dberrors.ErrInvalidInput
 		switch {
 		case errors.As(err, &ae):
-			return domain.Property{}, apperrors.NewErrAlreadyExists("property", ae.Field, ae.Value)
+			return dto.PropertyDTO{}, apperrors.NewErrAlreadyExists("property", ae.Field, ae.Value)
 		case errors.As(err, &di):
-			return domain.Property{}, apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
+			return dto.PropertyDTO{}, apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
 		default:
 			s.logger.Error("update property: repo update failed", "err", err)
-			return domain.Property{}, apperrors.NewErrInternal("failed to update property")
+			return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to update property")
 		}
 	}
 	s.logger.Info("update property: updated", "id", updated.ID)
-	return updated, nil
+	return s.MapProperty(updated)
 }
 
 func (s *service) List(ctx context.Context, req dto.ListPropertiesRequest) (dto.ListPropertiesResponse, error) {
@@ -265,7 +267,10 @@ func (s *service) List(ctx context.Context, req dto.ListPropertiesRequest) (dto.
 		s.logger.Error("list properties: repo list failed", "err", err)
 		return dto.ListPropertiesResponse{}, apperrors.NewErrInternal("failed to list properties")
 	}
-	props := MapProperties(list)
+	props, err := s.MapProperties(list)
+	if err != nil {
+		return dto.ListPropertiesResponse{}, err
+	}
 	return dto.ListPropertiesResponse{Properties: props, Total: total}, nil
 }
 
@@ -285,30 +290,34 @@ func (s *service) Delete(ctx context.Context, id int) (int, error) {
 	return deletedID, nil
 }
 
-func (s *service) ToggleFavorite(ctx context.Context, userID int, propertyID int) (bool, domain.Property, error) {
+func (s *service) ToggleFavorite(ctx context.Context, userID int, propertyID int) (bool, dto.PropertyDTO, error) {
 	if s.favSvc == nil {
-		return false, domain.Property{}, apperrors.NewErrInternal("favorites not configured")
+		return false, dto.PropertyDTO{}, apperrors.NewErrInternal("favorites not configured")
 	}
 	key := favdto.CreateFavoriteRequest{UserID: userID, PropertyID: propertyID}
 	exists, err := s.favSvc.Exists(ctx, key)
 	if err != nil {
-		return false, domain.Property{}, err
+		return false, dto.PropertyDTO{}, err
 	}
 	if exists {
 		_, err := s.favSvc.Delete(ctx, key)
 		if err != nil {
-			return false, domain.Property{}, err
+			return false, dto.PropertyDTO{}, err
 		}
-		return false, domain.Property{}, nil
+		return false, dto.PropertyDTO{}, nil
 	}
 	// create favorite returns the property id; fetch full property to return to caller
 	_, err = s.favSvc.Create(ctx, key)
 	if err != nil {
-		return false, domain.Property{}, err
+		return false, dto.PropertyDTO{}, err
 	}
 	createdProp, err := s.favSvc.GetByUserAndProperty(ctx, key)
 	if err != nil {
-		return false, domain.Property{}, err
+		return false, dto.PropertyDTO{}, err
 	}
-	return true, createdProp, nil
+	dtoProp, err := s.MapProperty(createdProp)
+	if err != nil {
+		return false, dto.PropertyDTO{}, err
+	}
+	return true, dtoProp, nil
 }
