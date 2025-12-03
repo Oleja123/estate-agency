@@ -68,8 +68,6 @@ func (h *PropertyHandler) Register(r chi.Router, prefix string, authMw func(next
 		}
 
 		if h.imgSvc != nil {
-
-			r.Get("/{id}/images", h.handleListImages)
 			r.With(auth.RequireAdminMiddleware()).Put("/{id}/images", h.handleUpdateImages)
 		}
 	})
@@ -345,24 +343,4 @@ func (h *PropertyHandler) handleUpdateImages(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	handlerutils.WriteJSON(w, http.StatusNoContent, nil)
-}
-
-func (h *PropertyHandler) handleListImages(w http.ResponseWriter, r *http.Request) {
-	pidStr := chi.URLParam(r, "id")
-	pid, err := strconv.Atoi(pidStr)
-	if err != nil {
-		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
-		return
-	}
-	if h.imgSvc == nil {
-		handlerutils.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "загрузка изображений не поддерживается"})
-		return
-	}
-	imgs, err := h.imgSvc.ListByProperty(r.Context(), pid)
-	if err != nil {
-		code, body := handlerutils.MapAppError(err)
-		handlerutils.WriteJSON(w, code, body)
-		return
-	}
-	handlerutils.WriteJSON(w, http.StatusOK, imgs)
 }

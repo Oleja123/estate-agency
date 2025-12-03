@@ -319,32 +319,7 @@ paths:
           description: Internal Server Error
 
   /properties/{id}/images:
-    get:
-      summary: List images
-      tags: [properties]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          type: integer
-          example: 1
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: array
-            items:
-              $ref: '#/definitions/propertyhandler.ImageDTODoc'
-        "400":
-          description: Bad Request
-        "401":
-          description: Unauthorized
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
-        "501":
-          description: Not Implemented
+    
     put:
       summary: Replace images
       tags: [properties]
@@ -906,12 +881,7 @@ definitions:
       is_favorited: { type: boolean, example: false }
       created_at: { type: string, format: date-time, example: "2025-11-29T12:00:00Z" }
       updated_at: { type: string, format: date-time, example: "2025-11-29T12:00:00Z" }
-      images:
-        type: array
-        items:
-          $ref: '#/definitions/propertyhandler.ImageFileDoc'
-      image:
-        $ref: '#/definitions/propertyhandler.ImageFileDoc'
+      # images removed
 
   propertyhandler.PropertyCreateDoc:
     type: object
@@ -956,20 +926,7 @@ definitions:
           $ref: '#/definitions/propertyhandler.PropertyDTODoc'
       total: { type: integer, example: 42 }
 
-  propertyhandler.ImageFileDoc:
-    type: object
-    properties:
-      filename: { type: string, example: "photo1.jpg" }
-      data: { type: string, format: byte, example: "base64encodedstring==" }
-
-  propertyhandler.ImageDTODoc:
-    type: object
-    properties:
-      property_id: { type: integer, example: 1 }
-      files:
-        type: array
-        items:
-          $ref: '#/definitions/propertyhandler.ImageFileDoc'
+  # Image DTOs removed
 
   propertyhandler.FavoriteDTODoc:
     type: object
