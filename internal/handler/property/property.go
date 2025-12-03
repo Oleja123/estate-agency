@@ -130,13 +130,24 @@ func (h *PropertyHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
+	// if user is authenticated, fetch favorite flag along with property
+	if uid, ok := auth.UserIDFromContext(r.Context()); ok {
+		p, fav, err := h.svc.GetByIDWithFavorite(r.Context(), id, uid)
+		if err != nil {
+			code, body := handlerutils.MapAppError(err)
+			handlerutils.WriteJSON(w, code, body)
+			return
+		}
+		handlerutils.WriteJSON(w, http.StatusOK, propertysvc.MapPropertyWithFavorite(p, fav))
+		return
+	}
+
 	p, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
 		code, body := handlerutils.MapAppError(err)
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-
 	handlerutils.WriteJSON(w, http.StatusOK, propertysvc.MapProperty(p))
 }
 

@@ -844,6 +844,7 @@ definitions:
       longitude: { type: number, example: -74.006 }
       city: { type: string, example: "New York" }
       property_status: { type: string, example: "available" }
+      is_favorited: { type: boolean, example: false }
       created_at: { type: string, format: date-time, example: "2025-11-29T12:00:00Z" }
       updated_at: { type: string, format: date-time, example: "2025-11-29T12:00:00Z" }
 

@@ -32,4 +32,8 @@ type Repository interface {
 	Delete(ctx context.Context, id int) (int, error)
 
 	List(ctx context.Context, req ListRequest) ([]Property, int, error)
+	// GetByIDWithFavorite returns the property and a boolean indicating whether
+	// the given user (userID) has this property in favorites. If userID == 0,
+	// the favorite flag will be false.
+	GetByIDWithFavorite(ctx context.Context, id int, userID int) (Property, bool, error)
 }

@@ -120,6 +120,52 @@ func (r *Repository) GetByID(ctx context.Context, id int) (property.Property, er
 	return prop, nil
 }
 
+// GetByIDWithFavorite returns the property and whether the specified user has it in favorites.
+func (r *Repository) GetByIDWithFavorite(ctx context.Context, id int, userID int) (property.Property, bool, error) {
+	const op = "propertydb.Repository.GetByIDWithFavorite"
+
+	// Build the query using squirrel: select property columns and a boolean
+	// computed by checking if a favorite row exists for the given user.
+	// Use LEFT JOIN with the user filter in the join to avoid duplicating rows.
+	sql, args, err := r.sq.
+		Select(
+			"p.id", "p.title", "p.property_description", "p.type_id", "p.transaction_type", "p.price", "p.area", "p.property_address", "p.latitude", "p.longitude", "p.city", "p.property_status", "p.created_by", "p.created_at", "p.updated_at", "COALESCE(f.user_id IS NOT NULL, false) AS is_favorited",
+		).From("properties p").LeftJoin("favorites f ON f.property_id = p.id AND f.user_id = ?", userID).
+		Where(squirrel.Eq{"p.id": id}).Limit(1).ToSql()
+	if err != nil {
+		return property.Property{}, false, basedberrors.NewErrDatabase(op, fmt.Sprintf("build query error: %s", err))
+	}
+
+	r.Logger.DebugContext(ctx, "GetByIDWithFavorite query",
+		"operation", op,
+		"property_id", id,
+		"user_id", userID,
+	)
+
+	var prop property.Property
+	var isFav bool
+
+	err = r.Client.QueryRow(ctx, sql, args...).Scan(
+		&prop.ID, &prop.Title, &prop.PropertyDescription, &prop.TypeID,
+		&prop.TransactionType, &prop.Price, &prop.Area, &prop.PropertyAddress,
+		&prop.Latitude, &prop.Longitude, &prop.City, &prop.PropertyStatus,
+		&prop.CreatedBy, &prop.CreatedAt, &prop.UpdatedAt, &isFav,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			r.Logger.DebugContext(ctx, "property not found by id",
+				"operation", op,
+				"property_id", id,
+			)
+			return property.Property{}, false, basedberrors.NewErrNotFound("property", id)
+		}
+		return property.Property{}, false, r.HandleError(op, err)
+	}
+
+	return prop, isFav, nil
+}
+
 func (r *Repository) Update(ctx context.Context, prop property.Property) (property.Property, error) {
 	const op = "propertydb.Repository.Update"
 

@@ -114,6 +114,21 @@ func (s *service) GetByID(ctx context.Context, id int) (domain.Property, error) 
 	return p, nil
 }
 
+func (s *service) GetByIDWithFavorite(ctx context.Context, id int, userID int) (domain.Property, bool, error) {
+	p, fav, err := s.repo.GetByIDWithFavorite(ctx, id, userID)
+	if err != nil {
+		var nf dberrors.ErrNotFound
+		switch {
+		case errors.As(err, &nf):
+			return domain.Property{}, false, apperrors.NewErrNotFound("property", id)
+		default:
+			s.logger.Error("get property with favorite: repo error", "err", err)
+			return domain.Property{}, false, apperrors.NewErrInternal("failed to fetch property")
+		}
+	}
+	return p, fav, nil
+}
+
 func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) (domain.Property, error) {
 	p, err := s.repo.GetByID(ctx, req.ID)
 	if err != nil {

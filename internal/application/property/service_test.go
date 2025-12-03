@@ -42,11 +42,12 @@ func (m *mockFavoriteService) Exists(ctx context.Context, key favdto.CreateFavor
 }
 
 type mockRepo struct {
-	CreateFn  func(ctx context.Context, p domain.Property) (int, error)
-	GetByIDFn func(ctx context.Context, id int) (domain.Property, error)
-	UpdateFn  func(ctx context.Context, p domain.Property) (domain.Property, error)
-	DeleteFn  func(ctx context.Context, id int) (int, error)
-	ListFn    func(ctx context.Context, req domain.ListRequest) ([]domain.Property, int, error)
+	CreateFn              func(ctx context.Context, p domain.Property) (int, error)
+	GetByIDFn             func(ctx context.Context, id int) (domain.Property, error)
+	GetByIDWithFavoriteFn func(ctx context.Context, id int, userID int) (domain.Property, bool, error)
+	UpdateFn              func(ctx context.Context, p domain.Property) (domain.Property, error)
+	DeleteFn              func(ctx context.Context, id int) (int, error)
+	ListFn                func(ctx context.Context, req domain.ListRequest) ([]domain.Property, int, error)
 }
 
 type mockTypeRepo struct {
@@ -105,6 +106,17 @@ func (m *mockRepo) Create(ctx context.Context, p domain.Property) (int, error) {
 }
 func (m *mockRepo) GetByID(ctx context.Context, id int) (domain.Property, error) {
 	return m.GetByIDFn(ctx, id)
+}
+func (m *mockRepo) GetByIDWithFavorite(ctx context.Context, id int, userID int) (domain.Property, bool, error) {
+	if m.GetByIDWithFavoriteFn != nil {
+		return m.GetByIDWithFavoriteFn(ctx, id, userID)
+	}
+	// default delegate to GetByID if defined
+	if m.GetByIDFn != nil {
+		p, err := m.GetByIDFn(ctx, id)
+		return p, false, err
+	}
+	return domain.Property{}, false, nil
 }
 func (m *mockRepo) Update(ctx context.Context, p domain.Property) (domain.Property, error) {
 	return m.UpdateFn(ctx, p)

@@ -24,6 +24,12 @@ func MapProperty(p domain.Property) dto.PropertyDTO {
 	}
 }
 
+func MapPropertyWithFavorite(p domain.Property, isFav bool) dto.PropertyDTO {
+	out := MapProperty(p)
+	out.IsFavorited = isFav
+	return out
+}
+
 func MapProperties(list []domain.Property) []dto.PropertyDTO {
 	out := make([]dto.PropertyDTO, 0, len(list))
 	for _, p := range list {

@@ -30,6 +30,8 @@ type mockService struct {
 	GetByIDCalled bool
 	GetByIDFunc   func(ctx context.Context, id int) (domain.Property, error)
 
+	GetByIDWithFavoriteFunc func(ctx context.Context, id int, userID int) (domain.Property, bool, error)
+
 	UpdateCalled bool
 	UpdateFunc   func(ctx context.Context, req dto.UpdatePropertyRequest) (domain.Property, error)
 
@@ -55,6 +57,15 @@ func (m *mockService) GetByID(ctx context.Context, id int) (domain.Property, err
 		return m.GetByIDFunc(ctx, id)
 	}
 	return domain.Property{ID: id, Title: "t", CreatedBy: 3}, nil
+}
+
+func (m *mockService) GetByIDWithFavorite(ctx context.Context, id int, userID int) (domain.Property, bool, error) {
+	if m.GetByIDWithFavoriteFunc != nil {
+		return m.GetByIDWithFavoriteFunc(ctx, id, userID)
+	}
+	// fallback to GetByID
+	p, err := m.GetByID(ctx, id)
+	return p, false, err
 }
 func (m *mockService) Update(ctx context.Context, req dto.UpdatePropertyRequest) (domain.Property, error) {
 	m.UpdateCalled = true
@@ -293,6 +304,34 @@ func TestHandleGet_CallsServiceAndReturns(t *testing.T) {
 	}
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rr.Code)
+	}
+}
+
+func TestHandleGet_ReturnsIsFavoritedWhenAuthenticated(t *testing.T) {
+	m := &mockService{}
+	m.GetByIDWithFavoriteFunc = func(ctx context.Context, id int, userID int) (domain.Property, bool, error) {
+		return domain.Property{ID: id, Title: "t", CreatedBy: 3}, true, nil
+	}
+	logger := newLogger()
+	h := NewPropertyHandler(m, logger, nil, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/properties/2", nil)
+	rc := chi.NewRouteContext()
+	rc.URLParams.Add("id", "2")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
+	req = req.WithContext(auth.ContextWithUser(req.Context(), 42, "client"))
+	rr := httptest.NewRecorder()
+
+	h.handleGet(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	var got dto.PropertyDTO
+	if err := json.NewDecoder(rr.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !got.IsFavorited {
+		t.Fatalf("expected is_favorited true")
 	}
 }
 
