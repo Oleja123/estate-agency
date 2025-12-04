@@ -26,7 +26,7 @@ func NewErrUnsupportedFormat(filename, detected string) error {
 }
 
 func (e ErrUnsupportedFormat) Error() string {
-	return fmt.Sprintf("unsupported image format for file '%s': %s", e.Filename, e.Detected)
+	return fmt.Sprintf("не поддерживаемый формат изображения для файла '%s': %s", e.Filename, e.Detected)
 }
 
 type ErrStorage struct {
@@ -39,5 +39,5 @@ func NewErrStorage(op, details string) error {
 }
 
 func (e ErrStorage) Error() string {
-	return fmt.Sprintf("storage error during %s: %s", e.Operation, e.Details)
+	return fmt.Sprintf("ошибка хранилища при %s: %s", e.Operation, e.Details)
 }

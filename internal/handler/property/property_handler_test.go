@@ -62,7 +62,7 @@ func (m *mockService) GetByIDWithFavorite(ctx context.Context, id int, userID in
 	if m.GetByIDWithFavoriteFunc != nil {
 		return m.GetByIDWithFavoriteFunc(ctx, id, userID)
 	}
-	// fallback to GetByID
+
 	p, err := m.GetByID(ctx, id)
 	return p, err
 }
@@ -337,7 +337,7 @@ func TestHandleGet_ReturnsIsFavoritedWhenAuthenticated(t *testing.T) {
 func TestHandleCreate_ServiceInvalidInput_Returns400(t *testing.T) {
 	m := &mockService{}
 	m.CreateFunc = func(ctx context.Context, userID int, req dto.CreatePropertyRequest) (dto.PropertyDTO, error) {
-		return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("title", req.Title, "invalid")
+		return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("title", req.Title, "некорректное значение")
 	}
 	logger := newLogger()
 	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)
@@ -419,7 +419,7 @@ func TestHandleUpdate_NotFound_Returns404(t *testing.T) {
 func TestHandleDelete_InternalError_Returns500(t *testing.T) {
 	m := &mockService{}
 	m.DeleteFunc = func(ctx context.Context, id int) (int, error) {
-		return 0, apperrors.NewErrInternal("db failure")
+		return 0, apperrors.NewErrInternal("ошибка базы данных")
 	}
 	logger := newLogger()
 	h := NewPropertyHandler(m, logger, &mockFavorite{}, nil)

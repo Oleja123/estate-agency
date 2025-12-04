@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 
 	tdb, err := testdb.EnsureStarted(testCtx, testLogger)
 	if err != nil {
-		testLogger.Error("Failed to start test DB container", "error", err)
+		testLogger.Error("не удалось запустить тестовый контейнер базы данных", "error", err)
 		os.Exit(1)
 	}
 	defer tdb.Terminate()

@@ -138,7 +138,6 @@ func (r *Repository) GetByName(ctx context.Context, name string) (propertytype.P
 func (r *Repository) Update(ctx context.Context, propertyType propertytype.PropertyType) (propertytype.PropertyType, error) {
 	const op = "propertytypedb.Repository.Update"
 
-	// Return the updated row so callers can use refreshed fields if DB sets them
 	sql, args, err := r.sq.
 		Update("property_types").
 		Set("property_name", propertyType.Name).

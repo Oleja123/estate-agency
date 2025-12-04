@@ -167,13 +167,12 @@ func TestCreate_PropertyNotFound(t *testing.T) {
 func TestCreate_InvalidFileFormat(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
-	// repo behaviors for create will not be reached because filestore will reject
+
 	repo.ListFn = func(ctx context.Context, propertyID int) ([]domain.PropertyImage, error) { return nil, nil }
 	repo.DeleteManyFn = func(ctx context.Context, propertyID int) ([]int, error) { return nil, nil }
 	store := filestore.New(t.TempDir())
 	svc := New(repo, logger(), store, t.TempDir())
 
-	// send random bytes with .txt extension -> unsupported format
 	bad := []byte("not an image")
 	_, err := svc.Create(ctx, dto.CreateImageRequest{PropertyID: 1, File: dto.ImageFile{Filename: "bad.txt", Data: bad}})
 	require.Error(t, err)
@@ -196,18 +195,20 @@ func TestCreateMany_EmptyFileInList(t *testing.T) {
 func TestCreateWhenDeleteManyFails(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockRepo{}
-	// simulate existing images so service will call DeleteMany
+
 	repo.ListFn = func(ctx context.Context, propertyID int) ([]domain.PropertyImage, error) {
 		return []domain.PropertyImage{{ID: 1, PropertyID: propertyID, Path: "/x"}}, nil
 	}
-	repo.DeleteManyFn = func(ctx context.Context, propertyID int) ([]int, error) { return nil, errors.New("db failure") }
+	repo.DeleteManyFn = func(ctx context.Context, propertyID int) ([]int, error) {
+		return nil, errors.New("ошибка базы данных")
+	}
 	store := filestore.New(t.TempDir())
 	svc := New(repo, logger(), store, t.TempDir())
 
 	jpeg := []byte{0xFF, 0xD8, 0xFF}
 	_, err := svc.Create(ctx, dto.CreateImageRequest{PropertyID: 5, File: dto.ImageFile{Filename: "x.jpg", Data: jpeg}})
 	require.Error(t, err)
-	// expect internal error
+
 	var ie apperrors.ErrInternal
 	assert.True(t, errors.As(err, &ie))
 }

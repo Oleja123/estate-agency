@@ -17,8 +17,8 @@ type Config struct {
 func LoadConfig(path string, logger *slog.Logger) (Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		logger.Error("failed to read file", "error", err)
-		return Config{}, fmt.Errorf("failed to read file: %w", err)
+		logger.Error("не удалось прочитать файл конфигурации", "error", err)
+		return Config{}, fmt.Errorf("не удалось прочитать файл: %w", err)
 	}
 
 	var cfg Config

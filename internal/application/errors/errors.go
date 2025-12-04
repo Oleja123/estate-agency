@@ -55,7 +55,7 @@ func NewErrInternal(message string) error {
 }
 
 func (e ErrInternal) Error() string {
-	return fmt.Sprintf("internal error: %s", e.Message)
+	return fmt.Sprintf("внутренняя ошибка: %s", e.Message)
 }
 
 type ErrTimeout struct {
@@ -67,7 +67,7 @@ func NewErrTimeout(message string) error {
 }
 
 func (e ErrTimeout) Error() string {
-	return fmt.Sprintf("timeout: %s", e.Message)
+	return fmt.Sprintf("превышено время ожидания: %s", e.Message)
 }
 
 type ErrGeocoding struct {
@@ -107,5 +107,5 @@ func NewErrForbidden(message string) error {
 }
 
 func (e ErrForbidden) Error() string {
-	return fmt.Sprintf("forbidden: %s", e.Message)
+	return fmt.Sprintf("доступ запрещён: %s", e.Message)
 }

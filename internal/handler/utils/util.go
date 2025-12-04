@@ -28,8 +28,7 @@ func mapAppError(err error) (int, interface{}) {
 	}
 	switch e := err.(type) {
 	case apperrors.ErrInvalidInput:
-		// special-case: foreign-key violation translated to invalid input in service
-		// return 409 Conflict with a clear message when reason mentions dependent records
+
 		if strings.Contains(strings.ToLower(e.Reason), "depend") || strings.Contains(strings.ToLower(e.Reason), "dependent") {
 			return http.StatusConflict, map[string]string{"error": "невозможно удалить: есть связанные записи"}
 		}
@@ -44,7 +43,7 @@ func mapAppError(err error) (int, interface{}) {
 	case apperrors.ErrInternal:
 		return http.StatusInternalServerError, map[string]string{"error": "внутренняя ошибка"}
 	case apperrors.ErrGeocoding:
-		// return detailed information about geocoding failures
+
 		status := http.StatusBadGateway
 		if e.StatusCode != 0 {
 			status = e.StatusCode

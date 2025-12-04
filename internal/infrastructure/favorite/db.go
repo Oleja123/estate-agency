@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 
+	"time"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/Oleja123/estate-agency/internal/domain/favorite"
+	imagedomain "github.com/Oleja123/estate-agency/internal/domain/image"
 	prop "github.com/Oleja123/estate-agency/internal/domain/property"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/basedb"
 	"github.com/Oleja123/estate-agency/internal/infrastructure/basedb/basedberrors"
@@ -64,9 +67,10 @@ func (r *Repository) GetByUserAndProperty(ctx context.Context, userID, propertyI
 	const op = "favoritedb.Repository.GetByUserAndProperty"
 
 	sql, args, err := r.sq.
-		Select("p.id, p.title, p.property_description, p.type_id, p.transaction_type, p.price, p.area, p.property_address, p.latitude, p.longitude, p.city, p.property_status, p.created_by, p.created_at, p.updated_at").
+		Select("p.id, p.title, p.property_description, p.type_id, p.transaction_type, p.price, p.area, p.property_address, p.latitude, p.longitude, p.city, p.property_status, p.created_by, p.created_at, p.updated_at, i.id AS image_id, i.property_id AS image_property_id, i.path AS image_path, i.created_at AS image_created_at").
 		From("favorites f").
 		Join("properties p ON p.id = f.property_id").
+		LeftJoin("LATERAL (SELECT id, property_id, path, created_at FROM property_images WHERE property_id = p.id ORDER BY id ASC LIMIT 1) i ON true").
 		Where(squirrel.Eq{"f.user_id": userID, "f.property_id": propertyID}).
 		ToSql()
 
@@ -80,14 +84,8 @@ func (r *Repository) GetByUserAndProperty(ctx context.Context, userID, propertyI
 		"property_id", propertyID,
 	)
 
-	var p prop.Property
-	err = r.Client.QueryRow(ctx, sql, args...).Scan(
-		&p.ID, &p.Title, &p.PropertyDescription, &p.TypeID,
-		&p.TransactionType, &p.Price, &p.Area, &p.PropertyAddress,
-		&p.Latitude, &p.Longitude, &p.City, &p.PropertyStatus,
-		&p.CreatedBy, &p.CreatedAt, &p.UpdatedAt,
-	)
-
+	row := r.Client.QueryRow(ctx, sql, args...)
+	p, err := r.ScanFavoriteProperty(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.Logger.DebugContext(ctx, "favorite/property not found",
@@ -158,13 +156,14 @@ func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]prop
 	var properties []prop.Property
 
 	query := r.sq.
-		Select("p.id, p.title, p.property_description, p.type_id, p.transaction_type, p.price, p.area, p.property_address, p.latitude, p.longitude, p.city, p.property_status, p.created_by, p.created_at, p.updated_at").
+		Select("p.id, p.title, p.property_description, p.type_id, p.transaction_type, p.price, p.area, p.property_address, p.latitude, p.longitude, p.city, p.property_status, p.created_by, p.created_at, p.updated_at, i.id AS image_id, i.property_id AS image_property_id, i.path AS image_path, i.created_at AS image_created_at").
 		From("favorites f").
-		Join("properties p ON p.id = f.property_id")
+		Join("properties p ON p.id = f.property_id").
+		LeftJoin("LATERAL (SELECT id, property_id, path, created_at FROM property_images WHERE property_id = p.id ORDER BY id ASC LIMIT 1) i ON true")
 
 	query = r.ApplyFilters(query, req.Filter)
 
-	countQ := r.sq.Select("COUNT(1)").From("favorites")
+	countQ := r.sq.Select("COUNT(1)").From("favorites f")
 	countQ = r.ApplyFilters(countQ, req.Filter)
 	countSQL, countArgs, err := countQ.ToSql()
 	if err != nil {
@@ -200,13 +199,8 @@ func (r *Repository) List(ctx context.Context, req favorite.ListRequest) ([]prop
 	defer rows.Close()
 
 	for rows.Next() {
-		var p prop.Property
-		if err := rows.Scan(
-			&p.ID, &p.Title, &p.PropertyDescription, &p.TypeID,
-			&p.TransactionType, &p.Price, &p.Area, &p.PropertyAddress,
-			&p.Latitude, &p.Longitude, &p.City, &p.PropertyStatus,
-			&p.CreatedBy, &p.CreatedAt, &p.UpdatedAt,
-		); err != nil {
+		p, err := r.ScanFavoriteProperty(rows)
+		if err != nil {
 			return nil, 0, fmt.Errorf("row scan error: %w", err)
 		}
 		properties = append(properties, p)
@@ -251,20 +245,21 @@ func (r *Repository) Exists(ctx context.Context, userID, propertyID int) (bool, 
 }
 
 func (r *Repository) ApplyFilters(query squirrel.SelectBuilder, filter favorite.Filter) squirrel.SelectBuilder {
+
 	if filter.UserID > 0 {
-		query = query.Where(squirrel.Eq{"user_id": filter.UserID})
+		query = query.Where(squirrel.Eq{"f.user_id": filter.UserID})
 	}
 
 	if filter.PropertyID > 0 {
-		query = query.Where(squirrel.Eq{"property_id": filter.PropertyID})
+		query = query.Where(squirrel.Eq{"f.property_id": filter.PropertyID})
 	}
 
 	if len(filter.UserIDs) > 0 {
-		query = query.Where(squirrel.Eq{"user_id": filter.UserIDs})
+		query = query.Where(squirrel.Eq{"f.user_id": filter.UserIDs})
 	}
 
 	if len(filter.PropertyIDs) > 0 {
-		query = query.Where(squirrel.Eq{"property_id": filter.PropertyIDs})
+		query = query.Where(squirrel.Eq{"f.property_id": filter.PropertyIDs})
 	}
 
 	return query
@@ -276,4 +271,38 @@ func (r *Repository) ScanFavorite(sc basedb.RowScanner) (favorite.Favorite, erro
 		return favorite.Favorite{}, err
 	}
 	return fav, nil
+}
+
+func (r *Repository) ScanFavoriteProperty(sc basedb.RowScanner) (prop.Property, error) {
+	var p prop.Property
+	var imageID *int
+	var imagePropertyID *int
+	var imagePath *string
+	var imageCreatedAt *time.Time
+
+	if err := sc.Scan(
+		&p.ID, &p.Title, &p.PropertyDescription, &p.TypeID,
+		&p.TransactionType, &p.Price, &p.Area, &p.PropertyAddress,
+		&p.Latitude, &p.Longitude, &p.City, &p.PropertyStatus,
+		&p.CreatedBy, &p.CreatedAt, &p.UpdatedAt,
+		&imageID, &imagePropertyID, &imagePath, &imageCreatedAt,
+	); err != nil {
+		return prop.Property{}, err
+	}
+
+	if imageID != nil {
+		img := imagedomain.PropertyImage{ID: *imageID}
+		if imagePropertyID != nil {
+			img.PropertyID = *imagePropertyID
+		}
+		if imagePath != nil {
+			img.Path = *imagePath
+		}
+		if imageCreatedAt != nil {
+			img.CreatedAt = *imageCreatedAt
+		}
+		p.Images = []imagedomain.PropertyImage{img}
+	}
+
+	return p, nil
 }

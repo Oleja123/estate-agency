@@ -32,7 +32,7 @@ func StartContainer(ctx context.Context, logger *slog.Logger) (*TestDB, error) {
 		logger.Info("TEST_DSN detected, using provided DSN instead of starting container", "dsn", dsn)
 
 		if err := runGooseMigrations(logger, dsn); err != nil {
-			return nil, fmt.Errorf("failed to run migrations against TEST_DSN: %w", err)
+			return nil, fmt.Errorf("не удалось применить миграции к TEST_DSN: %w", err)
 		}
 
 		host := ""
@@ -137,7 +137,7 @@ func StartContainer(ctx context.Context, logger *slog.Logger) (*TestDB, error) {
 
 	if err := runGooseMigrations(logger, dsn); err != nil {
 		terminate()
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
+		return nil, fmt.Errorf("не удалось применить миграции: %w", err)
 	}
 
 	return &TestDB{
@@ -170,24 +170,24 @@ func EnsureStarted(ctx context.Context, logger *slog.Logger) (*TestDB, error) {
 func runGooseMigrations(logger *slog.Logger, dsn string) error {
 	migrationsPath, err := getMigrationsPath(logger)
 	if err != nil {
-		return fmt.Errorf("failed to determine migrations path: %w", err)
+		return fmt.Errorf("не удалось определить путь к миграциям: %w", err)
 	}
 
 	logger.Info("running migrations (test container)", "path", migrationsPath, "dsn", dsn)
 
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
-		return fmt.Errorf("failed to open DB connection: %w", err)
+		return fmt.Errorf("не удалось открыть подключение к базе данных: %w", err)
 	}
 	defer db.Close()
 
 	if err := goose.SetDialect("postgres"); err != nil {
 
-		logger.Error("failed to set goose dialect", "error", err)
+		logger.Error("не удалось установить диалект goose", "error", err)
 	}
 
 	if err := goose.Up(db, migrationsPath); err != nil {
-		return fmt.Errorf("failed to run migrations (goose): %w", err)
+		return fmt.Errorf("не удалось применить миграции (goose): %w", err)
 	}
 
 	logger.Info("migrations applied successfully (test container)")
@@ -198,7 +198,7 @@ func getMigrationsPath(logger *slog.Logger) (string, error) {
 
 	cwd, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("failed to get current working directory: %w", err)
+		return "", fmt.Errorf("не удалось получить текущую рабочую директорию: %w", err)
 	}
 
 	maxDepth := 8

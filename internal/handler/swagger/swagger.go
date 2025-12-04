@@ -18,13 +18,13 @@ func RegisterSwagger(router chi.Router, logger *slog.Logger) {
 		w.Header().Set("Content-Type", "application/json")
 		data, err := os.ReadFile("docs/swagger.yaml")
 		if err != nil {
-			http.Error(w, "swagger spec not found", http.StatusInternalServerError)
+			http.Error(w, "спецификация swagger не найдена", http.StatusInternalServerError)
 			return
 		}
 
 		var v interface{}
 		if err := yaml.Unmarshal(data, &v); err != nil {
-			http.Error(w, "failed to parse swagger yaml", http.StatusInternalServerError)
+			http.Error(w, "не удалось распарсить swagger yaml", http.StatusInternalServerError)
 			return
 		}
 
@@ -57,7 +57,7 @@ func RegisterSwagger(router chi.Router, logger *slog.Logger) {
 		out := convert(v)
 		b, err := json.Marshal(out)
 		if err != nil {
-			http.Error(w, "failed to encode swagger json", http.StatusInternalServerError)
+			http.Error(w, "не удалось закодировать swagger в json", http.StatusInternalServerError)
 			return
 		}
 		_, _ = w.Write(b)

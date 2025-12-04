@@ -1,7 +1,7 @@
 swagger: "2.0"
 info:
   title: Estate Agency API
-  description: 'Enter the token as: "Bearer <token>" (include the word Bearer and a space)'
+  description: 'Введите токен в формате: "Bearer <token>" (включая слово Bearer и пробел)'
   version: 0.0.1
 host: localhost:8080
 basePath: /
@@ -121,15 +121,15 @@ paths:
                   updated_at: "2025-11-29T12:00:00Z"
               total: 1
         "400":
-          description: Bad Request
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/ErrorResponse'
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
           schema:
             $ref: '#/definitions/ErrorResponse'
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/ErrorResponse'
     post:
@@ -147,17 +147,17 @@ paths:
             $ref: '#/definitions/propertyhandler.PropertyCreateDoc'
       responses:
         "201":
-          description: Created
+          description: Создано
           schema:
             $ref: '#/definitions/propertyhandler.PropertyDTODoc'
         "400":
-          description: Invalid request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "403":
-          description: Forbidden
+          description: Доступ запрещён
         "409":
-          description: Conflict
+          description: Конфликт
         "422":
           description: Unprocessable Entity — геокодирование не вернуло координаты
           schema:
@@ -167,7 +167,7 @@ paths:
           schema:
             $ref: '#/definitions/GeocodingErrorResponse'
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/ErrorResponse'
 
@@ -187,13 +187,13 @@ paths:
           schema:
             $ref: '#/definitions/propertyhandler.PropertyDTODoc'
         "400":
-          description: Bad Request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "404":
-          description: Not Found
+          description: Не найдено
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
     patch:
       summary: Partially update property
       tags: [properties]
@@ -246,13 +246,13 @@ paths:
               created_at: "2025-11-29T12:00:00Z"
               updated_at: "2025-11-29T12:00:00Z"
         "400":
-          description: Invalid request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "403":
-          description: Forbidden
+          description: Доступ запрещён
         "404":
-          description: Not Found
+          description: Не найдено
         "422":
           description: Unprocessable Entity — геокодирование не вернуло координаты
           schema:
@@ -262,7 +262,7 @@ paths:
           schema:
             $ref: '#/definitions/GeocodingErrorResponse'
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
     delete:
       summary: Delete property
       tags: [properties]
@@ -282,19 +282,25 @@ paths:
                 type: integer
                 example: 1
         "400":
-          description: Bad Request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "403":
-          description: Forbidden
+          description: Доступ запрещён
         "404":
-          description: Not Found
+          description: Не найдено
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
 
   /properties/{id}/favorites:
     post:
       summary: Toggle favorite
+      description: >-
+        Переключает состояние избранного для указанного объявления от лица
+        текущего аутентифицированного пользователя. Если объявление добавлено в
+        избранное — возвращает созданный объект свойства (PropertyDTO) со
+        всеми полями, включая `images` (список изображений) и `image` (первая картинка).
+        Если запись удалена — возвращает 204 No Content.
       tags: [properties]
       parameters:
         - name: id
@@ -304,19 +310,43 @@ paths:
           example: 1
       responses:
         "201":
-          description: Created
+          description: Создано
           schema:
             $ref: '#/definitions/propertyhandler.PropertyDTODoc'
+          examples:
+            application/json:
+              id: 1
+              title: "Luxury Apartment"
+              property_description: "A spacious 3-bedroom apartment."
+              type_id: 2
+              transaction_type: "sale"
+              price: 350000
+              area: 120
+              property_address: "123 Main Street"
+              latitude: 40.7128
+              longitude: -74.006
+              city: "New York"
+              property_status: "available"
+              images:
+                - filename: "photo1.jpg"
+                  data: "base64encodedstring=="
+                - filename: "photo2.jpg"
+                  data: "base64encodedstring2=="
+              image:
+                filename: "photo1.jpg"
+                data: "base64encodedstring=="
+              created_at: "2025-11-29T12:00:00Z"
+              updated_at: "2025-11-29T12:00:00Z"
         "204":
-          description: Removed
+          description: Удалено
         "400":
-          description: Bad Request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "404":
-          description: Not Found
+          description: Не найдено
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
 
   /properties/{id}/images:
     
@@ -345,17 +375,17 @@ paths:
           x-files-multiple: true
       responses:
         "204":
-          description: No Content
+          description: Нет содержимого
         "400":
-          description: Bad Request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "403":
-          description: Forbidden
+          description: Доступ запрещён
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
         "501":
-          description: Not Implemented
+          description: Не реализовано
 
   # -------------------- Property Types --------------------
   /property_types:
@@ -377,9 +407,9 @@ paths:
           schema:
             $ref: '#/definitions/propertytypehandler.ListPropertyTypesResponseDoc'
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
     post:
       summary: Create property type
       tags: [property_types]
@@ -391,19 +421,19 @@ paths:
             $ref: '#/definitions/propertytypehandler.CreatePropertyTypeDoc'
       responses:
         "201":
-          description: Created
+          description: Создано
           schema:
             $ref: '#/definitions/propertytypehandler.PropertyTypeDTODoc'
         "400":
-          description: Invalid request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "403":
-          description: Forbidden
+          description: Доступ запрещён
         "409":
-          description: Conflict
+          description: Конфликт
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
 
   /property_types/{id}:
     get:
@@ -421,13 +451,13 @@ paths:
           schema:
             $ref: '#/definitions/propertytypehandler.PropertyTypeDTODoc'
         "400":
-          description: Bad Request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "404":
-          description: Not Found
+          description: Не найдено
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
     patch:
       summary: Partially update property type
       tags: [property_types]
@@ -461,15 +491,15 @@ paths:
               name: "UpdatedType"
               created_at: "2025-11-29T12:00:00Z"
         "400":
-          description: Bad Request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "403":
-          description: Forbidden
+          description: Доступ запрещён
         "404":
-          description: Not Found
+          description: Не найдено
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
     delete:
       summary: Delete property type
       tags: [property_types]
@@ -487,11 +517,11 @@ paths:
           schema:
             $ref: '#/definitions/ErrorResponse'
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "403":
-          description: Forbidden
+          description: Доступ запрещён
         "404":
-          description: Not Found
+          description: Не найдено
 
 # -------------------- Users --------------------
   /users:
@@ -533,9 +563,9 @@ paths:
           schema:
             $ref: '#/definitions/userhandler.ListUsersResponseDoc'
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
 
   /users/register:
     post:
@@ -550,15 +580,15 @@ paths:
             $ref: '#/definitions/userhandler.RegisterRequestDoc'
       responses:
         "201":
-          description: Created
+          description: Создано
           schema:
             $ref: '#/definitions/userhandler.PublicUserDoc'
         "400":
-          description: Invalid request
+          description: Некорректный запрос
         "409":
-          description: Conflict
+          description: Конфликт
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
 
   /users/login:
     post:
@@ -591,15 +621,15 @@ paths:
               refresh_token: "dGhpc2lzYXJlZnJlc2h0b2tlbg=="
               expires_at: "2025-11-29T14:00:00Z"
         "400":
-          description: Bad Request
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/ErrorResponse'
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
           schema:
             $ref: '#/definitions/ErrorResponse'
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/ErrorResponse'
   /users/{id}:
@@ -618,13 +648,13 @@ paths:
           schema:
             $ref: '#/definitions/userhandler.PublicUserDoc'
         "400":
-          description: Bad Request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "404":
-          description: Not Found
+          description: Не найдено
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
     delete:
       summary: Delete user
       tags: [users]
@@ -638,13 +668,13 @@ paths:
         "200":
           description: OK
         "400":
-          description: Bad Request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "403":
-          description: Forbidden
+          description: Доступ запрещён
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
 
   /users/{id}/profile:
     patch:
@@ -668,13 +698,13 @@ paths:
           schema:
             $ref: '#/definitions/userhandler.PublicUserDoc'
         "400":
-          description: Invalid request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "403":
-          description: Forbidden
+          description: Доступ запрещён
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
 
   /users/{id}/password:
     patch:
@@ -698,11 +728,11 @@ paths:
           schema:
             $ref: '#/definitions/userhandler.PublicUserDoc'
         "400":
-          description: Invalid request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
 
   /users/{id}/role:
     patch:
@@ -725,13 +755,13 @@ paths:
           schema:
             $ref: '#/definitions/userhandler.PublicUserDoc'
         "400":
-          description: Invalid request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "403":
-          description: Forbidden
+          description: Доступ запрещён
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
 
   /users/{id}/active:
     patch:
@@ -750,18 +780,23 @@ paths:
           schema:
             $ref: '#/definitions/userhandler.PublicUserDoc'
         "400":
-          description: Bad Request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "403":
-          description: Forbidden
+          description: Доступ запрещён
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
 
   /users/{id}/favorites:
     get:
       summary: List user favorites
       tags: [users]
+      description: >-
+        Возвращает список избранных объявлений указанного пользователя.
+        Каждый элемент массива — объект PropertyDTO. Поля `images` и `image`
+        присутствуют у каждого свойства: `image` содержит первую картинку, а
+        `images` — список файлов (filename + data). Требуется авторизация.
       parameters:
         - name: id
           in: path
@@ -788,17 +823,25 @@ paths:
                   longitude: -74.006
                   city: "New York"
                   property_status: "available"
+                  images:
+                    - filename: "photo1.jpg"
+                      data: "base64encodedstring=="
+                    - filename: "photo2.jpg"
+                      data: "base64encodedstring2=="
+                  image:
+                    filename: "photo1.jpg"
+                    data: "base64encodedstring=="
                   created_at: "2025-11-29T12:00:00Z"
                   updated_at: "2025-11-29T12:00:00Z"
               total: 1
         "400":
-          description: Bad Request
+          description: Некорректный запрос
         "401":
-          description: Unauthorized
+          description: Требуется авторизация
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
         "501":
-          description: Not Implemented
+          description: Не реализовано
 
   # -------------------- Tokens --------------------
   /tokens/refresh:
@@ -832,9 +875,9 @@ paths:
               refresh_token: "dGhpc2lzYXJlZnJlc2h0b2tlbg=="
               expires_at: "2025-11-29T14:00:00Z"
         "400":
-          description: Bad Request
+          description: Некорректный запрос
         "401":
-          description: Invalid refresh token
+          description: Недействительный токен обновления
 
   /tokens/logout:
     post:
@@ -853,13 +896,13 @@ paths:
           schema:
             type: object
             properties:
-              message: { type: string, example: "logged out" }
+              message: { type: string, example: "выход выполнен" }
         "400":
-          description: Bad Request
+          description: Некорректный запрос
         "401":
-          description: Invalid refresh token
+          description: Недействительный токен обновления
         "500":
-          description: Internal Server Error
+          description: Внутренняя ошибка сервера
 
 # -------------------- Definitions --------------------
 definitions:
@@ -881,7 +924,12 @@ definitions:
       is_favorited: { type: boolean, example: false }
       created_at: { type: string, format: date-time, example: "2025-11-29T12:00:00Z" }
       updated_at: { type: string, format: date-time, example: "2025-11-29T12:00:00Z" }
-      # images removed
+      images:
+        type: array
+        items:
+          $ref: '#/definitions/imagedto.ImageFileDoc'
+      image:
+        $ref: '#/definitions/imagedto.ImageFileDoc'
 
   propertyhandler.PropertyCreateDoc:
     type: object
@@ -927,6 +975,12 @@ definitions:
       total: { type: integer, example: 42 }
 
   # Image DTOs removed
+
+  imagedto.ImageFileDoc:
+    type: object
+    properties:
+      filename: { type: string, example: "photo1.jpg" }
+      data: { type: string, example: "base64encodedstring==", description: "Base64 encoded binary data of the image" }
 
   propertyhandler.FavoriteDTODoc:
     type: object
@@ -998,7 +1052,6 @@ definitions:
       last_name: { type: string, example: "Doe" }
       phone_number: { type: string, example: "+1234567890", nullable: true }
       
-
   userhandler.ChangePasswordRequestDoc:
     type: object
     properties:
@@ -1024,14 +1077,15 @@ definitions:
       access_token: { type: string, example: "eyJhbGciOiJIUzI1..." }
       refresh_token: { type: string, example: "dGhpc2lzYXJlZnJlc2h0b2tlbg==" }
       expires_at: { type: string, format: date-time, example: "2025-11-29T14:00:00Z" }
-    userhandler.ListFavoritesResponseDoc:
-      type: object
-      properties:
-        favorites:
-          type: array
-          items:
-            $ref: '#/definitions/propertyhandler.PropertyDTODoc'
-        total: { type: integer, example: 2 }
+
+  userhandler.ListFavoritesResponseDoc:
+    type: object
+    properties:
+      favorites:
+        type: array
+        items:
+          $ref: '#/definitions/propertyhandler.PropertyDTODoc'
+      total: { type: integer, example: 2 }
 
   userhandler.ListUsersResponseDoc:
     type: object
@@ -1051,7 +1105,7 @@ definitions:
     type: object
     properties:
       code: { type: integer, example: 400 }
-      message: { type: string, example: "Invalid request parameters" }
+      message: { type: string, example: "Некорректные параметры запроса" }
       details:
         type: object
         additionalProperties:

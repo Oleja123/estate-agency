@@ -49,7 +49,8 @@ func TestMain(m *testing.M) {
 
 	tdb, err := testdb.EnsureStarted(testCtx, testLogger)
 	if err != nil {
-		testLogger.Error("Failed to start test DB container", "error", err)
+		testLogger.Error("не удалось запустить тестовый контейнер базы данных", "error", err)
+
 		os.Exit(1)
 	}
 	defer tdb.Terminate()
@@ -84,7 +85,7 @@ func CreateTestUser() int {
 			_ = testClient.QueryRow(context.Background(), "SELECT id FROM users WHERE email=$1", "test@example.com").Scan(&userID)
 			return userID
 		}
-		panic("Failed to create test user: " + err.Error())
+		panic("не удалось создать тестового пользователя: " + err.Error())
 	}
 	return userID
 }
@@ -140,7 +141,7 @@ func CreateTestProperties() []int {
 		`, prop.Title, prop.PropertyDescription, prop.TypeID, prop.TransactionType, prop.Price, prop.Area, prop.PropertyAddress, prop.Latitude, prop.Longitude, prop.City, prop.PropertyStatus, prop.CreatedBy).Scan(&id)
 
 		if err != nil {
-			panic("Failed to create test property: " + err.Error())
+			panic("не удалось создать тестовое свойство: " + err.Error())
 		}
 		ids = append(ids, id)
 	}

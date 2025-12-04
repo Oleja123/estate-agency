@@ -38,11 +38,11 @@ func New(repo domain.Repository, typeRepo ptypedomain.Repository, logger *slog.L
 func (s *service) Create(ctx context.Context, userID int, req dto.CreatePropertyRequest) (dto.PropertyDTO, error) {
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
-		return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("title", title, "must not be empty")
+		return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("title", title, "не может быть пустым")
 	}
 
 	if req.TypeID == 0 {
-		return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("type_id", req.TypeID, "must be provided")
+		return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("type_id", req.TypeID, "обязательное поле")
 	}
 	if _, err := s.typeRepo.GetByID(ctx, req.TypeID); err != nil {
 		var nf dberrors.ErrNotFound
@@ -50,8 +50,8 @@ func (s *service) Create(ctx context.Context, userID int, req dto.CreateProperty
 		case errors.As(err, &nf):
 			return dto.PropertyDTO{}, apperrors.NewErrNotFound("property_type", req.TypeID)
 		default:
-			s.logger.Error("create property: type repo error", "err", err)
-			return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to validate property type")
+			s.logger.Error("создание свойства: ошибка репозитория типов", "err", err)
+			return dto.PropertyDTO{}, apperrors.NewErrInternal("не удалось проверить тип свойства")
 		}
 	}
 
@@ -69,13 +69,13 @@ func (s *service) Create(ctx context.Context, userID int, req dto.CreateProperty
 	}
 
 	if p.PropertyAddress == "" {
-		return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("property_address", p.PropertyAddress, "must not be empty")
+		return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("property_address", p.PropertyAddress, "не может быть пустым")
 	}
 
 	lat, lon, err := s.geo.Geocode(p.PropertyAddress)
 	if err != nil {
-		s.logger.Error("geocode error при создании свойства", "err", err)
-		// try to extract infra geocoder error details and translate to structured app error
+		s.logger.Error("ошибка геокодирования при создании свойства", "err", err)
+
 		var (
 			greq geocoder.ErrGeoRequest
 			gno  geocoder.ErrGeoNoResults
@@ -84,7 +84,7 @@ func (s *service) Create(ctx context.Context, userID int, req dto.CreateProperty
 		)
 		switch {
 		case errors.As(err, &gno):
-			appErr := apperrors.NewErrGeocodingWithDetails(gno.Error(), "geoapify", "no_results", "no coordinates for address", 422, gno.Address)
+			appErr := apperrors.NewErrGeocodingWithDetails(gno.Error(), "geoapify", "no_results", "нет координат для адреса", 422, gno.Address)
 			return dto.PropertyDTO{}, appErr
 		case errors.As(err, &gcfg):
 			appErr := apperrors.NewErrGeocodingWithDetails(gcfg.Error(), "geoapify", "config", gcfg.Message, 500, "")
@@ -109,17 +109,17 @@ func (s *service) Create(ctx context.Context, userID int, req dto.CreateProperty
 		case errors.As(err, &ae):
 			return dto.PropertyDTO{}, apperrors.NewErrAlreadyExists("property", "title", title)
 		default:
-			s.logger.Error("create property: repo create error", "err", err)
-			return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to create property")
+			s.logger.Error("создание свойства: ошибка при создании в репозитории", "err", err)
+			return dto.PropertyDTO{}, apperrors.NewErrInternal("не удалось создать свойство")
 		}
 	}
 
 	created, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		s.logger.Error("create property: failed to fetch created", "err", err)
-		return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to fetch created property")
+		s.logger.Error("создание свойства: не удалось получить созданное свойство", "err", err)
+		return dto.PropertyDTO{}, apperrors.NewErrInternal("не удалось получить созданное свойство")
 	}
-	s.logger.Info("property created", "id", created.ID, "title", created.Title)
+	s.logger.Info("объявление создано", "id", created.ID, "title", created.Title)
 	return s.MapProperty(created)
 }
 
@@ -131,8 +131,8 @@ func (s *service) GetByID(ctx context.Context, id int) (dto.PropertyDTO, error) 
 		case errors.As(err, &nf):
 			return dto.PropertyDTO{}, apperrors.NewErrNotFound("property", id)
 		default:
-			s.logger.Error("get property: repo error", "err", err)
-			return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to fetch property")
+			s.logger.Error("получение свойства: ошибка репозитория", "err", err)
+			return dto.PropertyDTO{}, apperrors.NewErrInternal("не удалось получить свойство")
 		}
 	}
 	return s.MapProperty(p)
@@ -146,8 +146,8 @@ func (s *service) GetByIDWithFavorite(ctx context.Context, id int, userID int) (
 		case errors.As(err, &nf):
 			return dto.PropertyDTO{}, apperrors.NewErrNotFound("property", id)
 		default:
-			s.logger.Error("get property with favorite: repo error", "err", err)
-			return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to fetch property")
+			s.logger.Error("получение свойства с информацией об избранном: ошибка репозитория", "err", err)
+			return dto.PropertyDTO{}, apperrors.NewErrInternal("не удалось получить свойство")
 		}
 	}
 	return s.MapPropertyWithFavorite(p, fav)
@@ -161,8 +161,8 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) (dt
 		case errors.As(err, &nf):
 			return dto.PropertyDTO{}, apperrors.NewErrNotFound("property", req.ID)
 		default:
-			s.logger.Error("update property: failed to fetch", "err", err)
-			return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to fetch property")
+			s.logger.Error("обновление свойства: не удалось получить свойство", "err", err)
+			return dto.PropertyDTO{}, apperrors.NewErrInternal("не удалось получить свойство")
 		}
 	}
 
@@ -175,8 +175,8 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) (dt
 				case errors.As(err, &nf):
 					return dto.PropertyDTO{}, apperrors.NewErrNotFound("property_type", val)
 				default:
-					s.logger.Error("update property: type repo error", "err", err)
-					return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to validate property type")
+					s.logger.Error("обновление свойства: ошибка репозитория типов", "err", err)
+					return dto.PropertyDTO{}, apperrors.NewErrInternal("не удалось проверить тип свойства")
 				}
 			}
 			p.TypeID = val
@@ -210,11 +210,11 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) (dt
 
 	if req.PropertyAddress.Defined && req.PropertyAddress.Valid {
 		if p.PropertyAddress == "" {
-			return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("property_address", p.PropertyAddress, "must not be empty")
+			return dto.PropertyDTO{}, apperrors.NewErrInvalidInput("property_address", p.PropertyAddress, "не может быть пустым")
 		}
 		lat, lon, err := s.geo.Geocode(p.PropertyAddress)
 		if err != nil {
-			s.logger.Error("geocode error при обновлении свойства", "err", err)
+			s.logger.Error("ошибка геокодирования при обновлении свойства", "err", err)
 			var (
 				greq geocoder.ErrGeoRequest
 				gno  geocoder.ErrGeoNoResults
@@ -223,7 +223,7 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) (dt
 			)
 			switch {
 			case errors.As(err, &gno):
-				appErr := apperrors.NewErrGeocodingWithDetails(gno.Error(), "geoapify", "no_results", "no coordinates for address", 422, gno.Address)
+				appErr := apperrors.NewErrGeocodingWithDetails(gno.Error(), "geoapify", "no_results", "нет координат для адреса", 422, gno.Address)
 				return dto.PropertyDTO{}, appErr
 			case errors.As(err, &gcfg):
 				appErr := apperrors.NewErrGeocodingWithDetails(gcfg.Error(), "geoapify", "config", gcfg.Message, 500, "")
@@ -252,11 +252,11 @@ func (s *service) Update(ctx context.Context, req dto.UpdatePropertyRequest) (dt
 		case errors.As(err, &di):
 			return dto.PropertyDTO{}, apperrors.NewErrInvalidInput(di.Field, di.Value, di.Reason)
 		default:
-			s.logger.Error("update property: repo update failed", "err", err)
-			return dto.PropertyDTO{}, apperrors.NewErrInternal("failed to update property")
+			s.logger.Error("обновление свойства: ошибка обновления в репозитории", "err", err)
+			return dto.PropertyDTO{}, apperrors.NewErrInternal("не удалось обновить свойство")
 		}
 	}
-	s.logger.Info("update property: updated", "id", updated.ID)
+	s.logger.Info("обновление объявления: обновлено", "id", updated.ID)
 	return s.MapProperty(updated)
 }
 
@@ -264,8 +264,8 @@ func (s *service) List(ctx context.Context, req dto.ListPropertiesRequest) (dto.
 	dr := domain.ListRequest{Filter: req.Filter, Limit: req.Limit, Offset: req.Offset}
 	list, total, err := s.repo.List(ctx, dr)
 	if err != nil {
-		s.logger.Error("list properties: repo list failed", "err", err)
-		return dto.ListPropertiesResponse{}, apperrors.NewErrInternal("failed to list properties")
+		s.logger.Error("получение списка свойств: ошибка репозитория", "err", err)
+		return dto.ListPropertiesResponse{}, apperrors.NewErrInternal("не удалось получить список свойств")
 	}
 	props, err := s.MapProperties(list)
 	if err != nil {
@@ -282,17 +282,17 @@ func (s *service) Delete(ctx context.Context, id int) (int, error) {
 		case errors.As(err, &nf):
 			return 0, apperrors.NewErrNotFound("property", id)
 		default:
-			s.logger.Error("delete property: repo delete failed", "err", err)
-			return 0, apperrors.NewErrInternal("failed to delete property")
+			s.logger.Error("удаление свойства: ошибка удаления в репозитории", "err", err)
+			return 0, apperrors.NewErrInternal("не удалось удалить свойство")
 		}
 	}
-	s.logger.Info("delete property: deleted", "id", deletedID)
+	s.logger.Info("удаление объявления: удалено", "id", deletedID)
 	return deletedID, nil
 }
 
 func (s *service) ToggleFavorite(ctx context.Context, userID int, propertyID int) (bool, dto.PropertyDTO, error) {
 	if s.favSvc == nil {
-		return false, dto.PropertyDTO{}, apperrors.NewErrInternal("favorites not configured")
+		return false, dto.PropertyDTO{}, apperrors.NewErrInternal("сервис избранного не настроен")
 	}
 	key := favdto.CreateFavoriteRequest{UserID: userID, PropertyID: propertyID}
 	exists, err := s.favSvc.Exists(ctx, key)
@@ -306,7 +306,7 @@ func (s *service) ToggleFavorite(ctx context.Context, userID int, propertyID int
 		}
 		return false, dto.PropertyDTO{}, nil
 	}
-	// create favorite returns the property id; fetch full property to return to caller
+
 	_, err = s.favSvc.Create(ctx, key)
 	if err != nil {
 		return false, dto.PropertyDTO{}, err

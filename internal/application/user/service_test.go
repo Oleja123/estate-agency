@@ -185,7 +185,7 @@ func TestUserService_Login(t *testing.T) {
 				h, _ := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
 				return &mockRepo{
 					GetByEmailFn: func(ctx context.Context, email string) (domain.User, error) {
-						return domain.User{Id: 1, Email: email, PasswordHash: string(h)}, nil
+						return domain.User{Id: 1, Email: email, PasswordHash: string(h), IsActive: true}, nil
 					},
 				}
 			},
@@ -253,7 +253,7 @@ func TestUserService_LoginWithTokens(t *testing.T) {
 
 	repo := &mockRepo{
 		GetByEmailFn: func(ctx context.Context, email string) (domain.User, error) {
-			return domain.User{Id: 42, Email: email, PasswordHash: string(h)}, nil
+			return domain.User{Id: 42, Email: email, PasswordHash: string(h), IsActive: true}, nil
 		},
 	}
 	tokSvc := token.NewMemoryService()
@@ -278,7 +278,7 @@ func TestUserService_RefreshAndLogout(t *testing.T) {
 
 	repo := &mockRepo{
 		GetByEmailFn: func(ctx context.Context, email string) (domain.User, error) {
-			return domain.User{Id: 7, Email: email, PasswordHash: string(h)}, nil
+			return domain.User{Id: 7, Email: email, PasswordHash: string(h), IsActive: true}, nil
 		},
 		GetByIDFunc: func(ctx context.Context, id int) (domain.User, error) {
 			return domain.User{Id: id, Email: "x@x.com", IsActive: true}, nil
@@ -313,7 +313,7 @@ func TestUserService_RefreshToken_Deactivated(t *testing.T) {
 
 	repo := &mockRepo{
 		GetByEmailFn: func(ctx context.Context, email string) (domain.User, error) {
-			return domain.User{Id: 7, Email: email, PasswordHash: string(h)}, nil
+			return domain.User{Id: 7, Email: email, PasswordHash: string(h), IsActive: true}, nil
 		},
 		GetByIDFunc: func(ctx context.Context, id int) (domain.User, error) {
 			return domain.User{Id: id, Email: "x@x.com", IsActive: false}, nil

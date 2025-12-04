@@ -1,8 +1,8 @@
 package dto
 
 import (
+	"github.com/Oleja123/estate-agency/internal/application/property/dto"
 	"github.com/Oleja123/estate-agency/internal/domain/favorite"
-	prop "github.com/Oleja123/estate-agency/internal/domain/property"
 )
 
 type CreateFavoriteRequest struct {
@@ -17,6 +17,6 @@ type ListFavoritesRequest struct {
 }
 
 type ListFavoritesResponse struct {
-	Favorites []prop.Property `json:"favorites"`
-	Total     int             `json:"total"`
+	Favorites []dto.PropertyDTO `json:"favorites"`
+	Total     int               `json:"total"`
 }

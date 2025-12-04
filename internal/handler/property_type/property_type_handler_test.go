@@ -258,7 +258,7 @@ func TestHandleDelete_Middleware_NonAdminForbidden(t *testing.T) {
 func TestHandleCreate_ServiceInvalidInput_Returns400(t *testing.T) {
 	m := &mockService{}
 	m.CreateFunc = func(ctx context.Context, req dto.CreatePropertyTypeRequest) (domain.PropertyType, error) {
-		return domain.PropertyType{}, apperrors.NewErrInvalidInput("name", req.Name, "invalid")
+		return domain.PropertyType{}, apperrors.NewErrInvalidInput("name", req.Name, "некорректное значение")
 	}
 	logger := newLogger()
 	h := NewPropertyTypeHandler(m, logger)
@@ -338,7 +338,7 @@ func TestHandleUpdate_NotFound_Returns404(t *testing.T) {
 func TestHandleDelete_InternalError_Returns500(t *testing.T) {
 	m := &mockService{}
 	m.DeleteFunc = func(ctx context.Context, id int) (int, error) {
-		return 0, apperrors.NewErrInternal("db failure")
+		return 0, apperrors.NewErrInternal("ошибка базы данных")
 	}
 	logger := newLogger()
 	h := NewPropertyTypeHandler(m, logger)

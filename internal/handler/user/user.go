@@ -105,7 +105,7 @@ func (h *UserHandler) handleProfile(w http.ResponseWriter, r *http.Request) {
 		handlerutils.WriteJSON(w, code, body)
 		return
 	}
-	// вернуть обновлённую сущность, теперь сервис возвращает её напрямую
+
 	handlerutils.WriteJSON(w, http.StatusOK, updated)
 }
 
@@ -243,9 +243,9 @@ func (h *UserHandler) handleSetActive(w http.ResponseWriter, r *http.Request) {
 		handlerutils.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "некорректный id"})
 		return
 	}
-	// запретить пользователю деактивировать самого себя
+
 	if uid, ok := auth.UserIDFromContext(r.Context()); ok && uid == id {
-		// получим текущее состояние пользователя — если он активен, то смена статуса приведёт к деактивации
+
 		u, err := h.svc.GetUserByID(r.Context(), id)
 		if err != nil {
 			code, body := handlerutils.MapAppError(err)
@@ -256,7 +256,7 @@ func (h *UserHandler) handleSetActive(w http.ResponseWriter, r *http.Request) {
 			handlerutils.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "нельзя деактивировать самого себя"})
 			return
 		}
-		// если пользователь уже неактивен — позволим toggling (это активирует его)
+
 	}
 
 	updated, err := h.svc.ToggleActiveAccount(r.Context(), id)

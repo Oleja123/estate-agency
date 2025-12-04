@@ -77,5 +77,5 @@ func (h *TokenHandler) handleLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handlerutils.WriteJSON(w, http.StatusOK, map[string]string{"message": "logged out"})
+	handlerutils.WriteJSON(w, http.StatusOK, map[string]string{"message": "выход выполнен"})
 }

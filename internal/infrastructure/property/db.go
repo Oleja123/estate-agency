@@ -78,7 +78,7 @@ func (r *Repository) Create(ctx context.Context, prop property.Property) (int, e
 
 func (r *Repository) GetByID(ctx context.Context, id int) (property.Property, error) {
 	const op = "propertydb.Repository.GetByID"
-	// Build query with LEFT JOIN to aggregate images as JSON
+
 	imagesAgg := `COALESCE(json_agg(json_build_object('id', i.id, 'property_id', i.property_id, 'path', i.path, 'created_at', i.created_at) ORDER BY i.created_at DESC) FILTER (WHERE i.id IS NOT NULL), '[]') AS images`
 
 	sql, args, err := r.sq.
@@ -121,7 +121,7 @@ func (r *Repository) GetByID(ctx context.Context, id int) (property.Property, er
 	if len(imagesJSON) > 0 {
 		var imgs []imagedomain.PropertyImage
 		if err := json.Unmarshal(imagesJSON, &imgs); err != nil {
-			return property.Property{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("failed to unmarshal images: %s", err))
+			return property.Property{}, basedberrors.NewErrDatabase(op, fmt.Sprintf("не удалось распарсить изображения: %s", err))
 		}
 		prop.Images = imgs
 	}
@@ -135,13 +135,9 @@ func (r *Repository) GetByID(ctx context.Context, id int) (property.Property, er
 	return prop, nil
 }
 
-// GetByIDWithFavorite returns the property and whether the specified user has it in favorites.
 func (r *Repository) GetByIDWithFavorite(ctx context.Context, id int, userID int) (property.Property, bool, error) {
 	const op = "propertydb.Repository.GetByIDWithFavorite"
 
-	// Build the query using squirrel: select property columns and a boolean
-	// computed by checking if a favorite row exists for the given user.
-	// Use LEFT JOIN with the user filter in the join to avoid duplicating rows.
 	imagesAgg := `COALESCE(json_agg(json_build_object('id', i.id, 'property_id', i.property_id, 'path', i.path, 'created_at', i.created_at) ORDER BY i.created_at DESC) FILTER (WHERE i.id IS NOT NULL), '[]') AS images`
 
 	sql, args, err := r.sq.
@@ -186,7 +182,7 @@ func (r *Repository) GetByIDWithFavorite(ctx context.Context, id int, userID int
 	if len(imagesJSON) > 0 {
 		var imgs []imagedomain.PropertyImage
 		if err := json.Unmarshal(imagesJSON, &imgs); err != nil {
-			return property.Property{}, false, basedberrors.NewErrDatabase(op, fmt.Sprintf("failed to unmarshal images: %s", err))
+			return property.Property{}, false, basedberrors.NewErrDatabase(op, fmt.Sprintf("не удалось распарсить изображения: %s", err))
 		}
 		prop.Images = imgs
 	}
@@ -296,7 +292,6 @@ func (r *Repository) List(ctx context.Context, req property.ListRequest) ([]prop
 
 	var properties []property.Property
 
-	// select property columns and the single image with smallest id per property
 	query := r.sq.
 		Select("properties.*", "i.id AS image_id", "i.property_id AS image_property_id", "i.path AS image_path", "i.created_at AS image_created_at").
 		From("properties").

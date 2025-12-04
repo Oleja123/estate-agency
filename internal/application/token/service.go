@@ -20,7 +20,7 @@ type Service interface {
 	InvalidateRefreshToken(token string) error
 }
 
-var ErrInvalidToken = errors.New("invalid token")
+var ErrInvalidToken = errors.New("недействительный токен")
 
 func genRandomString(n int) (string, error) {
 	b := make([]byte, n)

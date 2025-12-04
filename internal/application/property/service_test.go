@@ -111,7 +111,7 @@ func (m *mockRepo) GetByIDWithFavorite(ctx context.Context, id int, userID int) 
 	if m.GetByIDWithFavoriteFn != nil {
 		return m.GetByIDWithFavoriteFn(ctx, id, userID)
 	}
-	// default delegate to GetByID if defined
+
 	if m.GetByIDFn != nil {
 		p, err := m.GetByIDFn(ctx, id)
 		return p, false, err

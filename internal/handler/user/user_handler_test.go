@@ -13,6 +13,7 @@ import (
 
 	apperrors "github.com/Oleja123/estate-agency/internal/application/errors"
 	favdto "github.com/Oleja123/estate-agency/internal/application/favorite/dto"
+	propertydto "github.com/Oleja123/estate-agency/internal/application/property/dto"
 	dto "github.com/Oleja123/estate-agency/internal/application/user/dto"
 	prop "github.com/Oleja123/estate-agency/internal/domain/property"
 	auth "github.com/Oleja123/estate-agency/internal/handler/auth"
@@ -52,6 +53,24 @@ func (m *mockFavorite) List(ctx context.Context, req favdto.ListFavoritesRequest
 	return favdto.ListFavoritesResponse{}, nil
 }
 func (m *mockFavorite) Exists(ctx context.Context, key favdto.CreateFavoriteRequest) (bool, error) {
+	return false, nil
+}
+
+type favMock struct{}
+
+func (f *favMock) Create(ctx context.Context, req favdto.CreateFavoriteRequest) (int, error) {
+	return req.PropertyID, nil
+}
+func (f *favMock) GetByUserAndProperty(ctx context.Context, key favdto.CreateFavoriteRequest) (prop.Property, error) {
+	return prop.Property{ID: key.PropertyID, CreatedBy: key.UserID}, nil
+}
+func (f *favMock) Delete(ctx context.Context, key favdto.CreateFavoriteRequest) (int, error) {
+	return 0, nil
+}
+func (f *favMock) List(ctx context.Context, req favdto.ListFavoritesRequest) (favdto.ListFavoritesResponse, error) {
+	return favdto.ListFavoritesResponse{Favorites: []propertydto.PropertyDTO{{ID: 10, Title: "p1"}}, Total: 1}, nil
+}
+func (f *favMock) Exists(ctx context.Context, key favdto.CreateFavoriteRequest) (bool, error) {
 	return false, nil
 }
 
@@ -382,7 +401,7 @@ func TestHandleRegister_AlreadyExists_Returns409(t *testing.T) {
 func TestHandleLogin_InvalidCredentials_Returns401(t *testing.T) {
 	m := &mockService{}
 	m.LoginFunc = func(ctx context.Context, req dto.LoginRequest) (dto.LoginResponse, error) {
-		return dto.LoginResponse{}, apperrors.NewErrInvalidInput("credentials", nil, "invalid")
+		return dto.LoginResponse{}, apperrors.NewErrInvalidInput("credentials", nil, "неверные учетные данные")
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 	h := NewUserHandler(m, logger, &mockFavorite{})
@@ -419,7 +438,7 @@ func TestHandleGetUser_NotFound_Returns404(t *testing.T) {
 func TestHandleChangePassword_Owner_BadRequest_Returns400(t *testing.T) {
 	m := &mockService{}
 	m.ChangePasswordFunc = func(ctx context.Context, userID int, req dto.ChangePasswordRequest) (dto.PublicUser, error) {
-		return dto.PublicUser{}, apperrors.NewErrInvalidInput("password", nil, "bad current password")
+		return dto.PublicUser{}, apperrors.NewErrInvalidInput("password", nil, "неверный текущий пароль")
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 	h := NewUserHandler(m, logger, &mockFavorite{})
@@ -460,7 +479,6 @@ func TestHandleSetActive_TogglesToInactive(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
 	rr := httptest.NewRecorder()
 
-	// ensure GetUserByID returns updated user for the response
 	now := time.Now()
 	m.GetUserByIDFunc = func(ctx context.Context, userID int) (dto.PublicUser, error) {
 		return dto.PublicUser{Id: userID, Email: "u@x", IsActive: false, CreatedAt: now, UpdatedAt: now}, nil
@@ -519,5 +537,30 @@ func TestHandleSetActive_TogglesToActive(t *testing.T) {
 	}
 	if !setCalled || setUserID != 8 {
 		t.Fatalf("expected ToggleActiveAccount called with user 8, got called=%v user=%d", setCalled, setUserID)
+	}
+}
+
+func TestHandleGetFavorites_ReturnsList(t *testing.T) {
+	m := &mockService{}
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	h := NewUserHandler(m, logger, &favMock{})
+
+	req := httptest.NewRequest(http.MethodGet, "/users/5/favorites", nil)
+	rc := chi.NewRouteContext()
+	rc.URLParams.Add("id", "5")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
+
+	rr := httptest.NewRecorder()
+	h.handleGetFavorites(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	var got favdto.ListFavoritesResponse
+	if err := json.NewDecoder(rr.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v body=%s", err, rr.Body.String())
+	}
+	if got.Total != 1 || len(got.Favorites) != 1 {
+		t.Fatalf("unexpected favorites response: %+v", got)
 	}
 }

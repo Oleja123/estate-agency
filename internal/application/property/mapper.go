@@ -13,7 +13,7 @@ import (
 func (s *service) MapProperty(p domain.Property) (dto.PropertyDTO, error) {
 	images, err := s.getFilesImages(p.Images)
 	if err != nil {
-		s.logger.Error("failed to get files images", "error", err)
+		s.logger.Error("не удалось получить файлы изображений", "error", err)
 		return dto.PropertyDTO{}, err
 	}
 
@@ -48,7 +48,7 @@ func (s *service) getFilesImages(images []imagedomain.PropertyImage) ([]imagedto
 	for _, img := range images {
 		data, err := s.fileStore.Read(img.Path)
 		if err != nil {
-			s.logger.Error("failed to read image file", "path", img.Path, "error", err)
+			s.logger.Error("не удалось прочитать файл изображения", "path", img.Path, "error", err)
 			return nil, apperrors.NewErrInternal("не удалось открыть файл изображения")
 		}
 		file := imagedto.ImageFile{

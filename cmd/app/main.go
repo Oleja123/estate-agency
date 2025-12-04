@@ -46,11 +46,11 @@ func main() {
 
 	cfg, err := config.LoadConfig(cfgPath, logger)
 	if err != nil {
-		logger.Error("failed to load config", "err", err, "path", cfgPath)
+		logger.Error("не удалось загрузить конфигурацию", "err", err, "path", cfgPath)
 		os.Exit(1)
 	}
 
-	logger.Info("config loaded",
+	logger.Info("конфигурация загружена",
 		"db_host", cfg.DbConfig.Host,
 		"db_name", cfg.DbConfig.Database,
 		"goose_path", cfg.GoosePath,
@@ -59,7 +59,7 @@ func main() {
 	dbClient, err := postgresqlclient.NewClient(context.Background(), *logger, cfg)
 
 	if err != nil {
-		logger.Error("failed to create db client", "err", err)
+		logger.Error("не удалось создать клиент базы данных", "err", err)
 		os.Exit(1)
 	}
 
@@ -72,7 +72,8 @@ func main() {
 	tokSvc := token.NewMemoryService()
 	userService := userservice.New(userStorage, logger, password.NewBcryptHasher(), tokSvc)
 	propertyTypeService := propertytypeservice.New(propertyTypeStorage, logger)
-	favoriteService := favoriteservice.New(favoriteStorage, logger)
+	filestore := filestore.New("images/")
+	favoriteService := favoriteservice.New(favoriteStorage, logger, filestore)
 
 	var geoSvc geocoder.GeoService
 	if cfg.GeoConfig.APIKey != "" {
@@ -83,16 +84,14 @@ func main() {
 	}
 
 	if _, err := userService.SetUserRole(context.Background(), 1, "admin"); err != nil {
-		logger.Error("failed to set initial admin role", "err", err)
+		logger.Error("не удалось установить начальную роль администратора", "err", err)
 	}
 
-	filestore := filestore.New("images/")
 	propertyService := propertyservice.New(propertyStorage, propertyTypeStorage, logger, geoSvc, favoriteService, filestore)
 	imageService := imageservice.New(imageStorage, logger, filestore, "images/")
 
 	router := chi.NewRouter()
 
-	// CORS middleware: allow preflight requests and set common headers
 	router.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -131,9 +130,9 @@ func main() {
 	srv := &http.Server{Addr: ":" + port, Handler: router}
 
 	go func() {
-		logger.Info("starting server", "addr", srv.Addr)
+		logger.Info("запуск сервера", "addr", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("server failed", "err", err)
+			logger.Error("сбой сервера", "err", err)
 			os.Exit(1)
 		}
 	}()
@@ -144,9 +143,9 @@ func main() {
 
 	ctxShut, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	logger.Info("shutting down server")
+	logger.Info("завершение работы сервера")
 	if err := srv.Shutdown(ctxShut); err != nil {
-		logger.Error("shutdown error", "err", err)
+		logger.Error("ошибка при завершении работы сервера", "err", err)
 		os.Exit(1)
 	}
 

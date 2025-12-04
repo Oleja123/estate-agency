@@ -6,7 +6,7 @@ import (
 	prop "github.com/Oleja123/estate-agency/internal/domain/property"
 )
 
-type 	Filter struct {
+type Filter struct {
 	UserID      int
 	PropertyID  int
 	UserIDs     []int
