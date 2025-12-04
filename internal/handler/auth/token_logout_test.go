@@ -4,12 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"log/slog"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
@@ -60,10 +57,6 @@ func (m *mockUserSvc) ListUsers(ctx context.Context, req dto.ListUsersRequest) (
 func (m *mockUserSvc) DeleteUser(ctx context.Context, userID int) (int, error) { return 0, nil }
 func (m *mockUserSvc) SetUserRole(ctx context.Context, userID int, role string) (dto.PublicUser, error) {
 	return dto.PublicUser{}, nil
-}
-
-func logger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 }
 
 func TestHandleLogout_Success(t *testing.T) {
