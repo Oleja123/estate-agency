@@ -58,6 +58,10 @@ jobs:
           export GOPATH=$(go env GOPATH)
           export PATH=$PATH:$GOPATH/bin
           goose -dir db/migrations postgres "$DSN" up
+      - name: Install gotestsum (for JUnit output)
+        run: |
+          go install gotest.tools/gotestsum@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: Run tests (sequential packages to avoid DB migration races)
         env:
@@ -66,4 +70,23 @@ jobs:
           # Run package tests sequentially to avoid concurrent migrations/seed operations
           # which can cause FK violations, duplicate key inserts and deadlocks when multiple
           # test packages try to run goose or mutate shared DB at the same time.
-          go test -p=1 ./... -v -count=1
+          # Produce coverage.out and JUnit xml (test-results.xml)
+          gotestsum --junitfile test-results.xml -- -p=1 -count=1 -v -coverprofile=coverage.out ./...
+
+      - name: Generate coverage HTML
+        run: |
+          if [ -f coverage.out ]; then
+            go tool cover -html=coverage.out -o coverage.html
+          else
+            echo "coverage.out not found"
+            exit 1
+          fi
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            coverage.out
+            coverage.html
+            test-results.xml
